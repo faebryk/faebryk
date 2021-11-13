@@ -1,4 +1,7 @@
 #!/bin/env python
+
+# Copyright (c) 2021 ITENG
+# SPDX-License-Identifier: MIT
 import sys
 
 from sexp.sexp import gensexp

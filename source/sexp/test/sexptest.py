@@ -1,3 +1,6 @@
+# Copyright (c) 2021 ITENG
+# SPDX-License-Identifier: MIT
+
 from sexp.sexp import gensexp
 from .sexp_parser.sexp_parser import parseSexp
 

@@ -13,6 +13,9 @@ Open-source software-defined EDA
 > git checkout feature/add_sexp_generator
 ```
 ```
+> git submodule init
+```
+```
 > git submodule update
 ```
 ```

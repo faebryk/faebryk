@@ -43,5 +43,5 @@ Community support is provided via Discord; see the Resources below for details.
 
 ### Resources
 - Source Code: https://github.com/faebryk/faebryk
-- Chat: Real-time chat happens in faebryks's Discord Server. Use this Discord [Invite](https://discord.gg/Sekvbrej8j) to register
+- Chat: Real-time chat happens in faebryk's Discord Server. Use this Discord [Invite](https://discord.gg/Sekvbrej8j) to register
 - Issues: https://github.com/faebryk/faebryk/issues

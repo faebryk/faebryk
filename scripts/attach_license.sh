@@ -12,8 +12,14 @@ if [ "$hash_1" == "$hash_2" ]; then
     exit 0
 fi
 echo -e "$file: Found:|$found_head|"
+
+#TODO improve this script's robustness to a point where we can reliably call
+#   the awk line to do the subsitution
+#   For now this script is especially handy for checking whether the python
+#   files have the license header in the top
+
+
 exit 0
-#TODO remove exit
 
 
 awk 'BEGIN{print ""}1' \

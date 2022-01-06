@@ -13,6 +13,12 @@ def run_experiment():
     from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
     from faebryk.exporters.netlist import make_t2_netlist_from_t1
 
+    class KicadSMDResistor(lib.Resistor):
+        def __init__(self, name, value, footprint_subtype):
+            super().__init__(name, value, 
+                footprint=lib.KicadFootprint("Resistor_SMD:{}".format(footprint_subtype))
+            )
+
     gnd = lib.VirtualComponent(
         name="GND",
         pins=[1],
@@ -23,19 +29,20 @@ def run_experiment():
         pins=[1],
     )
 
-    resistor1 = lib.SMD_Resistor(
+    resistor1 = KicadSMDResistor(
         name="1",
         value="R",
         footprint_subtype="R_0805_2012Metric",
     )
 
-    resistor2 = lib.SMD_Resistor(
+    resistor2 = KicadSMDResistor(
         name="2",
         value="R",
         footprint_subtype="R_0805_2012Metric",
     )
 
-    cd4011 = lib.CD4011("nandboi", "digikey-footprints:DIP-14_W3mm")
+    cd4011 = lib.CD4011("nandboi", 
+        lib.KicadFootprint("digikey-footprints:DIP-14_W3mm"))
     cd4011.connect_power(vcc, gnd)
     cd4011.nands[0].connect_in1(vcc)
     cd4011.nands[0].connect_in2(gnd)

@@ -1,132 +1,288 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
+from typing import Iterable
 from faebryk.libs.exceptions import FaebrykException
+import typing
+
 import logging
 logger = logging.getLogger("library")
 
-class Component:
-    def __init__(self, name, pins, real):
-        self.comp = {
-            "name": name,
-            "properties": {
-            },
-            "real": real,
-            "neighbors": {pin: [] for pin in pins}
-        }
-        self.pins = pins
+# 1st order classes -----------------------------------------------------------
+class Trait:
+    def __init__(self) -> None:
+        pass
 
-    def connect(self, spin, other, dpin=None):
-        if dpin is None:
-            if other.pins != [1]:
-                raise FaebrykException
-            dpin = 1
-        if dpin not in other.pins:
-            raise FaebrykException
+class FaebrykLibObject:
+    def __init__(self) -> None:
+        #TODO maybe dict[class => [obj]
+        self.traits = []
 
-        logger.debug("Connecting {}:{} -> {}:{}".format(
-            self.comp["name"],
-            spin,
-            other.comp["name"],
-            dpin
+    def add_trait(self, trait : Trait) -> None:
+        self.traits.append(trait)
+# -----------------------------------------------------------------------------
+
+# Traits ----------------------------------------------------------------------
+class FootprintTrait(Trait):
+    def __init__(self) -> None:
+        super().__init__()
+
+class InterfaceTrait(Trait):
+    def __init__(self) -> None:
+        super().__init__()
+
+class ComponentTrait(Trait):
+    def __init__(self) -> None:
+        super().__init__()
+
+class LinkTrait(Trait):
+    def __init__(self) -> None:
+        super().__init__()
+
+class ParameterTrait(Trait):
+    def __init__(self) -> None:
+        super().__init__()
+# -----------------------------------------------------------------------------
+
+# FaebrykLibObjects -----------------------------------------------------------
+class Footprint(FaebrykLibObject):
+    def __init__(self) -> None:
+        super().__init__()
+        
+    def add_trait(self, trait : FootprintTrait):
+        return super().add_trait(trait)
+
+class Interface(FaebrykLibObject):
+    def __init__(self) -> None:
+        super().__init__()
+        self.connections = []
+
+    def add_trait(self, trait: InterfaceTrait) -> None:
+        return super().add_trait(trait)
+
+    def connect(self, other: Interface):
+        self.connections.append(other)
+
+class Component(FaebrykLibObject):
+    def __init__(self, interfaces : list(Interface) = None) -> None:
+        super().__init__()
+        if interfaces is None:
+            interfaces = []
+        self.interfaces = interfaces
+
+    def add_trait(self, trait: ComponentTrait) -> None:
+        return super().add_trait(trait)
+
+    def from_comp(other: Component) -> Component:
+        return Component(interfaces=other.interfaces)
+
+    #TODO replace_by?
+
+
+class Link(FaebrykLibObject):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def add_trait(self, trait: LinkTrait) -> None:
+        return super().add_trait(trait)
+
+class Parameter(FaebrykLibObject):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def add_trait(self, trait: ParameterTrait) -> None:
+        return super().add_trait(trait)
+# -----------------------------------------------------------------------------
+
+# Interface Traits ------------------------------------------------------------
+class is_composed(InterfaceTrait):
+    def __init__(self, interfaces : Iterable(Interface)) -> None:
+        super().__init__()
+        self.interfaces = list(interfaces)
+
+# -----------------------------------------------------------------------------
+
+# Component Traits ------------------------------------------------------------
+class has_type_description(ComponentTrait):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def get_type_description(self) -> str:
+        pass
+
+class has_defined_type_description(has_type_description):
+    def __init__(self, value : str) -> None:
+        super().__init__()
+        self.value = value
+
+    def get_type_description(self) -> str:
+        return self.value
+# -----------------------------------------------------------------------------
+
+# Footprint Traits ------------------------------------------------------------
+class has_kicad_footprint(FootprintTrait):
+    def __init__(self, identifier : str) -> None:
+        super().__init__()
+        self.identifier = identifier
+
+    def get_kicad_footprint(self):
+        return self.identifier
+# -----------------------------------------------------------------------------
+
+# Parameter Traits ------------------------------------------------------------
+class is_representable_by_single_value(ParameterTrait):
+    def __init__(self, value: typing.Any) -> None:
+        super().__init__()
+        self.value = value
+
+    def get_single_representing_value(self):
+        return self.value
+# -----------------------------------------------------------------------------
+
+# Parameter -------------------------------------------------------------------
+class Constant(Parameter):
+    def __init__(self, value: typing.Any) -> None:
+        super().__init__()
+        self.value = value
+        self.add_trait(is_representable_by_single_value(
+            self.value
         ))
-        self.comp["neighbors"][spin].append({
-            "vertex": other.get_comp(),
-            "pin": dpin,
-        })
 
-    def connect_zip(self, other):
-        for pin in self.comp["neighbors"]:
-           self.connect(pin, other, pin)
+# -----------------------------------------------------------------------------
 
-    def get_comp(self):
-        return self.comp
+# Footprints ------------------------------------------------------------------
+class DIP(Footprint):
+    def __init__(self, pin_cnt: int, spacing_mm: int, long_pads: bool) -> None:
+        super().__init__()
 
-class VirtualComponent(Component):
-    def __init__(self, name, pins):
-        super().__init__(name, pins, real=False)
+        self.add_trait(has_kicad_footprint(
+            "DIP-{leads}-W{spacing:.2f}mm{longpads}".format(
+                leads=pin_cnt,
+                spacing=spacing_mm,
+                longpads="_LongPads" if long_pads else ""
+            )
+        ))
+# -----------------------------------------------------------------------------
 
-# TODO experiment with multi inheritance
-#   maybe real component for example should not inherit
-#   from component but just add the constructor: footprint,value
-class RealComponent(Component):
-    def __init__(self, name, value, footprint, pins):
-        super().__init__(name, pins, real=True)
-        self.comp["value"] = value
-        self.comp["properties"]["footprint"] = footprint
+# Interfaces ------------------------------------------------------------------
+class Electrical(Interface):
+    def __init__(self) -> None:
+        super().__init__()
 
-class ActiveComponent(RealComponent):
-    def __init__(self, name, value, footprint, pwr_pins, pins):
-        self.pwr_pins = pwr_pins
-        for i in pwr_pins:
-            if i not in pins:
-                raise FaebrykException
-        super().__init__(name, value, footprint, pins)
+class Bus(Interface):
+    def __init__(self, interfaces: Iterable(Electrical)) -> None:
+        super().__init__()
+        self.add_trait(is_composed(interfaces))
 
-    def connect_gnd(self, gnd):
-        self.connect(self.pwr_pins[0], gnd)
+class Power(Interface):
+    def __init__(self) -> None:
+        super().__init__()
+        self.hv = Electrical()
+        self.lv = Electrical()
+        self.add_trait(is_composed([self.hv, self.lv]))
 
-    def connect_vcc(self, vcc):
-        self.connect(self.pwr_pins[1], vcc)
-
-    def connect_power(self, vcc, gnd):
-        self.connect_vcc(vcc)
-        self.connect_gnd(gnd)
-
-class Resistor(RealComponent):
-    def __init__(self, name, value, footprint):
-        super().__init__(
-            name="R{}".format(name),
-            value=value,
-            footprint=footprint,
-            pins=[1,2],
-        )
-
-class SMD_Resistor(Resistor):
-    def __init__(self, name, value, footprint_subtype):
-        super().__init__(name, value, "Resistor_SMD:{}".format(footprint_subtype))
+class I2C(Interface):
+    def __init__(self) -> None:
+        super().__init__()
+        self.sda = Electrical()
+        self.sdc = Electrical()
+        self.gnd = Electrical()
+        self.add_trait(is_composed(
+            [self.sda, self.sdc, self.gnd]
+        ))
+# -----------------------------------------------------------------------------
 
 
+# Links -----------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+#class Component:
+#    def __init__(self, name, pins, real):
+#        self.comp = {
+#            "name": name,
+#            "properties": {
+#            },
+#            "real": real,
+#            "neighbors": {pin: [] for pin in pins}
+#        }
+#        self.pins = pins
+#
+#    def connect(self, spin, other, dpin=None):
+#        self.comp["neighbors"][spin].append({
+#            "vertex": other.get_comp(),
+#            "pin": dpin,
+#        })
+
+# META SHIT -------------------------------------------------------------------
+def default_with(given, default):
+    if given is not None:
+        return given
+    return default
+
+def times(cnt, lamb):
+    return [lamb() for _ in range(cnt)]
+
+# -----------------------------------------------------------------------------
+
+# Components ------------------------------------------------------------------
+class Resistor(Component):
+    def from_comp(comp : Component, resistance : Parameter) -> Resistor:
+        return Resistor(resistance, comp.interfaces)
+
+    def __init__(self, resistance : Parameter, interfaces : list(Interface) = None):
+        super().__init__(intefaces=default_with(interfaces, [Electrical(), Electrical()]))
+        self.resistance = resistance
+
+        class resistor_type_description(has_type_description):
+            def __init__(self, parent : Resistor) -> None:
+                super().__init__()
+                self.parent = parent
+
+            def get_description():
+                return "{}R".format(self.parent.resistance)
+        
+        self.add_trait(resistor_type_description(self))
 
 class NAND(Component):
-    def __init__(self, type, name, real):
-        super().__init__(name, pins=[1,2,3,4,5], real=real)
-        if real:
-            raise NotImplementedError
-            #self.comp["value"] = value
-            #self.comp["properties"]["footprint"] = footprint
+    def __init__(self, input_cnt: int, interfaces : list(Interface) = None):
 
-    def connect_in1(self, in1, dpin=None):
-        self.connect(3, in1, dpin=dpin)
+        super().__init__(intefaces=default_with(interfaces, 
+            *times(2, Electrical), #power
+            Electrical(), #output
+            *times(input_cnt, Electrical) #inputs
+        ))
 
-    def connect_in2(self, in2, dpin=None):
-        self.connect(4, in2, dpin=dpin)
+        self.inputs = self.interfaces[2:-1]
+        self.output = self.interfaces[2]
+        self.power = Power() #TODO damn this sucks, now power cant get the interfaces anymore
 
-    def connect_out(self, out, dpin=None):
-        self.connect(5, out, dpin=dpin)
 
-class CD4011(ActiveComponent):
-    def __init__(self, name, footprint):
-        super().__init__(name, "CD4011", footprint, pwr_pins=[7,14], pins=range(1,14+1))
-        self.nands = [NAND(type="4011", name=f"N{x}", real=False) for x in range(4)]
+class CD4011(Component):
+    def __init__(self, interfaces : list(Interface) = None):
+        super().__init__(interfaces=default_with(interfaces, 
+            times(14, Electrical)
+        ))
+
+        self.nands = times(4, lambda: NAND(input_cnt=2))
+        self.add_trait(has_defined_type_description("cd4011"))
+        self.power = Power()
 
         for n in self.nands:
-            n.connect(1, self, 14) #VDD
-            n.connect(2, self, 7) #GND
+            n.power.connect(self.power)
 
-        self.nands[0].connect_in1(self, 1)
-        self.nands[0].connect_in2(self, 2)
-        self.nands[0].connect_out(self, 3)
+        self.nands[0].inputs[0].connect(self.interfaces[1])
+        self.nands[0].inputs[1].connect(self.interfaces[2])
+        self.nands[0].inputs.connect(self.interfaces[3])
 
-        self.nands[1].connect_in1(self, 4)
-        self.nands[1].connect_in2(self, 5)
-        self.nands[1].connect_out(self, 6)
+        self.nands[1].inputs[0].connect(self.interfaces[4])
+        self.nands[1].inputs[1].connect(self.interfaces[5])
+        self.nands[1].output.connect(self.interfaces[6])
 
-        self.nands[2].connect_in1(self, 12)
-        self.nands[2].connect_in2(self, 13)
-        self.nands[2].connect_out(self, 11)
+        self.nands[2].inputs[0].connect(self.interfaces[12])
+        self.nands[2].inputs[1].connect(self.interfaces[13])
+        self.nands[2].output.connect(self.interfaces[11])
 
-        self.nands[3].connect_in1(self, 8)
-        self.nands[3].connect_in2(self, 9)
-        self.nands[3].connect_out(self, 10)
-
+        self.nands[3].inputs[0].connect(self.interfaces[8])
+        self.nands[3].inputs[1].connect(self.interfaces[9])
+        self.nands[3].output.connect(self.interfaces[10])
+# -----------------------------------------------------------------------------

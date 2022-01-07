@@ -29,7 +29,7 @@ Please read and execute the folowing:
 
 #### Code of Conduct
 
-By submitting this issue, you agree to follow our [Code of Conduct](/docs/CODE_OF_CONDUCT.md):
+By submitting this issue, you agree to follow our [Code of Conduct](/faebryk/faebryk/docs/CODE_OF_CONDUCT.md):
 
 - [ ] I agree to follow this project's Code of Conduct
 

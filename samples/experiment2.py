@@ -4,6 +4,7 @@
 # Test stuff ------------------------------------------------------------------
 from networkx.algorithms import components
 
+
 def make_t1_netlist_from_graph(comps):
     t1_netlist = [comp.get_comp() for comp in comps]
 
@@ -41,20 +42,22 @@ def make_graph_from_components(components):
             }
         
         def get_comp(self):
+            # only executed once
             neighbors = {}
             #TODO
             #pseudo
-            # for pin, interface in self.get_trait(has_footprint_pinmap).get_pin_map()
-            #   for target_interface in interface.connections:
-            #       if target_interface has trait[has_component]
-            #           target_component = target_interface.get_trait(...).get_component()
-            #           target_pinmap = target_component.get_trait(...).get_pin_map()
-            #           target_pin = target_pinmap.items()[target_pinmap.values().index(target_interface)]       
-            #           target_wrapped = find(i.component == target_component for i in wrapped_list) 
-            #           self.neighbors[pin].append({
-            #               "vertex": target_wrapped._get_comp(),
-            #               "pin": target_pin
-            #           })
+            #for pin, interface in self.get_trait(traits.has_defined_footprint_pinmap).get_pin_map():
+            #  for target_interface in interface.connections:
+            #      if target_interface has trait[has_component]
+            #          target_component = target_interface.get_trait(...).get_component()
+            #          target_pinmap = target_component.get_trait(...).get_pin_map()
+            #          target_pin = target_pinmap.items()[target_pinmap.values().index(target_interface)]       
+            #          target_wrapped = find(i.component == target_component for i in wrapped_list) 
+            #          self.neighbors[pin].append({
+            #              "vertex": target_wrapped._get_comp(),
+            #              "pin": target_pin
+            #          })
+
             comp = self._get_comp()
             comp["neighbors"] = neighbors
 

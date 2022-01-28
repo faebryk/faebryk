@@ -102,10 +102,13 @@ class Electrical(Interface):
         self.add_trait(_contructable_from_interface_list())
 
 class Power(Interface):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
         self.hv = Electrical()
         self.lv = Electrical()
+
+        self.set_component(kwargs.get("component"))
 
         class _can_list_interfaces(can_list_interfaces):
             @staticmethod
@@ -118,7 +121,16 @@ class Power(Interface):
                 p = Power()
                 p.hv = next(interfaces)
                 p.lv = next(interfaces)
+
+                comps = get_components_of_interfaces(p.get_trait(can_list_interfaces).get_interfaces())
+                assert (len(comps) < 2 or comps[0] == comps[1])
+                if len(comps) > 0:
+                    p.set_component(comps[0])
+
                 return p
+        
+        self.add_trait(_can_list_interfaces())
+        self.add_trait(_contructable_from_interface_list())
 
         #TODO finish the trait stuff
 #        self.add_trait(is_composed([self.hv, self.lv]))
@@ -192,16 +204,18 @@ def get_all_interfaces(interfaces : Iterable(Interface)) -> list(Interface):
             for nested in i.get_trait(can_list_interfaces).get_interfaces()
     ]
 
+def get_components_of_interfaces(interfaces: list(Interface)) -> list(Component):
+    out = [
+        i.get_trait(is_part_of_component).get_component() for i in interfaces
+            if i.has_trait(is_part_of_component)
+    ]
+    return out
+
 # -----------------------------------------------------------------------------
 
 # Components ------------------------------------------------------------------
 class Resistor(Component):
     def _setup_traits(self):
-        class _has_interfaces(has_interfaces):
-            @staticmethod
-            def get_interfaces() -> list(Interface):
-                return self.interfaces
-
         class _contructable_from_component(contructable_from_component):
             @staticmethod
             def from_component(comp: Component, resistance: Parameter) -> Resistor:
@@ -213,14 +227,16 @@ class Resistor(Component):
                 r = Resistor.__new__(Resistor)
                 r._setup_resistance(resistance)
                 r.interfaces = interfaces
+                r.get_trait(has_interfaces).set_interface_comp(r)
 
                 return r
 
-        self.add_trait(_has_interfaces())
+        self.add_trait(has_interfaces_list(self))
         self.add_trait(_contructable_from_component())
 
     def _setup_interfaces(self):
-        self.interfaces = [Electrical(), Electrical()]
+        self.interfaces = times(2, Electrical)
+        self.get_trait(has_interfaces).set_interface_comp(self)
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
@@ -237,6 +253,11 @@ class Resistor(Component):
         self.resistance = resistance
 
         if type(resistance) is not Constant:
+            #TODO this is a bit ugly
+            # it might be that there was another more abstract valid trait
+            # but this challenges the whole trait overriding mechanism
+            # might have to make a trait stack thats popped or so
+            self.del_trait(has_type_description)
             return
 
         class _has_type_description(has_type_description):
@@ -254,11 +275,18 @@ class LED(Component):
             raise NotImplemented
 
     def _setup_traits(self):
+        class _has_interfaces(has_interfaces):
+            @staticmethod
+            def get_interfaces() -> list[Interface]:
+                return [self.anode, self.cathode]
+
         self.add_trait(has_defined_type_description("LED"))
+        self.add_trait(_has_interfaces())
         
     def _setup_interfaces(self):
         self.anode = Electrical()
         self.cathode = Electrical()
+        self.get_trait(has_interfaces).set_interface_comp(self)
 
     def __new__(cls):
         self = super().__new__(cls)
@@ -289,9 +317,11 @@ class LED(Component):
 class Switch(Component):
     def _setup_traits(self):
         self.add_trait(has_defined_type_description("SW"))
+        self.add_trait(has_interfaces_list(self))
 
     def _setup_interfaces(self):
-        self.interfaces = [Electrical(), Electrical()]
+        self.interfaces = times(2, Electrical)
+        self.get_trait(has_interfaces).set_interface_comp(self)
 
     def __new__(cls):
         self = super().__new__(cls)
@@ -325,6 +355,10 @@ class NAND(Component):
     def _setup_inouts(self, input_cnt):
         self.output = Electrical()
         self.inputs = times(input_cnt, Electrical)
+        self._set_interface_comp()
+
+    def _set_interface_comp(self):
+        self.get_trait(has_interfaces).set_interface_comp(self)
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
@@ -357,6 +391,7 @@ class NAND(Component):
         self.inputs = [Electrical().get_trait(contructable_from_interface_list).from_interfaces(it) for i in n.inputs]
 
         self.input_cnt = len(self.inputs)
+        self._set_interface_comp()
         
 
 
@@ -371,7 +406,7 @@ class CD4011(Component):
         class _has_interfaces(has_interfaces):
             @staticmethod
             def get_interfaces():
-                return get_all_interfaces([self.power, *self.nand_ifs])
+                return get_all_interfaces([self.power, *self.in_outs])
 
         class _constructable_from_component(contructable_from_component):
             @staticmethod
@@ -405,6 +440,8 @@ class CD4011(Component):
         self.in_outs = times(len(nand_inout_interfaces), Electrical)
 
     def _setup_internal_connections(self):
+        self.get_trait(has_interfaces).set_interface_comp(self)
+
         it = iter(self.in_outs)
         for n in self.nands:
             n.power.connect(self.power)

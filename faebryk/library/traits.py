@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.library.core import *
-from faebryk.library.traits import *
 from faebryk.libs.exceptions import FaebrykException
 from typing import Iterable
 
@@ -22,6 +21,10 @@ class contructable_from_interface_list(InterfaceTrait):
     def from_interfaces(self, interfaces: Iterable[Interface]):
         raise NotImplementedError()
 
+class is_part_of_component(InterfaceTrait):
+    def get_component(self) -> Component:
+        raise NotImplementedError
+
 # -----------------------------------------------------------------------------
 
 # Component Traits ------------------------------------------------------------
@@ -40,6 +43,22 @@ class has_defined_type_description(has_type_description):
 class has_interfaces(ComponentTrait):
     def get_interfaces(self) -> list[Interface]:
         raise NotImplementedError()
+
+    def set_interface_comp(self, comp):
+        for i in self.get_interfaces():
+            i.set_component(comp)
+
+class has_interfaces_list(has_interfaces):
+    def __init__(self, comp: Component) -> None:
+        super().__init__()
+        self.comp = comp
+
+    def get_interfaces(self) -> list[Interface]:
+        return self.comp.interfaces
+
+    def set_interface_comp(self, comp=None):
+        assert (comp is None or comp == self.comp) 
+        super().set_interface_comp(self.comp)
 
 class contructable_from_component(ComponentTrait):
     def from_comp(self, comp: Component):

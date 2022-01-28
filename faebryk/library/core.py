@@ -30,6 +30,10 @@ class FaebrykLibObject:
 
         self.traits[self.traits.index(type(trait))] = trait
 
+    def del_trait(self, trait):
+        if self.has_trait(trait):
+            del self.traits[trait]
+
     def has_trait(self, trait) -> bool:
         #return any(lambda t: type(t) is trait, self.traits)
         return trait in self.traits
@@ -65,9 +69,11 @@ class Footprint(FaebrykLibObject):
         return super().add_trait(trait)
 
 class Interface(FaebrykLibObject):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, component=None, **kwargs):
         self = super().__new__(cls)
         self.connections = []
+        if component is not None:
+            self.set_component(component)
         return self
 
     def __init__(self) -> None:
@@ -79,6 +85,26 @@ class Interface(FaebrykLibObject):
     def connect(self, other: Interface):
         assert (type(other) is type(self)), "{} is not {}".format(type(other), type(self))
         self.connections.append(other)
+
+    def set_component(self, component):
+        from faebryk.library import traits
+
+        self.component = component
+
+        class _(traits.is_part_of_component):
+            @staticmethod
+            def get_component() -> Component:
+                return self.component
+
+        self.add_trait(_())
+
+        #TODO I think its nicer to have a parent relationship to the other interface
+        #   instead of carrying the component through all compositions
+        if self.has_trait(traits.can_list_interfaces):
+            for i in self.get_trait(traits.can_list_interfaces).get_interfaces():
+                if i == self:
+                    continue
+                i.set_component(component)
 
 class Component(FaebrykLibObject):
     def __init__(self) -> None:

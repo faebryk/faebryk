@@ -31,7 +31,8 @@ class DIP(Footprint):
     def __init__(self, pin_cnt: int, spacing_mm: int, long_pads: bool) -> None:
         super().__init__()
 
-        class _has_kicad_footprint(FootprintTrait):
+        class _has_kicad_footprint(has_kicad_footprint):
+            @staticmethod
             def get_kicad_footprint() -> str:
                 return \
                     "DIP-{leads}-W{spacing:.2f}mm{longpads}".format(
@@ -442,13 +443,19 @@ class CD4011(Component):
     def _setup_internal_connections(self):
         self.get_trait(has_interfaces).set_interface_comp(self)
 
+        self.connection_map = {}
+
         it = iter(self.in_outs)
         for n in self.nands:
             n.power.connect(self.power)
-            n.output.connect(next(it))
+            target = next(it)
+            n.output.connect(target)
+            self.connection_map[n.output] = target
 
             for i in n.inputs:
-                i.connect(next(it))
+                target = next(it)
+                i.connect(target)
+                self.connection_map[i] = target
 
         #TODO
         #assert(len(self.interfaces) == 14)

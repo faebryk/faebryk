@@ -4,7 +4,6 @@
 # Test stuff ------------------------------------------------------------------
 from networkx.algorithms import components
 
-
 def make_t1_netlist_from_graph(comps):
     t1_netlist = [comp.get_comp() for comp in comps]
 
@@ -45,18 +44,19 @@ def make_graph_from_components(components):
             # only executed once
             neighbors = {}
             #TODO
-            #pseudo
-            #for pin, interface in self.get_trait(traits.has_defined_footprint_pinmap).get_pin_map():
-            #  for target_interface in interface.connections:
-            #      if target_interface has trait[has_component]
-            #          target_component = target_interface.get_trait(...).get_component()
-            #          target_pinmap = target_component.get_trait(...).get_pin_map()
-            #          target_pin = target_pinmap.items()[target_pinmap.values().index(target_interface)]       
-            #          target_wrapped = find(i.component == target_component for i in wrapped_list) 
-            #          self.neighbors[pin].append({
-            #              "vertex": target_wrapped._get_comp(),
-            #              "pin": target_pin
-            #          })
+            for pin, interface in self.component.get_trait(traits.has_defined_footprint_pinmap).get_pin_map().items():
+              for target_interface in interface.connections:
+                  if target_interface.has_trait(traits.is_part_of_component):
+                      target_component = target_interface.get_trait(traits.is_part_of_component).get_component()
+                      target_pinmap = target_component.get_trait(traits.has_footprint_pinmap).get_pin_map()
+                      target_pin = list(target_pinmap.items())[list(target_pinmap.values()).index(target_interface)] 
+                      target_wrapped = [i for i in wrapped_list if i.component == target_component][0]
+                      if pin not in neighbors:
+                          neighbors[pin] = []
+                      neighbors[pin].append({
+                          "vertex": target_wrapped._get_comp(),
+                          "pin": target_pin
+                      })
 
             comp = self._get_comp()
             comp["neighbors"] = neighbors
@@ -134,13 +134,32 @@ def run_experiment():
         spacing_mm=3,
         long_pads=False
     )))
+    nand_ic.add_trait(traits.has_defined_footprint_pinmap(
+        {
+            7:  nand_ic.power.lv,
+            14: nand_ic.power.hv,
+            3:  nand_ic.connection_map[nand_ic.nands[0].output],
+            4:  nand_ic.connection_map[nand_ic.nands[1].output],
+            11: nand_ic.connection_map[nand_ic.nands[2].output],
+            10: nand_ic.connection_map[nand_ic.nands[3].output],
+            1:  nand_ic.connection_map[nand_ic.nands[0].inputs[0]],
+            2:  nand_ic.connection_map[nand_ic.nands[0].inputs[1]],
+            5:  nand_ic.connection_map[nand_ic.nands[1].inputs[0]],
+            6:  nand_ic.connection_map[nand_ic.nands[1].inputs[1]],
+            12: nand_ic.connection_map[nand_ic.nands[2].inputs[0]],
+            13: nand_ic.connection_map[nand_ic.nands[2].inputs[1]],
+            9:  nand_ic.connection_map[nand_ic.nands[3].inputs[0]],
+            8:  nand_ic.connection_map[nand_ic.nands[3].inputs[1]],
+        }
+    ))
+
     for smd_comp in [led, pull_down_resistor, current_limiting_resistor]:
         smd_comp.add_trait(traits.has_defined_footprint(lib.SMDTwoPin(
             lib.SMDTwoPin.Type._0805
         )))
     
     for resistor in [pull_down_resistor, current_limiting_resistor]:
-        smd_comp.add_trait(traits.has_defined_footprint_pinmap(
+        resistor.add_trait(traits.has_defined_footprint_pinmap(
             {
                 1: resistor.interfaces[0],
                 2: resistor.interfaces[1],

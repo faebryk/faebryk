@@ -197,13 +197,6 @@ def get_all_interfaces(interfaces : Iterable(Interface)) -> list(Interface):
 # Components ------------------------------------------------------------------
 class Resistor(Component):
     def _setup_traits(self):
-        class _has_type_description(has_type_description):
-            @staticmethod
-            def get_type_description():
-                resistance = self.resistance
-                assert(type(resistance) is Constant)
-                return unit_map(resistance, ["µΩ", "mΩ", "Ω", "KΩ", "MΩ", "GΩ"], start="Ω")
-        
         class _has_interfaces(has_interfaces):
             @staticmethod
             def get_interfaces() -> list(Interface):
@@ -223,12 +216,8 @@ class Resistor(Component):
 
                 return r
 
-        self.add_trait(_has_type_description())
         self.add_trait(_has_interfaces())
         self.add_trait(_contructable_from_component())
-
-    def _setup_resistance(self, resistance: Parameter):
-        self.resistance = resistance
 
     def _setup_interfaces(self):
         self.interfaces = [Electrical(), Electrical()]
@@ -241,8 +230,21 @@ class Resistor(Component):
     def __init__(self, resistance : Parameter):
         super().__init__()
 
-        self._setup_resistance(resistance)
         self._setup_interfaces()
+        self.set_resistance(resistance)
+
+    def set_resistance(self, resistance: Parameter):
+        self.resistance = resistance
+
+        if type(resistance) is not Constant:
+            return
+
+        class _has_type_description(has_type_description):
+            @staticmethod
+            def get_type_description():
+                resistance = self.resistance
+                return unit_map(resistance.value, ["µΩ", "mΩ", "Ω", "KΩ", "MΩ", "GΩ"], start="Ω")
+        self.add_trait(_has_type_description())
 
 class LED(Component):
 
@@ -272,7 +274,7 @@ class LED(Component):
             class _(self.has_calculatable_needed_series_resistance):
                 @staticmethod
                 def get_needed_series_resistance_ohm(input_voltage_V) -> int:
-                    LED.needed_series_resistance_ohm(
+                    return LED.needed_series_resistance_ohm(
                         input_voltage_V,
                         voltage_V.value,
                         current_A.value
@@ -281,12 +283,12 @@ class LED(Component):
 
 
     @staticmethod
-    def needed_series_resistance_ohm(input_voltage_V, forward_voltage_V, forward_current_A):
-        return (input_voltage_V-forward_voltage_V)/forward_current_A
+    def needed_series_resistance_ohm(input_voltage_V, forward_voltage_V, forward_current_A) -> Constant:
+        return Constant((input_voltage_V-forward_voltage_V)/forward_current_A)
 
 class Switch(Component):
     def _setup_traits(self):
-        pass
+        self.add_trait(has_defined_type_description("SW"))
 
     def _setup_interfaces(self):
         self.interfaces = [Electrical(), Electrical()]

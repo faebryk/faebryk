@@ -41,7 +41,7 @@ def make_graph_from_components(components):
             }
         
         def get_comp(self):
-            neighbors = []
+            neighbors = {}
             #TODO
             #pseudo
             # for pin, interface in self.get_trait(has_footprint_pinmap).get_pin_map()
@@ -56,10 +56,9 @@ def make_graph_from_components(components):
             #               "pin": target_pin
             #           })
             comp = self._get_comp()
-            comp.neighbors = neighbors
+            comp["neighbors"] = neighbors
 
-
-            raise NotImplemented
+            return comp
 
     wrapped_list = list(map(wrapper, components))
     for i in wrapped_list:
@@ -115,7 +114,7 @@ def run_experiment():
 
     # parametrizing
     battery.voltage = 5
-    pull_down_resistor.resistance = lib.Constant(100_000)
+    pull_down_resistor.set_resistance(lib.Constant(100_000))
     led.set_forward_parameters(
         voltage_V=lib.Constant(2.4),
         current_A=lib.Constant(0.020)
@@ -124,7 +123,7 @@ def run_experiment():
     nand_ic.power.connect(power)
     high.connect(power.hv)
     low.connect(power.lv)
-    current_limiting_resistor.resistance = led.get_trait(lib.LED.has_calculatable_needed_series_resistance).get_needed_series_resistance_ohm(battery.voltage)
+    current_limiting_resistor.set_resistance(led.get_trait(lib.LED.has_calculatable_needed_series_resistance).get_needed_series_resistance_ohm(battery.voltage))
 
     # packaging
     nand_ic.add_trait(traits.has_defined_footprint(lib.DIP(
@@ -169,7 +168,7 @@ def run_experiment():
         current_limiting_resistor,
         nand_ic,
         switch,
-        battery, #NOT SURE
+        #battery, #NOT SURE
     ]
 
     netlist = from_faebryk_t2_netlist(

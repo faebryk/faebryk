@@ -35,7 +35,7 @@ class FaebrykLibObject:
         return trait in self.traits
 
     def get_trait(self, trait):
-        assert (trait in self.traits), "{} not in {}".format(trait, type(self))
+        assert (trait in self.traits), "{} not in {}[{}]".format(trait, type(self), self)
         return self.traits[self.traits.index(trait)]
 # -----------------------------------------------------------------------------
 

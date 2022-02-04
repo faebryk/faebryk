@@ -506,15 +506,16 @@ class CD4011(Component):
     def _init_from_nands(self, nands : list(NAND)):
         # checks
         assert(len(nands) <= 4)
-        nands += times(4-len(nands), lambda: NAND(input_cnt=2))
+        cd_nands = list(nands)
+        cd_nands += times(4-len(cd_nands), lambda: NAND(input_cnt=2))
 
 
-        for nand in nands:
+        for nand in cd_nands:
             assert(nand.input_cnt == 2)
 
         # setup
         self._setup_power()
-        self.nands = nands
+        self.nands = cd_nands
         self._setup_inouts()
         self._setup_internal_connections()
 

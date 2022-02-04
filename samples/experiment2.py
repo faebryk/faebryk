@@ -216,7 +216,7 @@ def run_experiment():
     logic_virt.add_trait(_has_interfaces([logic_virt.high, logic_virt.low]))
     logic_virt.get_trait(traits.has_interfaces).set_interface_comp(logic_virt)
     logic_virt.add_trait(_has_footprint_pinmap(logic_virt))
-    for n in nands:
+    for n in nand_ic.nands:
         n.add_trait(_has_footprint_pinmap(n))
 
     # make graph
@@ -228,7 +228,8 @@ def run_experiment():
         switch,
         battery,
         logic_virt,
-        *nands,
+        #TODO make composited comps add their subcomps automatically?
+        *nand_ic.nands,
     ]
 
     t1_ = make_t1_netlist_from_graph(

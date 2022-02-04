@@ -23,6 +23,7 @@ class FaebrykLibObject:
     def __init__(self) -> None:
         pass
 
+    #TODO trait should always get ref to object
     def add_trait(self, trait : Trait) -> None:
         if type(trait) not in self.traits:
             self.traits.append(trait)

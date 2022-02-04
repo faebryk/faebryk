@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 # Test stuff ------------------------------------------------------------------
-from networkx.algorithms import components
-
 def make_t1_netlist_from_graph(comps):
     t1_netlist = [comp.get_comp() for comp in comps]
 
@@ -13,6 +11,7 @@ def make_graph_from_components(components):
     import faebryk as fy
     import faebryk.library.library as lib
     import faebryk.library.traits as traits
+    from faebryk.libs.exceptions import FaebrykException
 
     class wrapper():
         def __init__(self, component: lib.Component) -> None:
@@ -23,49 +22,66 @@ def make_graph_from_components(components):
             import random
             c = self.component
             self.real = c.has_trait(traits.has_footprint) and c.has_trait(traits.has_footprint_pinmap)
-            self.name = "COMP{}".format(random.random())
-            self.value = c.get_trait(traits.has_type_description).get_type_description()
             self.properties = {}
+            self.neighbors = {}
             if self.real:
+                self.value = c.get_trait(traits.has_type_description).get_type_description()
                 self.properties["footprint"] = \
                     c.get_trait(traits.has_footprint).get_footprint().get_trait(
                         traits.has_kicad_footprint).get_kicad_footprint()
+            self.name = "COMP[{}:{}]@{:08X}".format(type(self.component).__name__, self.value if self.real else "virt", int(random.random()*2**32))
+            self._comp = {}
+            self._update_comp()
 
-        def _get_comp(self):
-            return {
+        def _update_comp(self):
+            self._comp.update({
                 "name": self.name,
-                "value": self.value,
                 "real": self.real,
                 "properties": self.properties,
-                "neighbors": []
-            }
-        
+                "neighbors": self.neighbors
+            })
+            if self.real:
+                self._comp["value"] = self.value
+
+        def _get_comp(self):
+            return self._comp
+
         def get_comp(self):
             # only executed once
             neighbors = {}
-            #TODO
-            for pin, interface in self.component.get_trait(traits.has_defined_footprint_pinmap).get_pin_map().items():
-              for target_interface in interface.connections:
-                  if target_interface.has_trait(traits.is_part_of_component):
-                      target_component = target_interface.get_trait(traits.is_part_of_component).get_component()
-                      target_pinmap = target_component.get_trait(traits.has_footprint_pinmap).get_pin_map()
-                      target_pin = list(target_pinmap.items())[list(target_pinmap.values()).index(target_interface)] 
-                      target_wrapped = [i for i in wrapped_list if i.component == target_component][0]
-                      if pin not in neighbors:
-                          neighbors[pin] = []
-                      neighbors[pin].append({
+            for pin, interface in self.component.get_trait(traits.has_footprint_pinmap).get_pin_map().items():
+                neighbors[pin] = []
+                for target_interface in interface.connections:
+                    if target_interface.has_trait(traits.is_part_of_component):
+                        target_component = target_interface.get_trait(traits.is_part_of_component).get_component()
+                        target_pinmap = target_component.get_trait(traits.has_footprint_pinmap).get_pin_map()
+                        target_pin = list(target_pinmap.items())[list(target_pinmap.values()).index(target_interface)][0]
+                        try:
+                            target_wrapped = [i for i in wrapped_list if i.component == target_component][0]
+                        except IndexError:
+                            raise FaebrykException("Discovered associated component not in component list:", target_component)
+
+                        neighbors[pin].append({
                           "vertex": target_wrapped._get_comp(),
                           "pin": target_pin
-                      })
+                        })
+                    else:
+                        print("Warning: {comp} pin {pin} is connected to interface without component".format(
+                            comp=self.name,
+                            #intf=target_interface,
+                            pin=pin,
+                        ))
 
-            comp = self._get_comp()
-            comp["neighbors"] = neighbors
+            self.neighbors = neighbors
+            self._update_comp()
 
-            return comp
+            return self._get_comp()
 
     wrapped_list = list(map(wrapper, components))
     for i in wrapped_list:
         i.wrapped_list = wrapped_list
+
+    print("Making graph from components:\n\t{}".format("\n\t".join(map(str, components))))
 
     return wrapped_list
 
@@ -76,6 +92,24 @@ def run_experiment():
     import faebryk.library.traits as traits
     from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
     from faebryk.exporters.netlist import make_t2_netlist_from_t1
+
+    class _has_interfaces(traits.has_interfaces):
+        def __init__(self, interfaces) -> None:
+            super().__init__()
+            self.interfaces = interfaces
+
+        def get_interfaces(self):
+            return lib.get_all_interfaces(self.interfaces)
+
+    class _has_footprint_pinmap(traits.has_footprint_pinmap):
+        def __init__(self, comp) -> None:
+            super().__init__()
+            self.comp = comp
+
+        def get_pin_map(self):
+            ifs = self.comp.get_trait(traits.has_interfaces).get_interfaces()
+            return {k+1:v for k,v in enumerate(ifs)}
+
 
     # levels
     high = lib.Electrical()
@@ -131,7 +165,7 @@ def run_experiment():
     # packaging
     nand_ic.add_trait(traits.has_defined_footprint(lib.DIP(
         pin_cnt=14,
-        spacing_mm=3,
+        spacing_mm=7.62,
         long_pads=False
     )))
     nand_ic.add_trait(traits.has_defined_footprint_pinmap(
@@ -157,47 +191,53 @@ def run_experiment():
         smd_comp.add_trait(traits.has_defined_footprint(lib.SMDTwoPin(
             lib.SMDTwoPin.Type._0805
         )))
-    
-    for resistor in [pull_down_resistor, current_limiting_resistor]:
-        resistor.add_trait(traits.has_defined_footprint_pinmap(
-            {
-                1: resistor.interfaces[0],
-                2: resistor.interfaces[1],
-            }
-        ))
+
+    switch_fp = lib.Footprint()
+    switch_fp.add_trait(lib.has_kicad_manual_footprint("Panasonic_EVQPUJ_EVQPUA"))
+    switch.add_trait(traits.has_defined_footprint(switch_fp))
+
+    for symmetric_component in [pull_down_resistor, current_limiting_resistor, switch]:
+        symmetric_component.add_trait(_has_footprint_pinmap(symmetric_component))
+
     led.add_trait(traits.has_defined_footprint_pinmap(
         {
             1: led.anode,
             2: led.cathode,
         }
-    )) 
-
-    switch_fp = lib.Footprint()
-    switch_fp.add_trait(lib.has_kicad_manual_footprint("Panasonic_EVQPUJ_EVQPUA"))
-    switch.add_trait(traits.has_defined_footprint(switch_fp))
-    switch.add_trait(traits.has_defined_footprint_pinmap(
-        {
-            1: switch.interfaces[0],
-            2: switch.interfaces[1],
-        }
     ))
 
+    #TODO: remove, just compensation for old graph
+    battery.add_trait(_has_interfaces([battery.power]))
+    battery.get_trait(traits.has_interfaces).set_interface_comp(battery)
+    battery.add_trait(_has_footprint_pinmap(battery))
+    logic_virt = lib.Component()
+    logic_virt.high = high
+    logic_virt.low = low
+    logic_virt.add_trait(_has_interfaces([logic_virt.high, logic_virt.low]))
+    logic_virt.get_trait(traits.has_interfaces).set_interface_comp(logic_virt)
+    logic_virt.add_trait(_has_footprint_pinmap(logic_virt))
+    for n in nands:
+        n.add_trait(_has_footprint_pinmap(n))
+
     # make graph
-    #TODO
     components = [
-        led, 
+        led,
         pull_down_resistor,
         current_limiting_resistor,
         nand_ic,
         switch,
-        #battery, #NOT SURE
+        battery,
+        logic_virt,
+        *nands,
     ]
+
+    t1_ = make_t1_netlist_from_graph(
+            make_graph_from_components(components)
+        )
 
     netlist = from_faebryk_t2_netlist(
         make_t2_netlist_from_t1(
-            make_t1_netlist_from_graph(
-                make_graph_from_components(components)
-            )
+            t1_
         )
     )
 
@@ -205,7 +245,7 @@ def run_experiment():
     print(netlist)
 
     #from faebryk.exporters.netlist import render_graph
-    #render_graph(make_t1_netlist_from_graph(comps))
+    #render_graph(t1_)
 
 import sys
 import logging

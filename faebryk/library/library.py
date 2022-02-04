@@ -35,7 +35,7 @@ class DIP(Footprint):
             @staticmethod
             def get_kicad_footprint() -> str:
                 return \
-                    "DIP-{leads}-W{spacing:.2f}mm{longpads}".format(
+                    "Package_DIP:DIP-{leads}_W{spacing:.2f}mm{longpads}".format(
                         leads=pin_cnt,
                         spacing=spacing_mm,
                         longpads="_LongPads" if long_pads else ""
@@ -45,7 +45,7 @@ class DIP(Footprint):
 
 class SMDTwoPin(Footprint):
     class Type(Enum):
-        _01005 = 0 
+        _01005 = 0
         _0201  = 1
         _0402  = 2
         _0603  = 3
@@ -73,14 +73,14 @@ class SMDTwoPin(Footprint):
                     self.Type._1218:  "3246",
                     self.Type._2010:  "5025",
                     self.Type._2512:  "6332",
-                } 
+                }
 
                 return \
-                    "R_{imperial}_{metric}Metric.kicad_mod".format(
+                    "Resistor_SMD:R_{imperial}_{metric}Metric".format(
                         imperial=type.name[1:],
                         metric=table[type]
                     )
-                
+
         self.add_trait(_has_kicad_footprint())
 # ------------------------------------------------------------------------
 
@@ -129,12 +129,25 @@ class Power(Interface):
                     p.set_component(comps[0])
 
                 return p
-        
+
         self.add_trait(_can_list_interfaces())
         self.add_trait(_contructable_from_interface_list())
 
         #TODO finish the trait stuff
 #        self.add_trait(is_composed([self.hv, self.lv]))
+
+    def connect(self, other: Interface):
+        #TODO feels a bit weird
+        # maybe we need to look at how aggregate interfaces connect
+        assert(type(other) is Power), "can't connect to non power"
+        for s,d in zip(
+                self.get_trait(can_list_interfaces).get_interfaces(),
+                other.get_trait(can_list_interfaces).get_interfaces(),
+            ):
+            s.connect(d)
+
+
+
 
 
 #class I2C(Interface):
@@ -183,7 +196,7 @@ def unit_map(value: int, units, start=None, base=1000):
         start_idx = 0
     else:
         start_idx = units.index(start)
-    
+
     cur = base**((-start_idx)+1)
     ptr = 0
     while value >= cur:
@@ -201,7 +214,7 @@ def integer_base(value: int, base=1000):
 
 def get_all_interfaces(interfaces : Iterable(Interface)) -> list(Interface):
     return [
-        nested for i in interfaces 
+        nested for i in interfaces
             for nested in i.get_trait(can_list_interfaces).get_interfaces()
     ]
 
@@ -283,7 +296,7 @@ class LED(Component):
 
         self.add_trait(has_defined_type_description("LED"))
         self.add_trait(_has_interfaces())
-        
+
     def _setup_interfaces(self):
         self.anode = Electrical()
         self.cathode = Electrical()
@@ -393,7 +406,7 @@ class NAND(Component):
 
         self.input_cnt = len(self.inputs)
         self._set_interface_comp()
-        
+
 
 
 class CD4011(Component):
@@ -401,7 +414,7 @@ class CD4011(Component):
         @staticmethod
         def from_comp(comp: Component):
             raise NotImplemented
-    
+
 
     def _setup_traits(self):
         class _has_interfaces(has_interfaces):
@@ -422,8 +435,8 @@ class CD4011(Component):
                 c = CD4011.__new__(CD4011)
                 c._init_from_nands(nands)
                 return c
-                
-        
+
+
         self.add_trait(_has_interfaces())
         self.add_trait(_constructable_from_component())
         self.add_trait(_constructable_from_nands())
@@ -449,12 +462,12 @@ class CD4011(Component):
         for n in self.nands:
             n.power.connect(self.power)
             target = next(it)
-            n.output.connect(target)
+            target.connect(n.output)
             self.connection_map[n.output] = target
 
             for i in n.inputs:
                 target = next(it)
-                i.connect(target)
+                target.connect(i)
                 self.connection_map[i] = target
 
         #TODO
@@ -488,17 +501,17 @@ class CD4011(Component):
         self.power = Power().get_trait(contructable_from_interface_list).from_interfaces(it)
         self._setup_nands()
         self.in_outs = [Electrical().get_trait(contructable_from_interface_list).from_interfaces(i) for i in it]
-        self._setup_internal_connections() 
+        self._setup_internal_connections()
 
     def _init_from_nands(self, nands : list(NAND)):
         # checks
         assert(len(nands) <= 4)
         nands += times(4-len(nands), lambda: NAND(input_cnt=2))
-        
+
 
         for nand in nands:
             assert(nand.input_cnt == 2)
-        
+
         # setup
         self._setup_power()
         self.nands = nands
@@ -506,5 +519,5 @@ class CD4011(Component):
         self._setup_internal_connections()
 
 
-        
+
 # -----------------------------------------------------------------------------

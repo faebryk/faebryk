@@ -88,11 +88,11 @@ class Interface(FaebrykLibObject):
         self.connections.append(other)
 
     def set_component(self, component):
-        from faebryk.library import traits
+        from faebryk.library.traits.interface import is_part_of_component, can_list_interfaces
 
         self.component = component
 
-        class _(traits.is_part_of_component):
+        class _(is_part_of_component):
             @staticmethod
             def get_component() -> Component:
                 return self.component
@@ -101,8 +101,8 @@ class Interface(FaebrykLibObject):
 
         #TODO I think its nicer to have a parent relationship to the other interface
         #   instead of carrying the component through all compositions
-        if self.has_trait(traits.can_list_interfaces):
-            for i in self.get_trait(traits.can_list_interfaces).get_interfaces():
+        if self.has_trait(can_list_interfaces):
+            for i in self.get_trait(can_list_interfaces).get_interfaces():
                 if i == self:
                     continue
                 i.set_component(component)

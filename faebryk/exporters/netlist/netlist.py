@@ -1,6 +1,7 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
+import typing
 import networkx as nx
 from dataclasses import dataclass
 from faebryk.libs.util import hashable_dict, unique

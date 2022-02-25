@@ -1,233 +1,18 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from __future__ import annotations
-from enum import Enum
-from typing import Iterable
-
-from faebryk.library.core import *
-from faebryk.library.traits import *
-from faebryk.libs.exceptions import FaebrykException
-
 import logging
+
+from faebryk.library.traits.component import contructable_from_component, has_defined_type_description, has_interfaces, has_interfaces_list, has_type_description
+from faebryk.library.traits.interface import contructable_from_interface_list
 logger = logging.getLogger("library")
 
-# Parameter -------------------------------------------------------------------
-class Constant(Parameter):
-    def __init__(self, value: typing.Any) -> None:
-        super().__init__()
-        self.value = value
-        self.add_trait(is_representable_by_single_value(
-            self.value
-        ))
+from faebryk.library.core import Component, ComponentTrait, Interface, Parameter
+from faebryk.library.library.interfaces import Electrical, Power
+from faebryk.library.library.parameters import Constant
+from faebryk.library.traits import *
+from faebryk.library.util import get_all_interfaces, times, unit_map
 
-class TBD(Parameter):
-    def __init__(self) -> None:
-        super().__init__()
-# -----------------------------------------------------------------------------
-
-# Footprints ------------------------------------------------------------------
-class DIP(Footprint):
-    def __init__(self, pin_cnt: int, spacing_mm: int, long_pads: bool) -> None:
-        super().__init__()
-
-        class _has_kicad_footprint(has_kicad_footprint):
-            @staticmethod
-            def get_kicad_footprint() -> str:
-                return \
-                    "Package_DIP:DIP-{leads}_W{spacing:.2f}mm{longpads}".format(
-                        leads=pin_cnt,
-                        spacing=spacing_mm,
-                        longpads="_LongPads" if long_pads else ""
-                    )
-
-        self.add_trait(_has_kicad_footprint())
-
-class SMDTwoPin(Footprint):
-    class Type(Enum):
-        _01005 = 0
-        _0201  = 1
-        _0402  = 2
-        _0603  = 3
-        _0805  = 4
-        _1206  = 5
-        _1210  = 6
-        _1218  = 7
-        _2010  = 8
-        _2512  = 9
-
-    def __init__(self, type: Type) -> None:
-        super().__init__()
-
-        class _has_kicad_footprint(has_kicad_footprint):
-            @staticmethod
-            def get_kicad_footprint() -> str:
-                table = {
-                    self.Type._01005: "0402",
-                    self.Type._0201:  "0603",
-                    self.Type._0402:  "1005",
-                    self.Type._0603:  "1005",
-                    self.Type._0805:  "2012",
-                    self.Type._1206:  "3216",
-                    self.Type._1210:  "3225",
-                    self.Type._1218:  "3246",
-                    self.Type._2010:  "5025",
-                    self.Type._2512:  "6332",
-                }
-
-                return \
-                    "Resistor_SMD:R_{imperial}_{metric}Metric".format(
-                        imperial=type.name[1:],
-                        metric=table[type]
-                    )
-
-        self.add_trait(_has_kicad_footprint())
-# ------------------------------------------------------------------------
-
-# Interfaces ------------------------------------------------------------------
-class Electrical(Interface):
-    def __init__(self) -> None:
-        super().__init__()
-
-        class _can_list_interfaces(can_list_interfaces):
-            @staticmethod
-            def get_interfaces() -> list(Electrical):
-                return [self]
-
-        class _contructable_from_interface_list(contructable_from_interface_list):
-            @staticmethod
-            def from_interfaces(interfaces: Iterable(Electrical)) -> Electrical:
-                return next(interfaces)
-
-        self.add_trait(_can_list_interfaces())
-        self.add_trait(_contructable_from_interface_list())
-
-class Power(Interface):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.hv = Electrical()
-        self.lv = Electrical()
-
-        self.set_component(kwargs.get("component"))
-
-        class _can_list_interfaces(can_list_interfaces):
-            @staticmethod
-            def get_interfaces() -> list(Electrical):
-                return [self.hv, self.lv]
-
-        class _contructable_from_interface_list(contructable_from_interface_list):
-            @staticmethod
-            def from_interfaces(interfaces: Iterable(Electrical)) -> Power:
-                p = Power()
-                p.hv = next(interfaces)
-                p.lv = next(interfaces)
-
-                comps = get_components_of_interfaces(p.get_trait(can_list_interfaces).get_interfaces())
-                assert (len(comps) < 2 or comps[0] == comps[1])
-                if len(comps) > 0:
-                    p.set_component(comps[0])
-
-                return p
-
-        self.add_trait(_can_list_interfaces())
-        self.add_trait(_contructable_from_interface_list())
-
-        #TODO finish the trait stuff
-#        self.add_trait(is_composed([self.hv, self.lv]))
-
-    def connect(self, other: Interface):
-        #TODO feels a bit weird
-        # maybe we need to look at how aggregate interfaces connect
-        assert(type(other) is Power), "can't connect to non power"
-        for s,d in zip(
-                self.get_trait(can_list_interfaces).get_interfaces(),
-                other.get_trait(can_list_interfaces).get_interfaces(),
-            ):
-            s.connect(d)
-
-
-
-
-
-#class I2C(Interface):
-#    def __init__(self) -> None:
-#        super().__init__()
-#        self.sda = Electrical()
-#        self.sdc = Electrical()
-#        self.gnd = Electrical()
-#        self.add_trait(is_composed(
-#            [self.sda, self.sdc, self.gnd]
-#        ))
-# -----------------------------------------------------------------------------
-
-
-# Links -----------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-
-#class Component:
-#    def __init__(self, name, pins, real):
-#        self.comp = {
-#            "name": name,
-#            "properties": {
-#            },
-#            "real": real,
-#            "neighbors": {pin: [] for pin in pins}
-#        }
-#        self.pins = pins
-#
-#    def connect(self, spin, other, dpin=None):
-#        self.comp["neighbors"][spin].append({
-#            "vertex": other.get_comp(),
-#            "pin": dpin,
-#        })
-
-# META SHIT -------------------------------------------------------------------
-def default_with(given, default):
-    if given is not None:
-        return given
-    return default
-
-def times(cnt, lamb):
-    return [lamb() for _ in range(cnt)]
-
-def unit_map(value: int, units, start=None, base=1000):
-    if start is None:
-        start_idx = 0
-    else:
-        start_idx = units.index(start)
-
-    cur = base**((-start_idx)+1)
-    ptr = 0
-    while value >= cur:
-        cur *= base
-        ptr += 1
-    form_value = integer_base(value, base=base)
-    return f"{form_value}{units[ptr]}"
-
-def integer_base(value: int, base=1000):
-    while value < 1:
-        value *= base
-    while value >= base:
-        value /= base
-    return value
-
-def get_all_interfaces(interfaces : Iterable(Interface)) -> list(Interface):
-    return [
-        nested for i in interfaces
-            for nested in i.get_trait(can_list_interfaces).get_interfaces()
-    ]
-
-def get_components_of_interfaces(interfaces: list(Interface)) -> list(Component):
-    out = [
-        i.get_trait(is_part_of_component).get_component() for i in interfaces
-            if i.has_trait(is_part_of_component)
-    ]
-    return out
-
-# -----------------------------------------------------------------------------
-
-# Components ------------------------------------------------------------------
 class Resistor(Component):
     def _setup_traits(self):
         class _contructable_from_component(contructable_from_component):
@@ -402,12 +187,10 @@ class NAND(Component):
 
         self.power = Power().get_trait(contructable_from_interface_list).from_interfaces(it)
         self.output = Electrical().get_trait(contructable_from_interface_list).from_interfaces(it)
-        self.inputs = [Electrical().get_trait(contructable_from_interface_list).from_interfaces(it) for i in n.inputs]
+        self.inputs = [Electrical().get_trait(contructable_from_interface_list).from_interfaces(it) for i in self.inputs]
 
         self.input_cnt = len(self.inputs)
         self._set_interface_comp()
-
-
 
 class CD4011(Component):
     class constructable_from_nands(ComponentTrait):
@@ -431,7 +214,7 @@ class CD4011(Component):
 
         class _constructable_from_nands(self.constructable_from_nands):
             @staticmethod
-            def from_nands(nands : list(NAND)) -> CD4011:
+            def from_nands(nands : list[NAND]) -> CD4011:
                 c = CD4011.__new__(CD4011)
                 c._init_from_nands(nands)
                 return c
@@ -503,7 +286,7 @@ class CD4011(Component):
         self.in_outs = [Electrical().get_trait(contructable_from_interface_list).from_interfaces(i) for i in it]
         self._setup_internal_connections()
 
-    def _init_from_nands(self, nands : list(NAND)):
+    def _init_from_nands(self, nands : list[NAND]):
         # checks
         assert(len(nands) <= 4)
         cd_nands = list(nands)
@@ -518,7 +301,3 @@ class CD4011(Component):
         self.nands = cd_nands
         self._setup_inouts()
         self._setup_internal_connections()
-
-
-
-# -----------------------------------------------------------------------------

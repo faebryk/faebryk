@@ -32,6 +32,3 @@ Please read and execute the folowing:
 By submitting this issue, you agree to follow our [Code of Conduct](/faebryk/faebryk/blob/main/docs/CODE_OF_CONDUCT.md):
 
 - [ ] I agree to follow this project's Code of Conduct
-
-#### Contact info (optional)
-How can we get in touch with you if we need more info?

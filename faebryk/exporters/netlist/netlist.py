@@ -1,6 +1,9 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
+import logging
+logger = logging.getLogger("netlist")
+
 import typing
 import networkx as nx
 from dataclasses import dataclass
@@ -54,7 +57,7 @@ def _make_graph(netlist):
         if dest_vertex.node not in netlist:
             for c in netlist:
                 if c["name"] == dest_vertex.node["name"]:
-                    print(f"{c} != {dest_vertex.node}")
+                    logger.debug(f"{c} != {dest_vertex.node}")
             raise FaebrykException("{} was connected to but not in graph as node".format(
                 dest_vertex.node["name"]))
     #TODO check if any nodes in netlist are not appearing in Graph

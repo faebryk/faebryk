@@ -39,7 +39,7 @@ body:
     attributes:
       label: Version
       description: What version/branch/pr of our software are you running?
-      placeholder: 0.0.1
+      placeholder: 1.0.0
     validations:
       required: true
   - type: textarea

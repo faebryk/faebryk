@@ -1,4 +1,4 @@
-# 🈸 \<title\>
+# \<Prefix: \>\<Title\>
 
 # Description
 
@@ -8,15 +8,15 @@ Fixes # (issue)
 
 ## PR type
 
-Please delete options that are not relevant.
+Please delete options that are not relevant (and this text).
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- Bug fix (non-breaking change which fixes an issue)
+- New feature (non-breaking change which adds functionality)
+- Breaking change (fix or feature that would cause existing functionality to not work as expected)
 
 # Checklist
 
-Please read and execute the folowing:
+Please read and execute the following:
 
 - [ ] My code follows the style guidelines of this project
 - [ ] I have performed a self-review of my own code
@@ -31,4 +31,4 @@ Please read and execute the folowing:
 
 By submitting this issue, you agree to follow our [Code of Conduct](/faebryk/faebryk/blob/main/docs/CODE_OF_CONDUCT.md):
 
-- [ ] I agree to follow this project's Code of Conduct
+- [ ] I agree to follow this project's [Code of Conduct](/faebryk/faebryk/blob/main/docs/CODE_OF_CONDUCT.md)

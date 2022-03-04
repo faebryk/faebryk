@@ -1,4 +1,4 @@
-# \<Prefix: \>\<Title\>
+# \<Prefix\>: \<Title\>
 
 # Description
 
@@ -18,7 +18,8 @@ Please delete options that are not relevant (and this text).
 
 Please read and execute the following:
 
-- [ ] My code follows the style guidelines of this project
+- [ ] My code follows the [coding guidelines](/faebryk/faebryk/blob/main/docs/CODING_GUIDELINES.md) of this project
+- [ ] My PR title is following the [contribution guidelines](/faebryk/faebryk/blob/main/docs/CONTRIBUTING.md)
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation (if applicable)

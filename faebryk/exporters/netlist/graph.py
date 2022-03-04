@@ -18,8 +18,8 @@ def make_graph_from_components(components):
     from faebryk.libs.exceptions import FaebrykException
     from faebryk.library.traits.component import has_footprint, has_type_description, has_footprint_pinmap
     from faebryk.library.traits.interface import is_part_of_component
-    from faebryk.library.traits.footprint import has_kicad_footprint
-    from faebryk.library.library.kicad import has_kicad_ref
+    from faebryk.library.kicad import has_kicad_footprint
+    from faebryk.library.kicad import has_kicad_ref
 
     class wrapper():
         def __init__(self, component: Component) -> None:

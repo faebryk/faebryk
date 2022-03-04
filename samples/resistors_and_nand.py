@@ -19,6 +19,7 @@ def run_experiment():
     battery = Component()
     battery.power = Power()
     battery.add_trait(has_defined_interfaces([battery.power]))
+    battery.power.set_component(battery)
 
     # functional components
     resistor1 = Resistor(Constant(100))

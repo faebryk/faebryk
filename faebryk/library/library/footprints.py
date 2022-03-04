@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger("library")
 
-from faebryk.library.traits.footprint import has_kicad_footprint
+from faebryk.library.kicad import has_kicad_footprint
 from faebryk.library.core import Footprint
 from faebryk.library.traits import *
 from enum import Enum

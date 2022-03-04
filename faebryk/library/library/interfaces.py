@@ -70,13 +70,3 @@ class Power(Interface):
                 other.get_trait(can_list_interfaces).get_interfaces(),
             ):
             s.connect(d)
-
-#class I2C(Interface):
-#    def __init__(self) -> None:
-#        super().__init__()
-#        self.sda = Electrical()
-#        self.sdc = Electrical()
-#        self.gnd = Electrical()
-#        self.add_trait(is_composed(
-#            [self.sda, self.sdc, self.gnd]
-#        ))

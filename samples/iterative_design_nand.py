@@ -10,27 +10,8 @@ def run_experiment():
     from faebryk.library.library.footprints import DIP, SMDTwoPin
     from faebryk.library.library.interfaces import Electrical, Power
     from faebryk.library.library.parameters import TBD, Constant
-    from faebryk.library.traits.component import has_defined_footprint, has_defined_footprint_pinmap, has_footprint_pinmap, has_interfaces 
+    from faebryk.library.traits.component import has_defined_footprint, has_defined_footprint_pinmap, has_symmetric_footprint_pinmap, has_interfaces, has_defined_interfaces
     from faebryk.library.traits.footprint import has_kicad_manual_footprint
-    from faebryk.library.util import get_all_interfaces
-
-    class _has_interfaces(has_interfaces):
-        def __init__(self, interfaces) -> None:
-            super().__init__()
-            self.interfaces = interfaces
-
-        def get_interfaces(self):
-            return get_all_interfaces(self.interfaces)
-
-    class _has_footprint_pinmap(has_footprint_pinmap):
-        def __init__(self, comp) -> None:
-            super().__init__()
-            self.comp = comp
-
-        def get_pin_map(self):
-            ifs = self.comp.get_trait(has_interfaces).get_interfaces()
-            return {k+1:v for k,v in enumerate(ifs)}
-
 
     # levels
     high = Electrical()
@@ -118,27 +99,25 @@ def run_experiment():
     switch.add_trait(has_defined_footprint(switch_fp))
 
     for symmetric_component in [pull_down_resistor, current_limiting_resistor, switch]:
-        symmetric_component.add_trait(_has_footprint_pinmap(symmetric_component))
+        symmetric_component.add_trait(has_symmetric_footprint_pinmap(symmetric_component))
 
-    led.add_trait(has_defined_footprint_pinmap(
-        {
-            1: led.anode,
-            2: led.cathode,
-        }
-    ))
+    led.add_trait(has_defined_footprint_pinmap({
+        1: led.anode,
+        2: led.cathode,
+    }))
 
     #TODO: remove, just compensation for old graph
-    battery.add_trait(_has_interfaces([battery.power]))
+    battery.add_trait(has_defined_interfaces([battery.power]))
     battery.get_trait(has_interfaces).set_interface_comp(battery)
-    battery.add_trait(_has_footprint_pinmap(battery))
+    battery.add_trait(has_symmetric_footprint_pinmap(battery))
     logic_virt = Component()
     logic_virt.high = high
     logic_virt.low = low
-    logic_virt.add_trait(_has_interfaces([logic_virt.high, logic_virt.low]))
+    logic_virt.add_trait(has_defined_interfaces([logic_virt.high, logic_virt.low]))
     logic_virt.get_trait(has_interfaces).set_interface_comp(logic_virt)
-    logic_virt.add_trait(_has_footprint_pinmap(logic_virt))
+    logic_virt.add_trait(has_symmetric_footprint_pinmap(logic_virt))
     for n in nand_ic.nands:
-        n.add_trait(_has_footprint_pinmap(n))
+        n.add_trait(has_symmetric_footprint_pinmap(n))
 
     # make graph
     components = [

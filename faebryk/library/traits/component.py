@@ -19,7 +19,7 @@ class has_defined_type_description(has_type_description):
         return self.value
 
 class has_interfaces(ComponentTrait):
-    def get_interfaces(self) -> list[InterfaceTrait]:
+    def get_interfaces(self) -> list[Interface]:
         raise NotImplementedError()
 
     def set_interface_comp(self, comp):
@@ -37,6 +37,16 @@ class has_interfaces_list(has_interfaces):
     def set_interface_comp(self, comp=None):
         assert (comp is None or comp == self.comp) 
         super().set_interface_comp(self.comp)
+
+class has_defined_interfaces(has_interfaces):
+    def __init__(self, interfaces: list[Interface]) -> None:
+        super().__init__()
+        self.interfaces = interfaces
+    
+    def get_interfaces(self) -> list[Interface]:
+        from faebryk.library.util import get_all_interfaces
+
+        return get_all_interfaces(self.interfaces)
 
 class contructable_from_component(ComponentTrait):
     def from_comp(self, comp: Component):
@@ -65,3 +75,12 @@ class has_defined_footprint_pinmap(has_footprint_pinmap):
 
     def get_pin_map(self):
         return self.pin_map
+
+class has_symmetric_footprint_pinmap(has_footprint_pinmap):
+    def __init__(self, comp: Component) -> None:
+        super().__init__()
+        self.comp = comp
+    
+    def get_pin_map(self):
+        ifs = self.comp.get_trait(has_interfaces).get_interfaces()
+        return {k+1:v for k,v in enumerate(ifs)}

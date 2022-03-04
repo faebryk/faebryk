@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from faebryk.library.traits import component
 
-from faebryk.library.traits.component import contructable_from_component, has_defined_type_description, has_interfaces, has_interfaces_list, has_type_description
+from faebryk.library.traits.component import contructable_from_component, has_defined_footprint, has_defined_footprint_pinmap, has_defined_type_description, has_footprint_pinmap, has_interfaces, has_interfaces_list, has_symmetric_footprint_pinmap, has_type_description
 from faebryk.library.traits.interface import contructable_from_interface_list
 logger = logging.getLogger("library")
 
@@ -231,6 +232,8 @@ class CD4011(Component):
 
     def _setup_nands(self):
         self.nands = times(4, lambda: NAND(input_cnt=2))
+        for n in self.nands:
+            n.add_trait(has_symmetric_footprint_pinmap(n))
 
     def _setup_inouts(self):
         nand_inout_interfaces = [i for n in self.nands for i in get_all_interfaces([n.output, *n.inputs])]
@@ -259,7 +262,7 @@ class CD4011(Component):
     def __new__(cls):
         self = super().__new__(cls)
 
-        self._setup_traits()
+        CD4011._setup_traits(self)
         return self
 
     def __init__(self):
@@ -301,3 +304,47 @@ class CD4011(Component):
         self.nands = cd_nands
         self._setup_inouts()
         self._setup_internal_connections()
+
+class TI_CD4011BE(CD4011):
+    def __init__(self):
+        super().__init__()
+    
+    def __new__(cls):
+        self = super().__new__(cls)
+
+        TI_CD4011BE._setup_traits(self)
+        return self
+
+    def _setup_traits(self):
+        from faebryk.library.library.footprints import DIP
+        self.add_trait(has_defined_footprint(DIP(
+            pin_cnt=14, 
+            spacing_mm=7.62, 
+            long_pads=False
+        )))
+
+        class _has_footprint_pinmap(has_footprint_pinmap):
+            def __init__(self, component: Component) -> None:
+                super().__init__()
+                self.component = component
+
+            def get_pin_map(self):
+                component = self.component
+                return {
+                    7:  component.power.lv,
+                    14: component.power.hv,
+                    3:  component.connection_map[component.nands[0].output],
+                    4:  component.connection_map[component.nands[1].output],
+                    11: component.connection_map[component.nands[2].output],
+                    10: component.connection_map[component.nands[3].output],
+                    1:  component.connection_map[component.nands[0].inputs[0]],
+                    2:  component.connection_map[component.nands[0].inputs[1]],
+                    5:  component.connection_map[component.nands[1].inputs[0]],
+                    6:  component.connection_map[component.nands[1].inputs[1]],
+                    12: component.connection_map[component.nands[2].inputs[0]],
+                    13: component.connection_map[component.nands[2].inputs[1]],
+                    9:  component.connection_map[component.nands[3].inputs[0]],
+                    8:  component.connection_map[component.nands[3].inputs[1]],
+                }
+
+        self.add_trait(_has_footprint_pinmap(self))

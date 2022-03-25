@@ -58,30 +58,43 @@ def make_graph_from_components(components):
             return self._comp
 
         def get_comp(self):
+
+            def _get_neighbours(target_interface, visited):
+                visited.append(target_interface)
+
+                if target_interface.has_trait(is_part_of_component):
+                    target_component = target_interface.get_trait(is_part_of_component).get_component()
+                    target_pinmap = target_component.get_trait(has_footprint_pinmap).get_pin_map()
+                    target_pin = list(target_pinmap.items())[list(target_pinmap.values()).index(target_interface)][0]
+                    try:
+                        target_wrapped = [i for i in wrapped_list if i.component == target_component][0]
+                    except IndexError:
+                        raise FaebrykException("Discovered associated component not in component list:", target_component)
+
+                    return [{
+                        "vertex": target_wrapped._get_comp(),
+                        "pin": target_pin
+                    }]
+                else:
+                    logger.warn("{comp} pin {pin} is connected to interface without component".format(
+                        comp=self.name,
+                        #intf=target_interface,
+                        pin=pin,
+                    ))
+                    recurse_neighbors = []
+                    for sub_target_interface in target_interface.connections:
+                        if sub_target_interface in visited:
+                            continue
+                        recurse_neighbors += _get_neighbours(sub_target_interface, visited)
+                    return recurse_neighbors
+
+
             # only executed once
             neighbors = {}
             for pin, interface in self.component.get_trait(has_footprint_pinmap).get_pin_map().items():
                 neighbors[pin] = []
                 for target_interface in interface.connections:
-                    if target_interface.has_trait(is_part_of_component):
-                        target_component = target_interface.get_trait(is_part_of_component).get_component()
-                        target_pinmap = target_component.get_trait(has_footprint_pinmap).get_pin_map()
-                        target_pin = list(target_pinmap.items())[list(target_pinmap.values()).index(target_interface)][0]
-                        try:
-                            target_wrapped = [i for i in wrapped_list if i.component == target_component][0]
-                        except IndexError:
-                            raise FaebrykException("Discovered associated component not in component list:", target_component)
-
-                        neighbors[pin].append({
-                          "vertex": target_wrapped._get_comp(),
-                          "pin": target_pin
-                        })
-                    else:
-                        logger.warn("{comp} pin {pin} is connected to interface without component".format(
-                            comp=self.name,
-                            #intf=target_interface,
-                            pin=pin,
-                        ))
+                    neighbors[pin] += _get_neighbours(target_interface, [interface])
 
             self.neighbors = neighbors
             self._update_comp()

@@ -13,6 +13,9 @@ class Trait:
     def __eq__(self, other: Trait) -> bool:
         return isinstance(self, other)
 
+    def set_ref(self, ref):
+        self.ref = ref
+
 class FaebrykLibObject:
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
@@ -25,6 +28,8 @@ class FaebrykLibObject:
 
     #TODO trait should always get ref to object
     def add_trait(self, trait : Trait) -> None:
+        trait.set_ref(self)
+
         if type(trait) not in self.traits:
             self.traits.append(trait)
             return
@@ -86,6 +91,7 @@ class Interface(FaebrykLibObject):
     def connect(self, other: Interface):
         assert (type(other) is type(self)), "{} is not {}".format(type(other), type(self))
         self.connections.append(other)
+        other.connections.append(self)
 
     def set_component(self, component):
         from faebryk.library.traits.interface import is_part_of_component, can_list_interfaces
@@ -96,6 +102,11 @@ class Interface(FaebrykLibObject):
             @staticmethod
             def get_component() -> Component:
                 return self.component
+
+
+        if component is None:
+            self.del_trait(is_part_of_component)
+            return
 
         self.add_trait(_())
 

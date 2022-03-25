@@ -26,6 +26,22 @@ class DIP(Footprint):
 
         self.add_trait(_has_kicad_footprint())
 
+class QFN(Footprint):
+    def __init__(self, pin_cnt: int, size_x_mm: int, size_y_mm: int) -> None:
+        super().__init__()
+
+        class _has_kicad_footprint(has_kicad_footprint):
+            @staticmethod
+            def get_kicad_footprint() -> str:
+                return \
+                    "Package_QFN:QFN-{leads}_X{spacing_x:.2f}mm_Y{spacing_y:.2f}mm".format(
+                        leads=pin_cnt,
+                        spacing_x=size_x_mm,
+                        spacing_y=size_y_mm,
+                    )
+
+        self.add_trait(_has_kicad_footprint())
+
 class SMDTwoPin(Footprint):
     class Type(Enum):
         _01005 = 0

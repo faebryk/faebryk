@@ -4,7 +4,7 @@
 import unittest
 import logging
 
-logger = logging.getLogger("netlist")
+logger = logging.getLogger("test")
 
 # Netlists --------------------------------------------------------------------
 def test_netlist_graph():

@@ -26,8 +26,6 @@ def run_experiment():
     from faebryk.library.kicad import has_kicad_manual_footprint
     import logging
 
-    logger = logging.getLogger("experiment")
-
     # levels
     high = Electrical()
     low = Electrical()
@@ -158,7 +156,7 @@ def run_experiment():
     )
 
     logger.info("Experiment netlist:")
-    logger.info(netlist)
+    print(netlist)
 
     from faebryk.exporters.netlist import render_graph
     render_graph(t1_)
@@ -167,10 +165,11 @@ def run_experiment():
 import sys
 import logging
 
+logger = logging.getLogger("main")
+
+
 def main(argc, argv, argi):
     logging.basicConfig(level=logging.INFO)
-
-    logger = logging.getLogger("main")
 
     logger.info("Running experiment")
     run_experiment()

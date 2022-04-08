@@ -17,7 +17,7 @@ import re
 import unittest
 import logging
 
-logger = logging.getLogger("netlist")
+logger = logging.getLogger("test")
 
 """
     Converts python dict to format which can be recovered by sexp without
@@ -63,7 +63,7 @@ def _cleanparsed(parsed):
         return parsed
 
     if type(parsed[0]) != type(1):
-        logger.warning("Fault:", parsed)
+        logger.error("Fault:", parsed)
         raise Exception
 
     # remove line numbers
@@ -95,11 +95,11 @@ def _test_py2net2py(obj):
 
     eq = objtuple == cleaned
     if not eq:
-        logger.error("Not equal:")
-        logger.error("\tsource\t", obj)
-        logger.error("\tdic2tup\t", objtuple)
-        logger.error("\tsexp\t", sexp)
-        logger.error("\tparsed\t", cleaned)
+        logger.info("Not equal:")
+        logger.info("\tsource\t", obj)
+        logger.info("\tdic2tup\t", objtuple)
+        logger.info("\tsexp\t", sexp)
+        logger.info("\tparsed\t", cleaned)
 
     return eq
 
@@ -126,9 +126,9 @@ def _test_net2py2net(netfilepath):
     eq_str = netsexpcleaned == netsexpgen
     eq = cleaned == cleanedparsed
     if not eq:
-        logger.info("Not equal")
+        logger.errpr("Not equal")
         if eq_str:
-            logger.info("But strings are equal")
+            logger.error("But strings are equal")
         else:
             logger.info("\tSourceStr:\t", netsexpcleaned)
             logger.info("\tGen   Str:\t",netsexpgen)

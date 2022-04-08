@@ -126,7 +126,7 @@ def _test_net2py2net(netfilepath):
     eq_str = netsexpcleaned == netsexpgen
     eq = cleaned == cleanedparsed
     if not eq:
-        logger.errpr("Not equal")
+        logger.error("Not equal")
         if eq_str:
             logger.error("But strings are equal")
         else:

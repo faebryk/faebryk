@@ -23,6 +23,9 @@ def run_experiment():
     from faebryk.library.library.interfaces import Power
     from faebryk.library.library.parameters import Constant
     from faebryk.library.traits.component import has_defined_footprint, has_symmetric_footprint_pinmap, has_defined_interfaces
+    import logging
+
+    logger = logging.getLogger("experiment")
 
     # power
     battery = Component()
@@ -75,8 +78,8 @@ def run_experiment():
         )
     )
 
-    print("Experiment netlist:")
-    print(netlist)
+    logger.info("Experiment netlist:")
+    logger.info(netlist)
 
     from faebryk.exporters.netlist import render_graph
     render_graph(t1_)
@@ -88,7 +91,9 @@ import logging
 def main(argc, argv, argi):
     logging.basicConfig(level=logging.INFO)
 
-    print("Running experiment")
+    logger = logging.getLogger("main")
+
+    logger.info("Running experiment")
     run_experiment()
 
 if __name__ == "__main__":

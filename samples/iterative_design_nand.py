@@ -12,6 +12,9 @@ Thus this is a netlist sample.
 Netlist samples can be run directly.
 The netlist is printed to stdout.
 """
+import logging
+
+logger = logging.getLogger("main")
 
 def run_experiment():
     from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
@@ -162,10 +165,6 @@ def run_experiment():
 
 # Boilerplate -----------------------------------------------------------------
 import sys
-import logging
-
-logger = logging.getLogger("main")
-
 
 def main(argc, argv, argi):
     logging.basicConfig(level=logging.INFO)

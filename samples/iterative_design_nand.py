@@ -24,7 +24,6 @@ def run_experiment():
     from faebryk.library.library.parameters import TBD, Constant
     from faebryk.library.traits.component import has_defined_footprint, has_defined_footprint_pinmap, has_symmetric_footprint_pinmap, has_interfaces, has_defined_interfaces
     from faebryk.library.kicad import has_kicad_manual_footprint
-    import logging
 
     # levels
     high = Electrical()

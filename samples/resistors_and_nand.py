@@ -23,7 +23,6 @@ def run_experiment():
     from faebryk.library.library.interfaces import Power
     from faebryk.library.library.parameters import Constant
     from faebryk.library.traits.component import has_defined_footprint, has_symmetric_footprint_pinmap, has_defined_interfaces
-    import logging
 
     # power
     battery = Component()

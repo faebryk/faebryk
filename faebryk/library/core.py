@@ -14,8 +14,8 @@ class Trait:
     def __init__(self) -> None:
         self._obj = None
 
-    def __eq__(self, other: Trait) -> bool:
-        return isinstance(self, other)
+    def __eq__(self, other) -> bool:
+        return isinstance(self, other) or issubclass(other, type(self))
 
     def set_obj(self, _obj):
         self._obj = _obj
@@ -43,6 +43,14 @@ class FaebrykLibObject:
         trait.set_obj(self)
 
         # Add trait if new
+        # TODO this checks only if any of the traits instances
+        #   are subclassing this trait
+        #   This creates the problem if a less specific trait
+        #   is in the list.
+        # E.g has_interfaces is in there, but we try to add
+        #   has_defined_interfaces
+        # Maybe we need to check if they share a common base that
+        #   is not Trait (specific to the libobj)
         if type(trait) not in self.traits:
             self.traits.append(trait)
             return
@@ -150,6 +158,49 @@ class Interface(FaebrykLibObject):
 class Component(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
+
+        from faebryk.library.traits.component import has_interfaces
+        from faebryk.library.util import NotifiesOnPropertyChange, get_all_interfaces
+
+        class _Interfaces(NotifiesOnPropertyChange):
+            def __init__(_self) -> None:
+                super().__init__(
+                    lambda k, v: _self.on_change(k, v)
+                    if issubclass(type(v), Interface)
+                    else None
+                )
+                _self._unnamed = ()
+
+            def on_change(_self, name, intf: Interface):
+                logger.debug(f"{name} = {intf}")
+                intf.set_component(self)
+
+            def add(_self, intf: Interface):
+                logger.debug(f"_unnamed.{len(_self._unnamed)} = {intf}")
+                _self._unnamed += (intf,)
+                intf.set_component(self)
+
+            def add_all(_self, intfs: typing.Iterable[Interface]):
+                for intf in intfs:
+                    _self.add(intf)
+
+            def get_all(_self) -> list[Interface]:
+                return get_all_interfaces(
+                    [
+                        intf
+                        for intf in vars(_self).values()
+                        if issubclass(type(intf), Interface)
+                    ]
+                    + [
+                        intf
+                        for intfs in vars(_self).values()
+                        if type(intfs) is tuple
+                        for intf in intfs
+                    ]
+                )
+
+        self.IFs = _Interfaces()
+        self.add_trait(has_interfaces())
 
     def add_trait(self, trait: ComponentTrait) -> None:
         return super().add_trait(trait)

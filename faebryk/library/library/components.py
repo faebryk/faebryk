@@ -38,17 +38,14 @@ class Resistor(Component):
 
                 r = Resistor.__new__(Resistor)
                 r._setup_resistance(resistance)
-                r.interfaces = interfaces
-                r.get_trait(has_interfaces).set_interface_comp()
+                r.IFs.add_all(interfaces)
 
                 return r
 
-        self.add_trait(has_interfaces_list())
         self.add_trait(_contructable_from_component())
 
     def _setup_interfaces(self):
-        self.interfaces = times(2, Electrical)
-        self.get_trait(has_interfaces).set_interface_comp()
+        self.IFs.add_all(times(2, Electrical))
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)

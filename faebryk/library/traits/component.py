@@ -31,7 +31,7 @@ class has_defined_type_description(has_type_description):
 
 class has_interfaces(ComponentTrait):
     def get_interfaces(self) -> list[Interface]:
-        raise NotImplementedError()
+        return self.get_obj().IFs.get_all()
 
     def set_interface_comp(self):
         for i in self.get_interfaces():
@@ -39,8 +39,9 @@ class has_interfaces(ComponentTrait):
 
 
 class has_interfaces_list(has_interfaces):
-    def get_interfaces(self) -> list[Interface]:
-        return self.get_obj().interfaces
+    pass
+    # def get_interfaces(self) -> list[Interface]:
+    #    return self.get_obj().IFs.unnamed
 
 
 class has_defined_interfaces(has_interfaces):

@@ -132,7 +132,7 @@ class Capacitor(Component):
             def get_type_description():
                 capacitance = self.capacitance
                 return unit_map(
-                    capacitance.value, ["µF", "mF", "F", "KF", "MF", "GF"], start="µF"
+                    capacitance.value, ["µF", "mF", "F", "KF", "MF", "GF"], start="F"
                 )
 
         self.add_trait(_has_type_description())

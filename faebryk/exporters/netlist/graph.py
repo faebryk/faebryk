@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-from multiprocessing.sharedctypes import Value
 
 logger = logging.getLogger("netlist")
 

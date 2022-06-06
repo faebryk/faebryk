@@ -122,10 +122,18 @@ class Interface(FaebrykLibObject):
     def add_trait(self, trait: InterfaceTrait) -> None:
         return super().add_trait(trait)
 
-    def connect(self, other: Interface):
+    def connect(self, other: Interface) -> Interface:
         assert type(other) is type(self), "{} is not {}".format(type(other), type(self))
         self.connections.append(other)
         other.connections.append(self)
+
+        return self
+
+    def connect_all(self, others: list[Interface]) -> Interface:
+        for i in others:
+            self.connect(self, i)
+
+        return self
 
     def set_component(self, component):
         from faebryk.library.traits.interface import (
@@ -170,15 +178,19 @@ class Component(FaebrykLibObject):
                     else None
                 )
                 _self._unnamed = ()
+                # helper array for next method
+                _self._unpopped = []
 
             def on_change(_self, name, intf: Interface):
                 logger.debug(f"{name} = {intf}")
                 intf.set_component(self)
+                _self._unpopped.append(intf)
 
             def add(_self, intf: Interface):
                 logger.debug(f"_unnamed.{len(_self._unnamed)} = {intf}")
                 _self._unnamed += (intf,)
                 intf.set_component(self)
+                _self._unpopped.append(intf)
 
             def add_all(_self, intfs: typing.Iterable[Interface]):
                 for intf in intfs:
@@ -198,6 +210,11 @@ class Component(FaebrykLibObject):
                         for intf in intfs
                     ]
                 )
+            
+            def next(_self):
+                assert len(_self._unpopped) > 0, "No more interfaces to pop"
+                return _self._unpopped.pop(0)
+
 
         self.IFs = _Interfaces()
         self.add_trait(has_interfaces())

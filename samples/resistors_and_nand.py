@@ -46,10 +46,8 @@ def run_experiment():
     gnd = battery.IFs.power.lv
 
     # connections
-    resistor1.IFs.get_all()[0].connect(vcc)
-    resistor1.IFs.get_all()[1].connect(gnd)
-    resistor2.IFs.get_all()[0].connect(resistor1.IFs.get_all()[0])
-    resistor2.IFs.get_all()[1].connect(resistor1.IFs.get_all()[1])
+    resistor1.IFs.next().connect(vcc).connect(resistor2.IFs.next())
+    resistor1.IFs.next().connect(gnd).connect(resistor2.IFs.next())
     cd4011.nands[0].inputs[0].connect(vcc)
     cd4011.nands[0].inputs[1].connect(gnd)
     cd4011.power.connect(battery.IFs.power)

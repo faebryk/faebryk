@@ -39,7 +39,8 @@ class has_interfaces(ComponentTrait):
 
 
 class has_interfaces_list(has_interfaces):
-    pass
+    def __init__(self) -> None:
+        assert False, "deprecated"
     # def get_interfaces(self) -> list[Interface]:
     #    return self.get_obj().IFs.unnamed
 

@@ -31,9 +31,7 @@ def test_netlist_graph():
         # value
         r.add_trait(has_defined_type_description("R"))
         # interfaces
-        r.interfaces = [Electrical(), Electrical()]
-        r.add_trait(has_interfaces_list())
-        r.get_trait(has_interfaces).set_interface_comp()
+        r.IFs.add_all([Electrical(), Electrical()])
         # footprint
         fp = Footprint()
         fp.add_trait(has_kicad_manual_footprint("Resistor_SMD:R_0805_2012Metric"))
@@ -41,23 +39,21 @@ def test_netlist_graph():
         # pinmap
         r.add_trait(has_defined_footprint_pinmap(
             {
-                1: r.interfaces[0],
-                2: r.interfaces[1],
+                1: r.IFs._unnamed[0],
+                2: r.IFs._unnamed[1],
             }
         ))
 
-    resistor1.interfaces[0].connect(vcc)
-    resistor1.interfaces[1].connect(gnd)
-    resistor2.interfaces[0].connect(resistor1.interfaces[0])
-    resistor2.interfaces[1].connect(resistor1.interfaces[1])
+    resistor1.IFs._unnamed[0].connect(vcc)
+    resistor1.IFs._unnamed[1].connect(gnd)
+    resistor2.IFs._unnamed[0].connect(resistor1.IFs._unnamed[0])
+    resistor2.IFs._unnamed[1].connect(resistor1.IFs._unnamed[1])
 
     # net naming
     net_wrappers = []
     for i in [gnd, vcc]:
         wrap = Component()
-        wrap.interfaces = [i]
-        wrap.add_trait(has_interfaces_list())
-        wrap.get_trait(has_interfaces).set_interface_comp()
+        wrap.IFs.to_wrap = i
         wrap.add_trait(has_defined_kicad_ref("+3V3" if i == vcc else "GND"))
         wrap.add_trait(has_defined_footprint_pinmap({1: i}))
         net_wrappers.append(wrap)

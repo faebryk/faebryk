@@ -95,7 +95,7 @@ def make_graph_from_components(components):
                             ][0]
                         except ValueError:
                             raise FaebrykException(
-                                "Pinmap of component does not contained referenced pin"
+                                "Pinmap of component does not contain referenced pin"
                             )
                         try:
                             target_wrapped = [

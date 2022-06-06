@@ -48,9 +48,9 @@ def run_experiment():
     # connections
     resistor1.IFs.next().connect(vcc).connect(resistor2.IFs.next())
     resistor1.IFs.next().connect(gnd).connect(resistor2.IFs.next())
-    cd4011.nands[0].inputs[0].connect(vcc)
-    cd4011.nands[0].inputs[1].connect(gnd)
-    cd4011.power.connect(battery.IFs.power)
+    cd4011.nands[0].IFs.inputs[0].connect(vcc)
+    cd4011.nands[0].IFs.inputs[1].connect(gnd)
+    cd4011.IFs.power.connect(battery.IFs.power)
 
     # make kicad netlist exportable (packages, pinmaps)
     for r in [resistor1, resistor2]:

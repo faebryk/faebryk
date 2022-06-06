@@ -92,3 +92,22 @@ class has_symmetric_footprint_pinmap(has_footprint_pinmap):
     def get_pin_map(self):
         ifs = self.get_obj().get_trait(has_interfaces).get_interfaces()
         return {k + 1: v for k, v in enumerate(ifs)}
+
+
+class can_bridge(ComponentTrait):
+    def bridge(self, _in, out):
+        _in.connect(self.get_in())
+        out.connect(self.get_out())
+        
+    def get_in(self):
+        raise NotImplementedError(type(self))
+        
+    def get_out(self):
+        raise NotImplementedError(type(self))
+
+class can_bridge_defined(can_bridge):
+    def __init__(self, in_if: Interface, out_if: Interface) -> None:
+        super().__init__()
+
+        self.get_in = lambda: in_if
+        self.get_out = lambda: out_if

@@ -135,6 +135,18 @@ class Interface(FaebrykLibObject):
 
         return self
 
+    def connect_via(self, bridge: Interface, target: Interface):
+        from faebryk.library.traits.component import can_bridge
+        bridge.get_trait(can_bridge).bridge(self, target)
+
+    def connect_via_chain(self, bridges: list[Interface], target: Interface):
+        from faebryk.library.traits.component import can_bridge
+        end = self
+        for bridge in bridges:
+            end.connect(bridge.get_trait(can_bridge).get_in())
+            end = bridge.get_trait(can_bridge).get_out()
+        end.connect(target)
+
     def set_component(self, component):
         from faebryk.library.traits.interface import (
             is_part_of_component,
@@ -173,8 +185,11 @@ class Component(FaebrykLibObject):
         class _Interfaces(NotifiesOnPropertyChange):
             def __init__(_self) -> None:
                 super().__init__(
+                    #TODO maybe throw warnig?
                     lambda k, v: _self.on_change(k, v)
-                    if issubclass(type(v), Interface)
+                        if issubclass(type(v), Interface) \
+                    else _self.on_change_s(k, v) \
+                        if type(v) is list and all([issubclass(type(x), Interface) for x in v]) \
                     else None
                 )
                 _self._unnamed = ()
@@ -182,12 +197,13 @@ class Component(FaebrykLibObject):
                 _self._unpopped = []
 
             def on_change(_self, name, intf: Interface):
-                logger.debug(f"{name} = {intf}")
                 intf.set_component(self)
-                _self._unpopped.append(intf)
+
+            def on_change_s(_self, name, intfs: list[Interface]):
+                for intf in intfs:
+                    intf.set_component(self)
 
             def add(_self, intf: Interface):
-                logger.debug(f"_unnamed.{len(_self._unnamed)} = {intf}")
                 _self._unnamed += (intf,)
                 intf.set_component(self)
                 _self._unpopped.append(intf)
@@ -205,12 +221,13 @@ class Component(FaebrykLibObject):
                     ]
                     + [
                         intf
-                        for intfs in vars(_self).values()
-                        if type(intfs) is tuple
+                        for name,intfs in vars(_self).items()
+                        if type(intfs) in [tuple, list] and name != "_unpopped"
                         for intf in intfs
                     ]
                 )
             
+            """ returns iterator on unnamed interfaces """
             def next(_self):
                 assert len(_self._unpopped) > 0, "No more interfaces to pop"
                 return _self._unpopped.pop(0)

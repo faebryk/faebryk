@@ -92,18 +92,18 @@ def run_experiment():
             {
                 7: nand_ic.IFs.power.lv,
                 14: nand_ic.IFs.power.hv,
-                3: nand_ic.connection_map[nand_ic.nands[0].IFs.output],
-                4: nand_ic.connection_map[nand_ic.nands[1].IFs.output],
-                11: nand_ic.connection_map[nand_ic.nands[2].IFs.output],
-                10: nand_ic.connection_map[nand_ic.nands[3].IFs.output],
-                1: nand_ic.connection_map[nand_ic.nands[0].IFs.inputs[0]],
-                2: nand_ic.connection_map[nand_ic.nands[0].IFs.inputs[1]],
-                5: nand_ic.connection_map[nand_ic.nands[1].IFs.inputs[0]],
-                6: nand_ic.connection_map[nand_ic.nands[1].IFs.inputs[1]],
-                12: nand_ic.connection_map[nand_ic.nands[2].IFs.inputs[0]],
-                13: nand_ic.connection_map[nand_ic.nands[2].IFs.inputs[1]],
-                9: nand_ic.connection_map[nand_ic.nands[3].IFs.inputs[0]],
-                8: nand_ic.connection_map[nand_ic.nands[3].IFs.inputs[1]],
+                3: nand_ic.connection_map[nand_ic.CMPs.nands[0].IFs.output],
+                4: nand_ic.connection_map[nand_ic.CMPs.nands[1].IFs.output],
+                11: nand_ic.connection_map[nand_ic.CMPs.nands[2].IFs.output],
+                10: nand_ic.connection_map[nand_ic.CMPs.nands[3].IFs.output],
+                1: nand_ic.connection_map[nand_ic.CMPs.nands[0].IFs.inputs[0]],
+                2: nand_ic.connection_map[nand_ic.CMPs.nands[0].IFs.inputs[1]],
+                5: nand_ic.connection_map[nand_ic.CMPs.nands[1].IFs.inputs[0]],
+                6: nand_ic.connection_map[nand_ic.CMPs.nands[1].IFs.inputs[1]],
+                12: nand_ic.connection_map[nand_ic.CMPs.nands[2].IFs.inputs[0]],
+                13: nand_ic.connection_map[nand_ic.CMPs.nands[2].IFs.inputs[1]],
+                9: nand_ic.connection_map[nand_ic.CMPs.nands[3].IFs.inputs[0]],
+                8: nand_ic.connection_map[nand_ic.CMPs.nands[3].IFs.inputs[1]],
             }
         )
     )
@@ -133,7 +133,7 @@ def run_experiment():
     logic_virt.IFs.high = high
     logic_virt.IFs.low = low
     logic_virt.add_trait(has_symmetric_footprint_pinmap())
-    for n in nand_ic.nands:
+    for n in nand_ic.CMPs.nands:
         n.add_trait(has_symmetric_footprint_pinmap())
 
     # make graph
@@ -145,8 +145,6 @@ def run_experiment():
         switch,
         battery,
         logic_virt,
-        # TODO make composited comps add their subcomps automatically?
-        *nand_ic.nands,
     ]
 
     t1_ = make_t1_netlist_from_graph(make_graph_from_components(components))

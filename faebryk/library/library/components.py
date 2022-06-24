@@ -283,14 +283,14 @@ class CD4011(Component):
         self.IFs.power = Power()
 
     def _setup_nands(self):
-        self.nands = times(4, lambda: NAND(input_cnt=2))
-        for n in self.nands:
+        self.CMPs.nands = times(4, lambda: NAND(input_cnt=2))
+        for n in self.CMPs.nands:
             n.add_trait(has_symmetric_footprint_pinmap())
 
     def _setup_inouts(self):
         nand_inout_interfaces = [
             i
-            for n in self.nands
+            for n in self.CMPs.nands
             for i in get_all_interfaces([n.IFs.output, *n.IFs.inputs])
         ]
         self.IFs.in_outs = times(len(nand_inout_interfaces), Electrical)
@@ -299,7 +299,7 @@ class CD4011(Component):
         self.connection_map = {}
 
         it = iter(self.IFs.in_outs)
-        for n in self.nands:
+        for n in self.CMPs.nands:
             n.IFs.power.connect(self.IFs.power)
             target = next(it)
             target.connect(n.IFs.output)
@@ -362,7 +362,7 @@ class CD4011(Component):
 
         # setup
         self._setup_power()
-        self.nands = cd_nands
+        self.CMPs.nands = cd_nands
         self._setup_inouts()
         self._setup_internal_connections()
 
@@ -394,18 +394,18 @@ class TI_CD4011BE(CD4011):
                 return {
                     7: component.IFs.power.lv,
                     14: component.IFs.power.hv,
-                    3: component.connection_map[component.nands[0].IFs.output],
-                    4: component.connection_map[component.nands[1].IFs.output],
-                    11: component.connection_map[component.nands[2].IFs.output],
-                    10: component.connection_map[component.nands[3].IFs.output],
-                    1: component.connection_map[component.nands[0].IFs.inputs[0]],
-                    2: component.connection_map[component.nands[0].IFs.inputs[1]],
-                    5: component.connection_map[component.nands[1].IFs.inputs[0]],
-                    6: component.connection_map[component.nands[1].IFs.inputs[1]],
-                    12: component.connection_map[component.nands[2].IFs.inputs[0]],
-                    13: component.connection_map[component.nands[2].IFs.inputs[1]],
-                    9: component.connection_map[component.nands[3].IFs.inputs[0]],
-                    8: component.connection_map[component.nands[3].IFs.inputs[1]],
+                    3: component.connection_map[component.CMPs.nands[0].IFs.output],
+                    4: component.connection_map[component.CMPs.nands[1].IFs.output],
+                    11: component.connection_map[component.CMPs.nands[2].IFs.output],
+                    10: component.connection_map[component.CMPs.nands[3].IFs.output],
+                    1: component.connection_map[component.CMPs.nands[0].IFs.inputs[0]],
+                    2: component.connection_map[component.CMPs.nands[0].IFs.inputs[1]],
+                    5: component.connection_map[component.CMPs.nands[1].IFs.inputs[0]],
+                    6: component.connection_map[component.CMPs.nands[1].IFs.inputs[1]],
+                    12: component.connection_map[component.CMPs.nands[2].IFs.inputs[0]],
+                    13: component.connection_map[component.CMPs.nands[2].IFs.inputs[1]],
+                    9: component.connection_map[component.CMPs.nands[3].IFs.inputs[0]],
+                    8: component.connection_map[component.CMPs.nands[3].IFs.inputs[1]],
                 }
 
         self.add_trait(_has_footprint_pinmap(self))

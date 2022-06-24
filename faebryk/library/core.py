@@ -15,7 +15,10 @@ class Trait:
         self._obj = None
 
     def __eq__(self, other) -> bool:
-        return isinstance(self, other) or issubclass(other, type(self))
+        if type(other) is type:
+            return isinstance(self, other) or issubclass(other, type(self))
+        else:
+            return super.__eq__(self, other)
 
     def set_obj(self, _obj):
         self._obj = _obj
@@ -43,14 +46,8 @@ class FaebrykLibObject:
         trait.set_obj(self)
 
         # Add trait if new
-        # TODO this checks only if any of the traits instances
-        #   are subclassing this trait
-        #   This creates the problem if a less specific trait
-        #   is in the list.
-        # E.g has_interfaces is in there, but we try to add
-        #   has_defined_interfaces
-        # Maybe we need to check if they share a common base that
-        #   is not Trait (specific to the libobj)
+        # Be careful with parent/child classes of a trait
+        # They count as one
         if type(trait) not in self.traits:
             self.traits.append(trait)
             return

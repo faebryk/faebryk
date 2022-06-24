@@ -53,7 +53,7 @@ def get_all_interfaces(interfaces: list[Interface]) -> list[Interface]:
 
 def get_all_components(component: Component) -> list[Component]:
     out = component.CMPs.get_all()
-    out += [get_all_components(nested) for nested in out]
+    out.extend([i for nested in out for i in get_all_components(nested)])
     return out
 
 

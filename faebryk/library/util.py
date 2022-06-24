@@ -59,3 +59,12 @@ def get_components_of_interfaces(interfaces: list[Interface]) -> list[Component]
         if i.has_trait(is_part_of_component)
     ]
     return out
+
+
+class NotifiesOnPropertyChange(object):
+    def __init__(self, callback) -> None:
+        self.callback = callback
+
+    def __setattr__(self, __name, __value) -> None:
+        super().__setattr__(__name, __value)
+        self.callback(__name, __value)

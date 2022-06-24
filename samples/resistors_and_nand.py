@@ -45,8 +45,8 @@ def run_experiment():
     cd4011 = TI_CD4011BE()
 
     # aliases
-    vcc = battery.IFs.power.hv
-    gnd = battery.IFs.power.lv
+    vcc = battery.IFs.power.IFs.hv
+    gnd = battery.IFs.power.IFs.lv
 
     # connections
     resistor1.IFs.next().connect(vcc).connect(resistor2.IFs.next())

@@ -3,12 +3,14 @@
 
 import logging
 
+from faebryk.library.traits import interface
+
 logger = logging.getLogger("library")
 
 # TODO this file should not exist
 
 from faebryk.library.core import Interface, Component
-from faebryk.library.traits.interface import can_list_interfaces, is_part_of_component
+from faebryk.library.traits.interface import is_part_of_component
 
 
 def default_with(given, default):
@@ -45,17 +47,15 @@ def integer_base(value: int, base=1000):
 
 
 def get_all_interfaces(interfaces: list[Interface]) -> list[Interface]:
-    return [
-        nested
-        for i in interfaces
-        for nested in i.get_trait(can_list_interfaces).get_interfaces()
-    ]
+    out = interfaces
+    out.extend([i for nested in out for i in get_all_interfaces(nested.IFs.get_all())])
+    return out
+
 
 def get_all_components(component: Component) -> list[Component]:
     out = component.CMPs.get_all()
     out.extend([i for nested in out for i in get_all_components(nested)])
     return out
-
 
 
 def get_components_of_interfaces(interfaces: list[Interface]) -> list[Component]:

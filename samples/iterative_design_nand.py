@@ -45,7 +45,7 @@ def run_experiment():
     battery.IFs.power = Power()
 
     # alias
-    gnd = battery.IFs.power.lv
+    gnd = battery.IFs.power.IFs.lv
     power = battery.IFs.power
 
     # logic
@@ -75,8 +75,8 @@ def run_experiment():
     led.set_forward_parameters(voltage_V=Constant(2.4), current_A=Constant(0.020))
     nand_ic = CD4011().get_trait(CD4011.constructable_from_nands).from_nands(nands)
     nand_ic.IFs.power.connect(power)
-    high.connect(power.hv)
-    low.connect(power.lv)
+    high.connect(power.IFs.hv)
+    low.connect(power.IFs.lv)
     current_limiting_resistor.set_resistance(
         led.get_trait(
             LED.has_calculatable_needed_series_resistance
@@ -90,8 +90,8 @@ def run_experiment():
     nand_ic.add_trait(
         has_defined_footprint_pinmap(
             {
-                7: nand_ic.IFs.power.lv,
-                14: nand_ic.IFs.power.hv,
+                7: nand_ic.IFs.power.IFs.lv,
+                14: nand_ic.IFs.power.IFs.hv,
                 3: nand_ic.connection_map[nand_ic.CMPs.nands[0].IFs.output],
                 4: nand_ic.connection_map[nand_ic.CMPs.nands[1].IFs.output],
                 11: nand_ic.connection_map[nand_ic.CMPs.nands[2].IFs.output],

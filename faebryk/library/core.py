@@ -110,12 +110,65 @@ class Interface(FaebrykLibObject):
     def __new__(cls, *args, component=None, **kwargs):
         self = super().__new__(cls)
         self.connections = []
+        self.component = None
         if component is not None:
             self.set_component(component)
         return self
 
     def __init__(self) -> None:
         super().__init__()
+
+        from faebryk.library.util import NotifiesOnPropertyChange
+
+        class _Interfaces(NotifiesOnPropertyChange):
+            def __init__(_self) -> None:
+                super().__init__(
+                    # TODO maybe throw warnig?
+                    lambda k, v: _self.on_change(k, v)
+                    if issubclass(type(v), Interface)
+                    else _self.on_change_s(k, v)
+                    if type(v) is list
+                    and all([issubclass(type(x), Interface) for x in v])
+                    else None
+                )
+                _self._unnamed = ()
+
+            def on_change(_self, name, intf: Interface):
+                if self.component is None:
+                    return
+                intf.set_component(self.component)
+
+            def on_change_s(_self, name, intfs: list[Interface]):
+                if self.component is None:
+                    return
+                for intf in intfs:
+                    intf.set_component(self.component)
+
+            def add(_self, intf: Interface):
+                _self._unnamed += (intf,)
+                if self.component is None:
+                    return
+                intf.set_component(self.component)
+
+            def add_all(_self, intfs: typing.Iterable[Interface]):
+                for intf in intfs:
+                    _self.add(intf)
+
+            def get_all(_self) -> list[Interface]:
+                return \
+                    [
+                        intf
+                        for intf in vars(_self).values()
+                        if issubclass(type(intf), Interface)
+                    ] \
+                    + [
+                        intf
+                        for name, intfs in vars(_self).items()
+                        if type(intfs) in [tuple, list]
+                        for intf in intfs
+                    ]
+
+        self.IFs = _Interfaces()
 
     def add_trait(self, trait: InterfaceTrait) -> None:
         return super().add_trait(trait)
@@ -148,10 +201,7 @@ class Interface(FaebrykLibObject):
         end.connect(target)
 
     def set_component(self, component):
-        from faebryk.library.traits.interface import (
-            is_part_of_component,
-            can_list_interfaces,
-        )
+        from faebryk.library.traits.interface import is_part_of_component
 
         self.component = component
 
@@ -162,25 +212,20 @@ class Interface(FaebrykLibObject):
 
         if component is None:
             self.del_trait(is_part_of_component)
-            return
-
-        self.add_trait(_())
+        else:
+            self.add_trait(_())
 
         # TODO I think its nicer to have a parent relationship to the other interface
         #   instead of carrying the component through all compositions
-        if self.has_trait(can_list_interfaces):
-            for i in self.get_trait(can_list_interfaces).get_interfaces():
-                if i == self:
-                    continue
-                i.set_component(component)
+        for i in self.IFs.get_all():
+            i.set_component(component)
 
 
 class Component(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
-        from faebryk.library.traits.component import has_interfaces
-        from faebryk.library.util import NotifiesOnPropertyChange, get_all_interfaces
+        from faebryk.library.util import NotifiesOnPropertyChange
 
         class _Interfaces(NotifiesOnPropertyChange):
             def __init__(_self) -> None:
@@ -276,7 +321,6 @@ class Component(FaebrykLibObject):
 
         self.IFs = _Interfaces()
         self.CMPs = _Components()
-        self.add_trait(has_interfaces())
 
     def add_trait(self, trait: ComponentTrait) -> None:
         return super().add_trait(trait)

@@ -3,8 +3,6 @@
 
 import logging
 
-from faebryk.library.util import get_all_interfaces
-
 logger = logging.getLogger("library")
 
 from faebryk.library.core import (
@@ -13,7 +11,6 @@ from faebryk.library.core import (
     Footprint,
     FootprintTrait,
     Interface,
-    InterfaceTrait,
 )
 
 
@@ -29,34 +26,6 @@ class has_defined_type_description(has_type_description):
 
     def get_type_description(self) -> str:
         return self.value
-
-
-class has_interfaces(ComponentTrait):
-    def get_interfaces(self) -> list[Interface]:
-        return get_all_interfaces(self.get_obj().IFs.get_all())
-
-    def set_interface_comp(self):
-        for i in self.get_interfaces():
-            i.set_component(self.get_obj())
-
-
-class has_interfaces_list(has_interfaces):
-    def __init__(self) -> None:
-        assert False, "deprecated"
-
-    # def get_interfaces(self) -> list[Interface]:
-    #    return self.get_obj().IFs.unnamed
-
-
-class has_defined_interfaces(has_interfaces):
-    def __init__(self, interfaces: list[Interface]) -> None:
-        super().__init__()
-        self.interfaces = interfaces
-
-    def get_interfaces(self) -> list[Interface]:
-        from faebryk.library.util import get_all_interfaces
-
-        return get_all_interfaces(self.interfaces)
 
 
 class contructable_from_component(ComponentTrait):
@@ -94,7 +63,11 @@ class has_defined_footprint_pinmap(has_footprint_pinmap):
 
 class has_symmetric_footprint_pinmap(has_footprint_pinmap):
     def get_pin_map(self):
-        ifs = self.get_obj().get_trait(has_interfaces).get_interfaces()
+        from faebryk.library.util import get_all_interfaces
+
+        #TODO not sure if thats needed/desired
+        # get all (nested) interfaces
+        ifs = get_all_interfaces(self.get_obj().IFs.get_all())
         return {k + 1: v for k, v in enumerate(ifs)}
 
 

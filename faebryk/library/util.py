@@ -51,6 +51,12 @@ def get_all_interfaces(interfaces: list[Interface]) -> list[Interface]:
         for nested in i.get_trait(can_list_interfaces).get_interfaces()
     ]
 
+def get_all_components(component: Component) -> list[Component]:
+    out = component.CMPs.get_all()
+    out += [get_all_components(nested) for nested in out]
+    return out
+
+
 
 def get_components_of_interfaces(interfaces: list[Interface]) -> list[Component]:
     out = [

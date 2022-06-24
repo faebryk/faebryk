@@ -3,6 +3,8 @@
 
 import logging
 
+from faebryk.library.util import get_all_interfaces
+
 logger = logging.getLogger("library")
 
 from faebryk.library.core import (
@@ -31,7 +33,7 @@ class has_defined_type_description(has_type_description):
 
 class has_interfaces(ComponentTrait):
     def get_interfaces(self) -> list[Interface]:
-        return self.get_obj().IFs.get_all()
+        return get_all_interfaces(self.get_obj().IFs.get_all())
 
     def set_interface_comp(self):
         for i in self.get_interfaces():

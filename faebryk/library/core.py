@@ -214,19 +214,18 @@ class Component(FaebrykLibObject):
                     _self.add(intf)
 
             def get_all(_self) -> list[Interface]:
-                return get_all_interfaces(
+                return \
                     [
                         intf
                         for intf in vars(_self).values()
                         if issubclass(type(intf), Interface)
-                    ]
+                    ] \
                     + [
                         intf
                         for name, intfs in vars(_self).items()
                         if type(intfs) in [tuple, list] and name != "_unpopped"
                         for intf in intfs
                     ]
-                )
 
             """ returns iterator on unnamed interfaces """
 
@@ -234,7 +233,49 @@ class Component(FaebrykLibObject):
                 assert len(_self._unpopped) > 0, "No more interfaces to pop"
                 return _self._unpopped.pop(0)
 
+
+        class _Components(NotifiesOnPropertyChange):
+            def __init__(_self) -> None:
+                super().__init__(
+                    # TODO maybe throw warnig?
+                    lambda k, v: _self.on_change(k, v)
+                    if issubclass(type(v), Component)
+                    else _self.on_change_s(k, v)
+                    if type(v) is list
+                    and all([issubclass(type(x), Component) for x in v])
+                    else None
+                )
+                _self._unnamed = ()
+
+            def on_change(_self, name, cmp: Component):
+                pass
+
+            def on_change_s(_self, name, cmps: list[Component]):
+                pass
+
+            def add(_self, cmp: Component):
+                _self._unnamed += (cmp,)
+
+            def add_all(_self, cmps: typing.Iterable[Component]):
+                for cmp in cmps:
+                    _self.add(cmp)
+
+            def get_all(_self) -> list[Component]:
+                return \
+                    [
+                        cmp
+                        for cmp in vars(_self).values()
+                        if issubclass(type(cmp), Component)
+                    ] \
+                    + [
+                        cmp
+                        for name, cmps in vars(_self).items()
+                        if type(cmps) in [tuple, list]
+                        for cmp in cmps
+                    ]
+
         self.IFs = _Interfaces()
+        self.CMPs = _Components()
         self.add_trait(has_interfaces())
 
     def add_trait(self, trait: ComponentTrait) -> None:

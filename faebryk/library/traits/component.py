@@ -31,7 +31,7 @@ class has_defined_type_description(has_type_description):
 
 class has_interfaces(ComponentTrait):
     def get_interfaces(self) -> list[Interface]:
-        raise NotImplementedError()
+        return self.get_obj().IFs.get_all()
 
     def set_interface_comp(self):
         for i in self.get_interfaces():
@@ -39,8 +39,11 @@ class has_interfaces(ComponentTrait):
 
 
 class has_interfaces_list(has_interfaces):
-    def get_interfaces(self) -> list[Interface]:
-        return self.get_obj().interfaces
+    def __init__(self) -> None:
+        assert False, "deprecated"
+
+    # def get_interfaces(self) -> list[Interface]:
+    #    return self.get_obj().IFs.unnamed
 
 
 class has_defined_interfaces(has_interfaces):
@@ -91,3 +94,23 @@ class has_symmetric_footprint_pinmap(has_footprint_pinmap):
     def get_pin_map(self):
         ifs = self.get_obj().get_trait(has_interfaces).get_interfaces()
         return {k + 1: v for k, v in enumerate(ifs)}
+
+
+class can_bridge(ComponentTrait):
+    def bridge(self, _in, out):
+        _in.connect(self.get_in())
+        out.connect(self.get_out())
+
+    def get_in(self):
+        raise NotImplementedError(type(self))
+
+    def get_out(self):
+        raise NotImplementedError(type(self))
+
+
+class can_bridge_defined(can_bridge):
+    def __init__(self, in_if: Interface, out_if: Interface) -> None:
+        super().__init__()
+
+        self.get_in = lambda: in_if
+        self.get_out = lambda: out_if

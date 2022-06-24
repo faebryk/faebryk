@@ -69,7 +69,7 @@ class Power(Interface):
 
     #        self.add_trait(is_composed([self.hv, self.lv]))
 
-    def connect(self, other: Interface):
+    def connect(self, other: Interface) -> Interface:
         # TODO feels a bit weird
         # maybe we need to look at how aggregate interfaces connect
         assert type(other) is Power, "can't connect to non power"
@@ -78,3 +78,5 @@ class Power(Interface):
             other.get_trait(can_list_interfaces).get_interfaces(),
         ):
             s.connect(d)
+
+        return self

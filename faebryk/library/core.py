@@ -30,6 +30,11 @@ class Trait:
         assert self._obj is not None, "trait is not linked to object"
         return self._obj
 
+class TraitImpl:
+    def __init__(self) -> None:
+        pass
+
+
 
 class FaebrykLibObject:
     def __new__(cls, *args, **kwargs):

@@ -5,19 +5,19 @@ from numbers import Integral
 import os
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import os
     import sys
-    root = os.path.join(os.path.dirname(__file__), '../../../..')
+
+    root = os.path.join(os.path.dirname(__file__), "../../../..")
     sys.path.append(root)
 
 import unittest
 
-class TestTraits(unittest.TestCase):
-    def test_trait(self):
-        from faebryk.library.core import FaebrykLibObject, Trait
 
-        obj = FaebrykLibObject()
+class TestTraits(unittest.TestCase):
+    def test_equality(self):
+        from faebryk.library.core import Trait
 
         class trait1(Trait):
             def do(self) -> Integral:
@@ -39,12 +39,12 @@ class TestTraits(unittest.TestCase):
             def do(self) -> Integral:
                 return 2
 
+        a = trait1()
 
-        # Test comparing traits --------------------------------------------------------
-        a=trait1()
         def assertEqualSym(one, two):
             self.assertEqual(one, two)
             self.assertEqual(two, one)
+
         def assertNotEqualSym(one, two):
             self.assertNotEqual(one, two)
             self.assertNotEqual(two, one)
@@ -78,14 +78,21 @@ class TestTraits(unittest.TestCase):
         assertEqualSym(trait1_2(), trait1_1)
         # inst & nephew class
         assertEqualSym(trait1_2(), trait1_1_1)
-        # ------------------------------------------------------------------------------
 
+    def test_obj_traits(self):
+        from faebryk.library.core import FaebrykLibObject, Trait
+
+        obj = FaebrykLibObject()
+
+        class trait1(Trait):
+            def do(self) -> Integral:
+                return 1
 
         # Test failure on getting non existent
         self.assertFalse(obj.has_trait(trait1))
         self.assertRaises(AssertionError, lambda: obj.get_trait(trait1))
 
-        trait1_inst = trait1() 
+        trait1_inst = trait1()
         obj.add_trait(trait1_inst)
 
         # Test getting trait
@@ -94,9 +101,5 @@ class TestTraits(unittest.TestCase):
         self.assertEquals(trait1_inst.do(), obj.get_trait(trait1).do())
 
 
-
-     
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

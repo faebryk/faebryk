@@ -10,6 +10,7 @@ Thus this is a netlist sample.
 Netlist samples can be run directly.
 The netlist is printed to stdout.
 """
+from pathlib import Path
 import logging
 
 logger = logging.getLogger("main")
@@ -30,7 +31,7 @@ def run_experiment():
     from faebryk.library.library.footprints import SMDTwoPin
     from faebryk.library.library.interfaces import Power
     from faebryk.library.library.parameters import Constant
-    from faebryk.library.traits.component import (
+    from faebryk.library.trait_impl.component import (
         has_defined_footprint,
         has_symmetric_footprint_pinmap,
     )
@@ -72,8 +73,10 @@ def run_experiment():
 
     netlist = from_faebryk_t2_netlist(make_t2_netlist_from_t1(t1_))
 
-    logger.info("Experiment netlist:")
-    print(netlist)
+
+    path = Path("./build/faebryk.net")
+    logger.info("Writing Experiment netlist to {}".format(path.absolute()))
+    path.write_text(netlist)
 
     from faebryk.exporters.netlist import render_graph
 

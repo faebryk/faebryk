@@ -151,8 +151,12 @@ def run_experiment():
 
     netlist = from_faebryk_t2_netlist(make_t2_netlist_from_t1(t1_))
 
-    logger.info("Experiment netlist:")
-    print(netlist)
+    path = "./build"
+    logger.info("Writing Experiment netlist to {}".format(os.path.abspath(path)))
+    if not os.path.exists(path):
+        os.makedirs(path)
+    with open(os.path.join(path, "faebryk.net"), 'w') as netlist_file:
+        netlist_file.write(netlist)
 
     from faebryk.exporters.netlist import render_graph
 

@@ -74,6 +74,7 @@ class TraitImpl:
 class FaebrykLibObject:
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
+        # TODO maybe dict[class => [obj]
         self.traits = []
         return self
 

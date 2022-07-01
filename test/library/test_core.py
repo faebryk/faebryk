@@ -49,17 +49,6 @@ class TestTraits(unittest.TestCase):
 
         a = impl1()
 
-        def assertEqualSym(one, two):
-            self.assertTrue(one.cmp(two())[0])
-            #self.assertEqual(one, two)
-            #self.assertEqual(two, one)
-
-        def assertNotEqualSym(one, two):
-            self.assertFalse(one.cmp(two())[0])
-
-            #self.assertNotEqual(one, two)
-            #self.assertNotEqual(two, one)
-
         # different inst
         self.assertNotEqual(impl1(), impl1())
         # same inst
@@ -71,30 +60,34 @@ class TestTraits(unittest.TestCase):
         # class & parallel class
         self.assertNotEqual(impl2, impl1)
 
+        def assertCmpTrue(one, two):
+            self.assertTrue(one.cmp(two)[0])
+
+        def assertCmpFalse(one, two):
+            self.assertFalse(one.cmp(two)[0])
+
         # inst & class
- #TODO
-        #self.assertTrue(impl1().cmp(impl1())[0])
-        assertEqualSym(impl1(), impl1)
-        assertEqualSym(impl1_1(), impl1_1)
+        assertCmpTrue(impl1(), impl1())
+        assertCmpTrue(impl1_1(), impl1_1())
         # inst & parent class
-        assertEqualSym(impl1_1(), impl1)
+        assertCmpTrue(impl1_1(), impl1())
         # inst & child class
-        assertEqualSym(impl1(), impl1_1)
+        assertCmpTrue(impl1(), impl1_1())
         # inst & parallel class
-        assertNotEqualSym(impl2(), impl1)
-        assertNotEqualSym(impl2(), impl1_1)
+        assertCmpFalse(impl2(), impl1())
+        assertCmpFalse(impl2(), impl1_1())
         # inst & double child class
-        assertEqualSym(impl1_1_1(), impl1)
+        assertCmpTrue(impl1_1_1(), impl1())
         # inst & double parent class
-        assertEqualSym(impl1(), impl1_1_1)
+        assertCmpTrue(impl1(), impl1_1_1())
         # inst & sister class
-        assertEqualSym(impl1_2(), impl1_1)
+        assertCmpTrue(impl1_2(), impl1_1())
         # inst & nephew class
-        assertEqualSym(impl1_2(), impl1_1_1)
+        assertCmpTrue(impl1_2(), impl1_1_1())
 
         # Trait inheritance
-        assertEqualSym(impl1(), impl_1_1)
-        assertEqualSym(impl_1_1(), impl1)
+        assertCmpTrue(impl1(), impl_1_1())
+        assertCmpTrue(impl_1_1(), impl1())
 
     def test_obj_traits(self):
         from faebryk.library.core import FaebrykLibObject, Trait

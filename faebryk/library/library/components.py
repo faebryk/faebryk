@@ -104,7 +104,7 @@ class Capacitor(Component):
         if type(capacitance) is not Constant:
             return
 
-        class _has_type_description(has_type_description):
+        class _has_type_description(has_type_description.impl()):
             @staticmethod
             def get_type_description():
                 capacitance = self.capacitance

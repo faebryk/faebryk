@@ -136,7 +136,7 @@ def make_t2_netlist_from_t1(t1_netlist):
     return t2_netlist
 
 
-def render_graph(t1_netlist):
+def render_graph(t1_netlist, write_to_file: bool):
     import matplotlib.pyplot as plt
 
     G = _make_graph(t1_netlist)
@@ -194,4 +194,7 @@ def render_graph(t1_netlist):
         bbox=dict(fc="blue"),
         font_color="white",
     )
-    plt.show()
+    if write_to_file == True:
+        plt.savefig("./build/render.png", format="png", bbox_inches="tight")
+    else:
+        plt.show()

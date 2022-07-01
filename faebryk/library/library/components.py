@@ -5,15 +5,18 @@ import logging
 from faebryk.library.traits import component
 
 from faebryk.library.traits.component import (
-    can_bridge_defined,
     contructable_from_component,
-    has_defined_footprint,
-    has_defined_type_description,
     has_footprint_pinmap,
-    has_symmetric_footprint_pinmap,
     has_type_description,
 )
 from faebryk.library.traits.interface import contructable_from_interface_list
+
+from faebryk.library.trait_impl.component import (
+    can_bridge_defined,
+    has_defined_footprint,
+    has_defined_type_description,
+    has_symmetric_footprint_pinmap,
+)
 
 logger = logging.getLogger("library")
 

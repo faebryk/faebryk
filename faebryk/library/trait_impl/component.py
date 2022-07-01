@@ -12,7 +12,7 @@ from faebryk.library.core import (
 from faebryk.library.traits.component import *
 
 
-class has_defined_type_description(has_type_description):
+class has_defined_type_description(has_type_description.impl()):
     def __init__(self, value: str) -> None:
         super().__init__()
         self.value = value
@@ -21,7 +21,7 @@ class has_defined_type_description(has_type_description):
         return self.value
 
 
-class has_defined_footprint(has_footprint):
+class has_defined_footprint(has_footprint.impl()):
     def __init__(self, fp: Footprint) -> None:
         super().__init__()
         self.fp = fp
@@ -30,7 +30,7 @@ class has_defined_footprint(has_footprint):
         return self.fp
 
 
-class has_defined_footprint_pinmap(has_footprint_pinmap):
+class has_defined_footprint_pinmap(has_footprint_pinmap.impl()):
     def __init__(self, pin_map) -> None:
         super().__init__()
         self.pin_map = pin_map
@@ -39,7 +39,7 @@ class has_defined_footprint_pinmap(has_footprint_pinmap):
         return self.pin_map
 
 
-class has_symmetric_footprint_pinmap(has_footprint_pinmap):
+class has_symmetric_footprint_pinmap(has_footprint_pinmap.impl()):
     def get_pin_map(self):
         from faebryk.library.util import get_all_interfaces
 
@@ -49,7 +49,7 @@ class has_symmetric_footprint_pinmap(has_footprint_pinmap):
         return {k + 1: v for k, v in enumerate(ifs)}
 
 
-class can_bridge_defined(can_bridge):
+class can_bridge_defined(can_bridge.impl()):
     def __init__(self, in_if: Interface, out_if: Interface) -> None:
         super().__init__()
 

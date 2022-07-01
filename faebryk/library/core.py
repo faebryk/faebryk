@@ -30,6 +30,14 @@ class Trait:
         assert self._obj is not None, "trait is not linked to object"
         return self._obj
 
+    @classmethod
+    def impl(cls):
+        class _Impl(TraitImpl, cls):
+            pass
+        return _Impl
+
+class TraitImpl:
+    pass
 
 class FaebrykLibObject:
     def __new__(cls, *args, **kwargs):
@@ -41,7 +49,7 @@ class FaebrykLibObject:
     def __init__(self) -> None:
         pass
 
-    def add_trait(self, trait: Trait) -> None:
+    def add_trait(self, trait: TraitImpl) -> None:
         assert trait._obj is None, "trait already in use"
         trait.set_obj(self)
 

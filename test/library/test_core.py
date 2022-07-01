@@ -20,65 +20,81 @@ class TestTraits(unittest.TestCase):
     def test_equality(self):
         from faebryk.library.core import Trait
 
-        class trait1(Trait):
-            def do(self) -> Integral:
-                return 1
+        class _trait1(Trait):
+            pass
 
-        class trait1_1(trait1):
-            def do(self) -> Integral:
-                return 11
+        class _trait1_1(_trait1):
+            pass
 
-        class trait1_1_1(trait1_1):
-            def do(self) -> Integral:
-                return 111
+        class _trait2(Trait):
+            pass
 
-        class trait1_2(trait1):
-            def do(self) -> Integral:
-                return 12
+        class impl1(_trait1.impl()):
+            pass
 
-        class trait2(Trait):
-            def do(self) -> Integral:
-                return 2
+        class impl1_1(impl1):
+            pass
 
-        a = trait1()
+        class impl1_1_1(impl1_1):
+            pass
+
+        class impl1_2(impl1):
+            pass
+
+        class impl_1_1(_trait1_1.impl()):
+            pass
+
+        class impl2(_trait2.impl()):
+            pass
+
+        a = impl1()
 
         def assertEqualSym(one, two):
-            self.assertEqual(one, two)
-            self.assertEqual(two, one)
+            self.assertTrue(one.cmp(two())[0])
+            #self.assertEqual(one, two)
+            #self.assertEqual(two, one)
 
         def assertNotEqualSym(one, two):
-            self.assertNotEqual(one, two)
-            self.assertNotEqual(two, one)
+            self.assertFalse(one.cmp(two())[0])
+
+            #self.assertNotEqual(one, two)
+            #self.assertNotEqual(two, one)
 
         # different inst
-        assertNotEqualSym(trait1(), trait1())
+        self.assertNotEqual(impl1(), impl1())
         # same inst
-        assertEqualSym(a, a)
+        self.assertEqual(a, a)
         # same class
-        assertEqualSym(trait1, trait1)
+        self.assertEqual(impl1, impl1)
         # class & parent/child class
-        assertNotEqualSym(trait1_1, trait1)
+        self.assertNotEqual(impl1_1, impl1)
         # class & parallel class
-        assertNotEqualSym(trait2, trait1)
+        self.assertNotEqual(impl2, impl1)
 
         # inst & class
-        assertEqualSym(trait1(), trait1)
-        assertEqualSym(trait1_1(), trait1_1)
+ #TODO
+        #self.assertTrue(impl1().cmp(impl1())[0])
+        assertEqualSym(impl1(), impl1)
+        assertEqualSym(impl1_1(), impl1_1)
         # inst & parent class
-        assertEqualSym(trait1_1(), trait1)
+        assertEqualSym(impl1_1(), impl1)
         # inst & child class
-        assertEqualSym(trait1(), trait1_1)
+        assertEqualSym(impl1(), impl1_1)
         # inst & parallel class
-        assertNotEqualSym(trait2(), trait1)
-        assertNotEqualSym(trait2(), trait1_1)
+        assertNotEqualSym(impl2(), impl1)
+        assertNotEqualSym(impl2(), impl1_1)
         # inst & double child class
-        assertEqualSym(trait1_1_1(), trait1)
+        assertEqualSym(impl1_1_1(), impl1)
         # inst & double parent class
-        assertEqualSym(trait1(), trait1_1_1)
+        assertEqualSym(impl1(), impl1_1_1)
         # inst & sister class
-        assertEqualSym(trait1_2(), trait1_1)
+        assertEqualSym(impl1_2(), impl1_1)
         # inst & nephew class
-        assertEqualSym(trait1_2(), trait1_1_1)
+        assertEqualSym(impl1_2(), impl1_1_1)
+
+        # Trait inheritance
+        assertEqualSym(impl1(), impl_1_1)
+        assertEqualSym(impl_1_1(), impl1)
 
     def test_obj_traits(self):
         from faebryk.library.core import FaebrykLibObject, Trait
@@ -90,7 +106,7 @@ class TestTraits(unittest.TestCase):
             def do(self) -> Integral:
                 raise NotImplementedError
 
-        class trait1impl(trait1):
+        class trait1impl(trait1.impl()):
             def do(self) -> Integral:
                 return 1
 

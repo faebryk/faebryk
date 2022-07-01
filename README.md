@@ -22,7 +22,7 @@ Open-source software-defined EDA tool
 
 ### What \[is faebryk\]
 
-faebryk is an open-source software-defined electronic design automation (EDA) tool.
+faebryk  \[fˈɛbɹɪk\] is an open-source software-defined electronic design automation (EDA) tool.
 Think of it like the evolution from EDA tools like KiCAD, Altium, Eagle...
 in the way those were the next step from designing electronic circuits on paper.
 The main idea of faebryk is to **describe your product on the highest level** possible and then iteratively refining the description to arrive on a complete and detailed implementation.

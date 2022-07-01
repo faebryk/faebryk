@@ -111,12 +111,19 @@ class TestTraits(unittest.TestCase):
             def do(self) -> Integral:
                 return self.cfg
 
+        class trait2(trait1):
+            pass
+
+        class impl2(trait2.impl()):
+            pass
+
         # Test failure on getting non existent
         self.assertFalse(obj.has_trait(trait1))
         self.assertRaises(AssertionError, lambda: obj.get_trait(trait1))
 
         trait1_inst = trait1impl()
         cfgtrait1_inst = cfgtrait1(5)
+        impl2_inst = impl2()
 
         # Test getting trait
         obj.add_trait(trait1_inst)
@@ -135,6 +142,8 @@ class TestTraits(unittest.TestCase):
         self.assertEquals(trait1_inst, obj.get_trait(trait1))
 
         # Test remove
+        obj.del_trait(trait2)
+        self.assertTrue(obj.has_trait(trait1))
         obj.del_trait(trait1)
         self.assertFalse(obj.has_trait(trait1))
 
@@ -144,6 +153,15 @@ class TestTraits(unittest.TestCase):
         self.assertEquals(obj.get_trait(trait1).get_obj(), obj)
         obj.del_trait(trait1)
         self.assertRaises(AssertionError, lambda: trait1_inst.get_obj())
+
+        # Test specific override
+        obj.add_trait(impl2_inst)
+        obj.add_trait(trait1_inst)
+        self.assertEquals(impl2_inst, obj.get_trait(trait1))
+
+        # Test child delete
+        obj.del_trait(trait1)
+        self.assertFalse(obj.has_trait(trait1))
 
 
 if __name__ == "__main__":

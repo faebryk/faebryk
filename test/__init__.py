@@ -4,3 +4,4 @@
 import test.deps
 import test.exporters
 import test.library
+import test.meta

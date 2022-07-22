@@ -152,6 +152,7 @@ def run_experiment():
 
     netlist = from_faebryk_t2_netlist(make_t2_netlist_from_t1(t1_))
 
+    Path("./build/faebryk/").mkdir(parents=True, exist_ok=True)
     path = Path("./build/faebryk.net")
     logger.info("Writing Experiment netlist to {}".format(path.absolute()))
     path.write_text(netlist)

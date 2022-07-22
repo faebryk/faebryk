@@ -196,6 +196,6 @@ def render_graph(t1_netlist):
         bbox=dict(fc="blue"),
         font_color="white",
     )
-    Path("./build").mkdir(parents=True, exist_ok=True)
-    plt.savefig("./build/graph.png", format="png", bbox_inches="tight")
+    Path("./build/faebryk/").mkdir(parents=True, exist_ok=True)
+    plt.savefig("./build/faebryk/graph.png", format="png", bbox_inches="tight")
     plt.show()

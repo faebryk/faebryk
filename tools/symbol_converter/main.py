@@ -121,13 +121,9 @@ class {name}(Component):
     return template
 
 
-logger.info("hi")
-logger.info("Parsing & Converting...")
+filepath = sys.argv[1]
 
-if len(sys.argv) == 1:
-    filepath = "/usr/share/kicad/symbols/Device.kicad_sym"
-else:
-    filepath = sys.argv[1]
+logger.info("Parsing & Converting %s", filepath)
 
 with open(filepath, "r") as f:
     raw_sexp = "".join(f.readlines())

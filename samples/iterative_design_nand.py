@@ -14,6 +14,7 @@ The netlist is printed to stdout.
 """
 from pathlib import Path
 import logging
+from pretty import pretty
 
 logger = logging.getLogger("main")
 
@@ -152,6 +153,8 @@ def run_experiment():
 
     netlist = from_faebryk_t2_netlist(make_t2_netlist_from_t1(t1_))
 
+    # logger.info("Experiment components:")
+    # logger.info("\n".join([pretty(c) for c in components]))
     path = Path("./build/faebryk.net")
     logger.info("Writing Experiment netlist to {}".format(path.absolute()))
     path.write_text(netlist)

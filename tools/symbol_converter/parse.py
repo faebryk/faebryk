@@ -1,24 +1,27 @@
-#import sexp_parser
+# import sexp_parser
 from sexpdata import loads, SExpBase
 import re
 import logging
 
 logger = logging.getLogger("parse")
 
+
 def _cleanparsed(parsed):
     if isinstance(parsed, SExpBase):
         return parsed.value()
-    
+
     if type(parsed) is list:
         return tuple(map(_cleanparsed, parsed))
-    
+
     return parsed
+
 
 def parse_sexp(sexp):
     parsed = loads(sexp)
     parsed = _cleanparsed(parsed)
 
     return parsed
+
 
 # DUMB WAY
 def parse_symbol_lib(obj):
@@ -32,6 +35,7 @@ def parse_symbol_lib(obj):
         name = obj[1]
         symbol["name"] = name
         symbol["_raw"] = obj
+
         def parse_pin_name(obj):
             pin_names = {}
             for i in obj[1:]:
@@ -64,7 +68,7 @@ def parse_symbol_lib(obj):
                     symbol_2["pins"] = {}
 
                 pin = {}
-                pin["type"] = obj[1] #TODO not sure
+                pin["type"] = obj[1]  # TODO not sure
                 pin["alt_number"] = alt_pin_no
                 key = None
 
@@ -81,7 +85,6 @@ def parse_symbol_lib(obj):
                     else:
                         assert False, i
 
-
                 symbol_2["pins"][key] = pin
 
             alt_pin_no = 1
@@ -89,7 +92,13 @@ def parse_symbol_lib(obj):
                 if type(i) is tuple and i[0] in ["pin"]:
                     parse_pin(i, alt_pin_no)
                     alt_pin_no += 1
-                elif type(i) is tuple and i[0] in ["rectangle", "polyline", "text", "arc", "circle"]:
+                elif type(i) is tuple and i[0] in [
+                    "rectangle",
+                    "polyline",
+                    "text",
+                    "arc",
+                    "circle",
+                ]:
                     pass
                 else:
                     assert False, i
@@ -111,7 +120,7 @@ def parse_symbol_lib(obj):
                 return
             else:
                 assert False, i
-            
+
         lib["symbols"][name] = symbol
 
     for i in obj[1:]:
@@ -124,4 +133,3 @@ def parse_symbol_lib(obj):
             assert False, i
 
     return lib
-        

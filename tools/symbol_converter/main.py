@@ -13,10 +13,34 @@ logger.setLevel(logging.DEBUG)
 
 def sanitize_name(raw):
     sanitized = raw
+    # braces
+    sanitized = sanitized.replace("(", "")
+    sanitized = sanitized.replace(")", "")
+    sanitized = sanitized.replace("[", "")
+    sanitized = sanitized.replace("]", "")
+    # seperators
+    sanitized = sanitized.replace(".", "_")
+    sanitized = sanitized.replace(",", "_")
+    sanitized = sanitized.replace("/", "_")
+    # special symbols
+    sanitized = sanitized.replace("'", "")
+    sanitized = sanitized.replace("*", "")
+    sanitized = sanitized.replace("^", "p")
+    sanitized = sanitized.replace("#", "h")
+    sanitized = sanitized.replace("ϕ", "phase")
+    # inversion
+    sanitized = sanitized.replace("~", "n")
+    sanitized = sanitized.replace("{", "")
+    sanitized = sanitized.replace("}", "")
 
+    sanitized = sanitized.replace("->", "to")
+    sanitized = sanitized.replace("<-", "from")
+    # arithmetics
+    sanitized = sanitized.replace(">", "gt")
+    sanitized = sanitized.replace("<", "lt")
+    sanitized = sanitized.replace("=", "eq")
     sanitized = sanitized.replace("+", "plus")
     sanitized = sanitized.replace("-", "minus")
-    sanitized = sanitized.replace(".", "_")
 
     if re.match("^[a-zA-Z_]", sanitized) is None:
         sanitized = "_" + sanitized
@@ -26,7 +50,7 @@ def sanitize_name(raw):
 
     to_escape = re.findall("[^a-zA-Z_0-9]", sanitized)
     if len(to_escape) > 0:
-        logger.error(f"Unescapable pin name in {raw}: [{to_escape}]")
+        return None, to_escape
 
     return sanitized
 
@@ -35,7 +59,10 @@ def generate_component(symbol, annotation_properties):
     annotation = "\n    ".join(
         [f"{key}: {val}" for key, val in annotation_properties.items()]
     )
-    name = sanitize_name(symbol["name"])
+    raw_name = symbol["name"]
+    name = sanitize_name(raw_name)
+    if type(name) is tuple and name[0] is None:  # TODO use exception
+        logger.error(f"Unescapable symbol name in {raw_name}: [{name[1]}]")
 
     # interfaces
     raw_pins = {
@@ -50,7 +77,11 @@ def generate_component(symbol, annotation_properties):
         if not pin["hide"]:
             continue
         match = [ppin for ppin in pins.values() if ppin["name"] == pin["name"]]
-        assert (len(match) > 0), f"did not find matching pins for hidden pin {pin}"
+        # assert (len(match) > 0), f"did not find matching pins for hidden pin {pin} in component {name}"
+        logger.warning(
+            f"Did not find matching pins for hidden pin {pin} in component {name}. Ignoring component"
+        )
+        return f"#Skipped invalid component {name}"
         for ppin in match:
             ppin["aliases"].append(pin["alt_number"])
 
@@ -61,7 +92,15 @@ def generate_component(symbol, annotation_properties):
             faebryk_if_map[no] = f"_unnamed[{unnamed_if_cnt}]"
             unnamed_if_cnt += 1
         else:
-            faebryk_if_map[no] = sanitize_name(pin["name"])
+            pin_raw_name = pin["name"]
+            pin_name = sanitize_name(pin_raw_name)
+            if type(pin_name) is tuple and pin_name[0] is None:  # TODO use exception
+                logger.error(
+                    f"Unescapable pin name in pin {pin_raw_name}: [{pin_name[1]}] in symbol {name}"
+                )
+                return f"#Skipped invalid component {name}"
+
+            faebryk_if_map[no] = pin_name
 
     ifs_exp = "\n        ".join(
         [
@@ -91,9 +130,7 @@ def generate_component(symbol, annotation_properties):
         traits.append(footprint_trait)
         pinmap_trait = "has_defined_footprint_pinmap({})".format(
             "{"
-            + ", ".join(
-                [f"{pinno}: self.IFs.{_if}" for pinno, _if in pinmap.items()]
-            )
+            + ", ".join([f"{pinno}: self.IFs.{_if}" for pinno, _if in pinmap.items()])
             + "}"
         )
         traits.append(pinmap_trait)

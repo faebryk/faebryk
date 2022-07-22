@@ -75,7 +75,17 @@ def parse_symbol_lib(obj):
                 key = None
 
                 for i in obj[2:]:
-                    if i in ["line"]:
+                    if i in [
+                        "line",
+                        "inverted",
+                        "clock",
+                        "inverted_clock",
+                        "low",
+                        "clock_low",
+                        "input_low",
+                        "output_low",
+                        "falling_edge_clock",
+                    ]:
                         pass
                     elif type(i) is tuple and i[0] in ["at", "length"]:
                         pass
@@ -84,10 +94,15 @@ def parse_symbol_lib(obj):
                     elif type(i) is tuple and i[0] == "number":
                         key = i[1]
                         pin["number"] = i[1]
+                    elif type(i) is tuple and i[0] == "alternate":
+                        # no idea what this is
+                        pass
                     elif i == "hide":
                         pin["hide"] = True
                     else:
-                        assert False, i
+                        assert (
+                            False
+                        ), f"encountered unexpected token [{i}] in pin [{obj}] symbol [{symbol}]"
 
                 symbol_2["pins"][key] = pin
 

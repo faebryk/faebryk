@@ -16,4 +16,6 @@ for i in $dir/*.kicad_sym; do
     run $i &
 done
 
+echo "Waiting for jobs to finish..."
 wait
+echo "Done"

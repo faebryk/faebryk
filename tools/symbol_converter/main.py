@@ -43,7 +43,16 @@ def generate_component(symbol, annotation_properties):
         for symbol_2 in symbol.get("symbols", {}).values()
         for no, pin in symbol_2.get("pins", {}).items()
     }
-    pins = {pin["alt_number"]: pin for no, pin in raw_pins.items()}
+    pins = {pin["alt_number"]: pin for no, pin in raw_pins.items() if not pin["hide"]}
+
+    # handle hidden pins
+    for pin in raw_pins.values():
+        if not pin["hide"]:
+            continue
+        match = [ppin for ppin in pins.values() if ppin["name"] == pin["name"]]
+        assert (len(match) > 0), f"did not find matching pins for hidden pin {pin}"
+        for ppin in match:
+            ppin["aliases"].append(pin["alt_number"])
 
     faebryk_if_map = {}
     unnamed_if_cnt = 0
@@ -62,6 +71,11 @@ def generate_component(symbol, annotation_properties):
         ]
     )
 
+    pinmap = dict(faebryk_if_map)
+    for no, pin in faebryk_if_map.items():
+        for aliased_no in pins[no]["aliases"]:
+            pinmap[aliased_no] = pin
+
     # raw
     raw_symbol = pprint.pformat(symbol["_raw"], indent=4, width=88).replace(
         "\n", "\n        "
@@ -78,7 +92,7 @@ def generate_component(symbol, annotation_properties):
         pinmap_trait = "has_defined_footprint_pinmap({})".format(
             "{"
             + ", ".join(
-                [f"{pinno}: self.IFs.{_if}" for pinno, _if in faebryk_if_map.items()]
+                [f"{pinno}: self.IFs.{_if}" for pinno, _if in pinmap.items()]
             )
             + "}"
         )

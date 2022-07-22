@@ -70,6 +70,8 @@ def parse_symbol_lib(obj):
                 pin = {}
                 pin["type"] = obj[1]  # TODO not sure
                 pin["alt_number"] = alt_pin_no
+                pin["hide"] = False
+                pin["aliases"] = []
                 key = None
 
                 for i in obj[2:]:
@@ -82,6 +84,8 @@ def parse_symbol_lib(obj):
                     elif type(i) is tuple and i[0] == "number":
                         key = i[1]
                         pin["number"] = i[1]
+                    elif i == "hide":
+                        pin["hide"] = True
                     else:
                         assert False, i
 

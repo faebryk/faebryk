@@ -1,3 +1,4 @@
+import math
 import sys
 import logging
 import re
@@ -42,6 +43,12 @@ def sanitize_name(raw):
     sanitized = sanitized.replace("+", "plus")
     sanitized = sanitized.replace("-", "minus")
 
+    #rest
+    def handle_unknown_invalid_symbold(match):
+        logger.warning("Replacing unknown invalid symbol {} in {} with _".format(match.group(0), raw))
+        return "_"
+    sanitized = re.sub(r"[^a-zA-Z_0-9]", handle_unknown_invalid_symbold, sanitized)
+
     if re.match("^[a-zA-Z_]", sanitized) is None:
         sanitized = "_" + sanitized
 
@@ -77,11 +84,10 @@ def generate_component(symbol, annotation_properties):
         if not pin["hide"]:
             continue
         match = [ppin for ppin in pins.values() if ppin["name"] == pin["name"]]
-        # assert (len(match) > 0), f"did not find matching pins for hidden pin {pin} in component {name}"
-        logger.warning(
-            f"Did not find matching pins for hidden pin {pin} in component {name}. Ignoring component"
-        )
-        return f"#Skipped invalid component {name}"
+        if len(match) == 0:
+            logger.warning(
+                f"Did not find matching pins for hidden pin {pin} in component {name}. Ignoring pin."
+            )
         for ppin in match:
             ppin["aliases"].append(pin["alt_number"])
 

@@ -8,7 +8,7 @@ run() {
     i=$1
     name=$(basename $i .kicad_sym)
     echo $name
-    python3 $(dirname $0)/main.py $i > $out/$name.py || exit 1
+    python3 $(dirname $0)/main.py $i > $out/$name.py || echo "Failed running for $i" && exit 1
     python3 -m black $out/$name.py
 } 
 

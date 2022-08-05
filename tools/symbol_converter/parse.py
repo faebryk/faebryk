@@ -63,13 +63,12 @@ def parse_symbol_lib(obj):
             name = obj[1]
             symbol_2["name"] = name
 
-            def parse_pin(obj, alt_pin_no):
+            def parse_pin(obj):
                 if "pins" not in symbol_2:
                     symbol_2["pins"] = {}
 
                 pin = {}
                 pin["type"] = obj[1]  # TODO not sure
-                pin["alt_number"] = alt_pin_no
                 pin["hide"] = False
                 pin["aliases"] = []
                 key = None
@@ -106,11 +105,9 @@ def parse_symbol_lib(obj):
 
                 symbol_2["pins"][key] = pin
 
-            alt_pin_no = 1
             for i in obj[2:]:
                 if type(i) is tuple and i[0] in ["pin"]:
-                    parse_pin(i, alt_pin_no)
-                    alt_pin_no += 1
+                    parse_pin(i)
                 elif type(i) is tuple and i[0] in [
                     "rectangle",
                     "polyline",
@@ -126,7 +123,7 @@ def parse_symbol_lib(obj):
 
         for i in obj[2:]:
             key = i[0]
-            if key in ["pin_numbers", "in_bom", "on_board"]:
+            if key in ["pin_numbers", "in_bom", "on_board", "extends"]:
                 symbol[key] = i[1]
             elif key == "pin_names":
                 parse_pin_name(i)
@@ -136,9 +133,6 @@ def parse_symbol_lib(obj):
                 parse_symbol_2(i)
             elif key == "power":
                 symbol[key] = True
-            elif key == "extends":
-                logger.warn("ignoring extend symbol")
-                return
             else:
                 assert (
                     False

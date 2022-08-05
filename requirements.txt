@@ -2,3 +2,5 @@ networkx
 numpy
 matplotlib
 sexpdata
+black
+click

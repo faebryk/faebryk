@@ -153,8 +153,6 @@ def parse_symbol_lib(obj):
         elif key == "symbol":
             parse_symbol(i)
         else:
-            assert (
-                False
-            ), f"encountered unexpected token [{i}] in symbollib"
+            assert False, f"encountered unexpected token [{i}] in symbollib"
 
     return lib

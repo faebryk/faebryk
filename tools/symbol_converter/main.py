@@ -132,7 +132,7 @@ def generate_component(symbol, annotation_properties):
     # footprint & footprint pinmap
     footprint_str = symbol["properties"]["Footprint"].replace('"', "")
     if footprint_str != "":
-        footprint_trait = 'has_kicad_manual_footprint("{}")'.format(footprint_str)
+        footprint_trait = 'has_defined_footprint(KicadFootprint("{}"))'.format(footprint_str)
         traits.append(footprint_trait)
         pinmap_trait = "has_defined_footprint_pinmap({})".format(
             "{"
@@ -211,8 +211,8 @@ output += """
 from faebryk.library.core import Component
 from faebryk.library.library.interfaces import Electrical
 from faebryk.library.util import times
-from faebryk.library.traits.component import has_defined_footprint_pinmap
-from faebryk.library.kicad import has_kicad_manual_footprint, has_defined_kicad_ref
+from faebryk.library.traits.component import has_defined_footprint_pinmap, has_defined_footprint
+from faebryk.library.kicad import has_kicad_manual_footprint, has_defined_kicad_ref, KicadFootprint
 """
 output += "\n".join(components)
 

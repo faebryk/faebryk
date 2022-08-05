@@ -196,6 +196,13 @@ def render_graph(t1_netlist):
         bbox=dict(fc="blue"),
         font_color="white",
     )
-    Path("./build/faebryk/").mkdir(parents=True, exist_ok=True)
-    plt.savefig("./build/faebryk/graph.png", format="png", bbox_inches="tight")
+
+    build_folder_path = Path("./build/faebryk/")
+    build_folder_path.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    graph_filepath = build_folder_path / "graph.png"
+    logger.info("Writing Experiment graph to {}".format(graph_filepath.absolute()))
+    plt.savefig(graph_filepath, format="png", bbox_inches="tight")
     plt.show()

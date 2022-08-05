@@ -40,8 +40,8 @@ def run_experiment():
         has_defined_type_description,
     )
     from faebryk.library.kicad import (
-        has_kicad_manual_footprint,
         has_defined_kicad_ref,
+        KicadFootprint,
     )
     {library_imports}
 
@@ -168,8 +168,8 @@ def from_t1_netlist(t1_netlist):
         if component["real"]:
             add_trait("has_defined_type_description", str_to_str(component["value"]))
 
-            add_trait("has_kicad_manual_footprint", 
-                str_to_str(component["properties"]["footprint"]),
+            add_trait("has_defined_footprint",
+                "KicadFootprint({})".format(str_to_str(component["properties"]["footprint"])),
             )
 
         trait_expr = "\n    ".join(traits)

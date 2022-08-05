@@ -73,10 +73,14 @@ def run_experiment():
 
     netlist = from_faebryk_t2_netlist(make_t2_netlist_from_t1(t1_))
 
-    Path("./build/faebryk/").mkdir(parents=True, exist_ok=True)
-    path = Path("./build/faebryk.net")
-    logger.info("Writing Experiment netlist to {}".format(path.absolute()))
-    path.write_text(netlist)
+    build_folder_path = Path("./build/faebryk/")
+    build_folder_path.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    netlist_filepath = build_folder_path / "faebryk.net"
+    logger.info("Writing Experiment netlist to {}".format(netlist_filepath.absolute()))
+    netlist_filepath.write_text(netlist)
 
     from faebryk.exporters.netlist import render_graph
 

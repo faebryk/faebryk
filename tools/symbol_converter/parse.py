@@ -134,11 +134,15 @@ def parse_symbol_lib(obj):
                 parse_property(i)
             elif key == "symbol":
                 parse_symbol_2(i)
+            elif key == "power":
+                symbol[key] = True
             elif key == "extends":
                 logger.warn("ignoring extend symbol")
                 return
             else:
-                assert False, i
+                assert (
+                    False
+                ), f"encountered unexpected token [{i}] in symbol [{name}]:[{obj}]"
 
         lib["symbols"][name] = symbol
 
@@ -149,6 +153,8 @@ def parse_symbol_lib(obj):
         elif key == "symbol":
             parse_symbol(i)
         else:
-            assert False, i
+            assert (
+                False
+            ), f"encountered unexpected token [{i}] in symbollib"
 
     return lib

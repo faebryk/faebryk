@@ -24,12 +24,12 @@ class TestNetlistKicad2FaebrykProject(unittest.TestCase):
         t1 = to_faebryk_t1_netlist(t2)
         prj = from_t1_netlist(t1)
 
-        print(prj)
+        #print(prj)
 
-        from pathlib import Path
-        path = Path("./build/faebryk_prj.py")
-        logger.info("Writing Experiment prj to {}".format(path.absolute()))
-        path.write_text(prj)
+        #from pathlib import Path
+        #path = Path("./build/faebryk_prj.py")
+        #logger.info("Writing Experiment prj to {}".format(path.absolute()))
+        #path.write_text(prj)
 
 
 if __name__ == "__main__":

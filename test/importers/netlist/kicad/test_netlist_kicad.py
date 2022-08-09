@@ -42,8 +42,8 @@ class TestImportNetlistKicad(unittest.TestCase):
         k_net = from_faebryk_t2_netlist(t2p)
 
 
-        import pprint
-        pprint.pprint(k_net, indent=4)
+        #import pprint
+        #pprint.pprint(k_net, indent=4)
 
         # TODO actually test for equality with handbuilt netlist
 

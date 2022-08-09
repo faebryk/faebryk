@@ -3,70 +3,14 @@ import logging
 import re
 import hashlib
 import pprint
-import parse
+from faebryk.libs.kicad.parser import parse_kicad_symbol_lib
+from faebryk.libs.pycodegen import sanitize_name
 import black
 import click
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger("sym_gen")
 logger.setLevel(logging.DEBUG)
-
-
-def sanitize_name(raw):
-    sanitized = raw
-    # braces
-    sanitized = sanitized.replace("(", "")
-    sanitized = sanitized.replace(")", "")
-    sanitized = sanitized.replace("[", "")
-    sanitized = sanitized.replace("]", "")
-    # seperators
-    sanitized = sanitized.replace(".", "_")
-    sanitized = sanitized.replace(",", "_")
-    sanitized = sanitized.replace("/", "_")
-    # special symbols
-    sanitized = sanitized.replace("'", "")
-    sanitized = sanitized.replace("*", "")
-    sanitized = sanitized.replace("^", "p")
-    sanitized = sanitized.replace("#", "h")
-    sanitized = sanitized.replace("ϕ", "phase")
-    sanitized = sanitized.replace("π", "pi")
-    sanitized = sanitized.replace("&", "and")
-    # inversion
-    sanitized = sanitized.replace("~", "n")
-    sanitized = sanitized.replace("{", "")
-    sanitized = sanitized.replace("}", "")
-
-    sanitized = sanitized.replace("->", "to")
-    sanitized = sanitized.replace("<-", "from")
-    # arithmetics
-    sanitized = sanitized.replace(">", "gt")
-    sanitized = sanitized.replace("<", "lt")
-    sanitized = sanitized.replace("=", "eq")
-    sanitized = sanitized.replace("+", "plus")
-    sanitized = sanitized.replace("-", "minus")
-
-    # rest
-    def handle_unknown_invalid_symbold(match):
-        logger.warning(
-            "Replacing unknown invalid symbol {} in {} with _".format(
-                match.group(0), raw
-            )
-        )
-        return "_"
-
-    sanitized = re.sub(r"[^a-zA-Z_0-9]", handle_unknown_invalid_symbold, sanitized)
-
-    if re.match("^[a-zA-Z_]", sanitized) is None:
-        sanitized = "_" + sanitized
-
-    if re.match("^[a-zA-Z_]+[a-zA-Z_0-9]*$", sanitized) is not None:
-        return sanitized
-
-    to_escape = re.findall("[^a-zA-Z_0-9]", sanitized)
-    if len(to_escape) > 0:
-        return None, to_escape
-
-    return sanitized
 
 
 def generate_component(symbol, annotation_properties, keep_source):
@@ -245,7 +189,7 @@ def main(sourcefile, destfile, keep_source):
 
     file_hash = hashlib.sha1(raw_sexp.encode("utf-8")).hexdigest()
 
-    lib = parse.parse_symbol_lib(parse.parse_sexp(raw_sexp))
+    lib = parse_kicad_symbol_lib(raw_sexp)
     logger.info("Found {} symbols".format(len(lib["symbols"])))
 
     components = [

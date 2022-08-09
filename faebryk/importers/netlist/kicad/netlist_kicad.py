@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.exporters.netlist import Vertex, Net, Component
-from faebryk.importers.netlist.kicad.sexp import parse_sexp
+from faebryk.libs.kicad.parser import parse_kicad_netlist
 
 
 def to_faebryk_t2_netlist(kicad_netlist):
@@ -13,7 +13,7 @@ def to_faebryk_t2_netlist(kicad_netlist):
     #   nets:   [(code, name, [node=(ref, pin)])],
     # }
 
-    netlist = parse_sexp(kicad_netlist)
+    netlist = parse_kicad_netlist(kicad_netlist)
 
     components = {
         comp["ref"]: Component(

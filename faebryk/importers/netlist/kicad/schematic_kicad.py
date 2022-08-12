@@ -14,6 +14,13 @@ def to_faebryk_t2_netlist(kicad_schematic):
     #   nets:   [(code, name, [node=(ref, pin)])],
     # }
 
+
+    # TODO
+    # busses
+    # labels
+    # power symbols
+    # warn: no fp symbols
+
     schematic = parse_kicad_schematic(kicad_schematic)
 
     import pprint
@@ -37,6 +44,8 @@ def to_faebryk_t2_netlist(kicad_schematic):
         for name, lib_sym in schematic["lib_symbols"].items()
     }
 
+    print("-"*80)
+    print("pins")
     pprint.pprint(pins, indent=4)
 
     def get_pins(ref, sym, subsym, unit):
@@ -51,6 +60,7 @@ def to_faebryk_t2_netlist(kicad_schematic):
         obj = {
             "ref": ref,
             "lib_name": lib_name,
+            "unit": subsym["unit"],
         }
 
         raw_pins = {}
@@ -86,8 +96,11 @@ def to_faebryk_t2_netlist(kicad_schematic):
         get_pins(ref, sym, subsym, unit)
         for ref, sym in schematic["symbols"].items()
         for unit, subsym in sym.items()
+        if subsym["properties"]["Footprint"] != ""
     ]
 
+    print("-"*80)
+    print("sym_pins")
     pprint.pprint(sym_pins, indent=4)
 
     # organize by coords
@@ -98,8 +111,15 @@ def to_faebryk_t2_netlist(kicad_schematic):
             coord = pin["at"]
             if coord not in coords:
                 coords[coord] = []
-            coords[coord].append((pins["ref"], pin_name, pin))
+            coords[coord].append({
+                "ref": pins["ref"],
+                "name": pin_name,
+                "raw_pin": pin,
+                "unit": pins["unit"],
+            })
 
+    print("-"*80)
+    print("coords")
     pprint.pprint(coords, indent=4)
 
     # create the extra coords for the set
@@ -128,33 +148,37 @@ def to_faebryk_t2_netlist(kicad_schematic):
         merged[ptr] += cpins
     
     print("-"*80)
+    print("merged")
     pprint.pprint(merged, indent=4)
 
+    # make netlist from union -------------------------------------------------
 
-    #components = {
-    #    comp["ref"]: Component(
-    #        name=comp["ref"],
-    #        value=comp["value"],
-    #        properties={"footprint": comp["footprint"]},
-    #    )
-    #    for comp in netlist["components"].values()
-    #}
+    components = {
+        (ref:=sym_pin["ref"]) : Component(
+            name=ref,
+            value=(symbol:=schematic["symbols"][sym_pin["ref"]][sym_pin["unit"]])["properties"]["Value"],
+            properties={"footprint": symbol["properties"]["Footprint"]}
+        )
+        for sym_pin in sym_pins
+    }
 
-    #t2_netlist = [
-    #    Net(
-    #        properties={
-    #            "name": net["name"],
-    #        },
-    #        vertices=[
-    #            Vertex(
-    #                component=components[node["ref"]],
-    #                pin=node["pin"],
-    #            )
-    #            for node in net["nodes"]
-    #        ],
-    #    )
-    #    for net in netlist["nets"].values()
-    #]
+    t2_netlist = [
+        Net(
+            properties={
+                "name": "-".join([
+                    f"{net_pin['ref']}:{net_pin['name']}"
+                    for net_pin in net_pins
+                ]),
+            },
+            vertices=[
+                Vertex(
+                    component=components[net_pin["ref"]],
+                    pin=net_pin["name"],
+                )
+                for net_pin in net_pins
+            ],
+        )
+        for net_pins in merged.values()
+    ]
 
-    #return t2_netlist
-    return None
+    return t2_netlist

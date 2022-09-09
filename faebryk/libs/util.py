@@ -41,3 +41,14 @@ def unique(it, key):
         seen.append(v)
         out.append(i)
     return out
+
+def get_dict(obj, key, default):
+    if key not in obj:
+        obj[key] = default()
+    
+    return obj[key]
+
+def flatten(obj, depth=1):
+    if depth == 0:
+        return obj
+    return [flatten(nested, depth=depth-1) for top in obj for nested in top]

@@ -104,7 +104,7 @@ unnamed_if_template = "{name}.IFs.add_all({unnamed_if_refs})"
 
 
 def dict_to_str(obj):
-    return "{" + "".join(f"{k}:{v}," for k, v in obj.items()) + "}"
+    return "{" + "".join(f"'{k}':{v}," for k, v in obj.items()) + "}"
 
 
 def str_to_str(obj):

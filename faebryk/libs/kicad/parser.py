@@ -3,6 +3,8 @@ from sexpdata import loads, SExpBase
 import re
 import logging
 
+from faebryk.libs.util import get_dict
+
 logger = logging.getLogger("parse")
 
 
@@ -14,13 +16,6 @@ def _cleanparsed(parsed):
         return tuple(map(_cleanparsed, parsed))
 
     return parsed
-
-
-def setup_dict(obj, key):
-    if key not in obj:
-        obj[key] = {}
-
-    return obj[key]
 
 
 # -----------------------------------------------------------------------------
@@ -42,10 +37,10 @@ def parse_kicad_netlist(sexp):
     return parsed
 
 
-def parse_kicad_schematic(sexp):
+def parse_kicad_schematic(sexp, file_loader=None):
     parsed = loads(sexp)
     parsed = _cleanparsed(parsed)
-    parsed = parse_schematic(parsed)
+    parsed = parse_schematic(parsed, file_loader=file_loader)
 
     return parsed
 
@@ -152,14 +147,14 @@ def parse_symbol(obj):
         if key in ["pin_numbers", "in_bom", "on_board", "extends"]:
             symbol[key] = i[1]
         elif key == "pin_names":
-            #parse_pin_name(i)
-            pass #TODO test
+            # parse_pin_name(i)
+            pass  # TODO test
         elif key == "property":
             parse_property(i)
         elif key == "symbol":
             parse_symbol_2(i)
         elif key == "power":
-            #symbol[key] = True
+            # symbol[key] = True
             pass
         else:
             assert (
@@ -293,14 +288,17 @@ def parse_netlist(obj):
     return netlist
 
 
-def parse_schematic(obj):
+def parse_schematic(obj, file_loader=None):
     assert obj[0] == "kicad_sch"
     schematic = {}
     schematic["wires"] = []
+    schematic["buses"] = []
     schematic["symbols"] = {}
+    schematic["labels"] = {}
+    schematic["sheets"] = {}
 
-    def parse_wire(obj):
-        assert obj[0] == "wire"
+    def parse_wire_or_bus(obj):
+        assert obj[0] in ["wire", "bus"]
         wire = {}
 
         def parse_pts(obj):
@@ -325,7 +323,7 @@ def parse_schematic(obj):
             else:
                 assert False, f"encountered unexpected token [{i}] in wire"
 
-        schematic["wires"].append(wire)
+        schematic["wires" if obj[0] == "wire" else "buses"].append(wire)
 
     def parse_sch_symbol(obj):
         assert obj[0] == "symbol"
@@ -343,7 +341,7 @@ def parse_schematic(obj):
             else:
                 assert False, f"encountered unexpected token [{i}] in symbol"
 
-        setup_dict(schematic["symbols"], symbol["properties"]["Reference"])[
+        get_dict(schematic["symbols"], symbol["properties"]["Reference"], dict)[
             symbol["unit"]
         ] = symbol
 
@@ -361,26 +359,108 @@ def parse_schematic(obj):
 
         schematic["lib_symbols"] = symbols
 
+    def parse_label(obj):
+        assert obj[0] in ["label", "hierarchical_label", "global_label"]
+        label = {}
+        label["type"] = {
+            "label": "local",
+            "hierarchical_label": "hierarchical",
+            "global_label": "global",
+        }[obj[0]]
+
+        label["name"] = obj[1]
+
+        def parse_at(obj):
+            assert obj[0] in ["at"]
+            label["coord"] = (obj[1], obj[2])
+
+        for i in obj[2:]:
+            key = i[0]
+            if key in ["shape", "effects", "uuid", "fields_autoplaced", "property"]:
+                pass
+            elif key in ["at"]:
+                parse_at(i)
+            else:
+                assert False, f"encountered unexpected token [{i}] in label"
+
+        get_dict(schematic["labels"], label["name"], list).append(label)
+
+    def parse_sheet(obj):
+        assert obj[0] in ["sheet"]
+        sheet = {}
+        sheet["pins"] = {}
+        sheet["properties"] = {}
+
+        def parse_pin(obj):
+            assert obj[0] in ["pin"]
+            pin = {}
+            pin["name"] = obj[1]
+
+            def parse_at(obj):
+                assert obj[0] in ["at"]
+                pin["coord"] = (obj[1], obj[1])
+
+            for i in obj[2:]:
+                key = i[0] if type(i) is tuple else i
+                if key in ["input", "effects", "uuid"]:
+                    pass
+                elif key in ["at"]:
+                    parse_at(i)
+                else:
+                    assert False, f"encountered unexpected token [{i}] in sheet"
+
+            sheet["pins"][pin["name"]] = pin
+
+        for i in obj[1:]:
+            key = i[0]
+            if key in ["at", "size", "fields_autoplaced", "stroke", "fill", "uuid"]:
+                pass
+            elif key in ["property"]:
+                sheet["properties"][i[1]] = i[2]
+            elif key in ["pin"]:
+                parse_pin(i)
+            else:
+                assert False, f"encountered unexpected token [{i}] in sheet"
+
+        assert (
+            file_loader is not None
+        ), "file loader required for parsing hierarchical sheets"
+        sheet["schematic"] = parse_kicad_schematic(
+            file_loader(sheet["properties"]["Sheet file"]), file_loader=file_loader
+        )
+
+        # TODO parse sheet file recursively
+        schematic["sheets"][sheet["properties"]["Sheet file"]] = sheet
+
     for i in obj[1:]:
         key = i[0]
         if key in ["version"]:
             schematic[key] = i[1]
         elif key in ["lib_symbols"]:
             parse_lib_symbols(i)
-        elif key in ["wire"]:
-            parse_wire(i)
+        elif key in ["wire", "bus"]:
+            parse_wire_or_bus(i)
         elif key in ["symbol"]:
             parse_sch_symbol(i)
+        elif key in ["sheet"]:
+            parse_sheet(i)
+        elif key in ["label", "hierarchical_label", "global_label"]:
+            parse_label(i)
         elif key in [
             "generator",
             "uuid",
             "paper",
             "junction",
+            "bus_entry",
             "symbol_instances",
             "sheet_instances",
+            "text",
         ]:
             pass
         else:
             assert False, f"encountered unexpected token [{i}] in schematic"
+
+    a = {}
+    a.get("A")
 
     return schematic

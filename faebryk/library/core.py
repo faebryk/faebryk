@@ -169,8 +169,9 @@ class Interface(FaebrykLibObject):
     def InterfacesCls(cls):
         class _Interfaces(Holder(Interface)):
             def __init__(self, intf: Interface) -> None:
-                self.unnamed = []
                 self._intf = intf
+                if not hasattr(self, "unnamed"):
+                    self.unnamed = ()
 
                 super().__init__()
 
@@ -179,9 +180,8 @@ class Interface(FaebrykLibObject):
                     return
                 intf.set_component(self._intf.component)
 
-            # TODO this is not working anymore
-            # due to not putting into the list
-            # maybe just remove the whole thing
+            # TODO this is blocking a nicer implementation of Holder
+            # due to not putting into the list, maybe just remove the whole thing
             def add(self, intf: Interface):
                 self.unnamed += (intf,)
                 if self._intf.component is None:
@@ -267,10 +267,8 @@ class Component(FaebrykLibObject):
         class _Interfaces(Holder(Interface)):
             def __init__(self, comp: Component) -> None:
                 self._comp = comp
-                self.unnamed = ()
-
-                # helper array for next method
-                self._unpopped = []
+                if not hasattr(self, "unnamed"):
+                    self.unnamed = ()
 
                 super().__init__()
 
@@ -280,17 +278,10 @@ class Component(FaebrykLibObject):
             def add(self, intf: Interface):
                 self.unnamed += (intf,)
                 intf.set_component(self._comp)
-                self._unpopped.append(intf)
 
             def add_all(self, intfs: Iterable[Interface]):
                 for intf in intfs:
                     self.add(intf)
-
-            """ returns iterator on unnamed interfaces """
-
-            def next(self):
-                assert len(self._unpopped) > 0, "No more interfaces to pop"
-                return self._unpopped.pop(0)
 
         return _Interfaces
 
@@ -299,7 +290,8 @@ class Component(FaebrykLibObject):
         class _Components(Holder(Component)):
             def __init__(self, comp: Component) -> None:
                 self._comp = comp
-                self.unnamed = ()
+                if not hasattr(self, "unnamed"):
+                    self.unnamed = ()
 
                 super().__init__()
 

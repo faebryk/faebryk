@@ -307,8 +307,11 @@ class Component(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
-        self.IFs = Component.InterfacesCls()(self)
-        self.CMPs = Component.ComponentsCls()(self)
+        if not hasattr(self, "IFs"):
+            self.IFs = Component.InterfacesCls()(self)
+
+        if not hasattr(self, "CMPs"):
+            self.CMPs = Component.ComponentsCls()(self)
 
     def add_trait(self, trait: ComponentTrait) -> None:
         return super().add_trait(trait)

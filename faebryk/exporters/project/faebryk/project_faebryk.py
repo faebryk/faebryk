@@ -91,16 +91,23 @@ if __name__ == "__main__":
 """
 
 comp_template = """
+    class _{name}CLS(Component):
+        def __init__(self):
+            super().__init__()
+
+            class _IFs(Component.InterfacesCls()):
+                unnamed = {unnamed_ifs}
+                {named_if_expr}
+
+            self.IFs = _IFs(self)
+
+            {trait_expr}
+
+
     {ifs}
+    {name} = _{name}CLS()
 
-    {name} = Component()
-
-    {unnamed_if_expr}
-    {named_if_expr} 
-    {trait_expr}
 """
-
-unnamed_if_template = "{name}.IFs.add_all({unnamed_if_refs})"
 
 
 def dict_to_str(obj):
@@ -143,44 +150,51 @@ def from_t1_netlist(t1_netlist):
 
         name = get_comp_name(component)
 
-        pinmap = {pin: f"{name}.IFs.P{pin}" for pin in component["neighbors"].keys()}
+        pinmap = {
+            pin: (f"{{name}}.IFs.P{pin}", f"P{pin}")
+            for pin in component["neighbors"].keys()
+        }
 
-        named_if_expr = "\n    ".join(
-            [f"{pin_name} = Electrical()" for pin_name in pinmap.values()]
+        named_if_expr = ("\n" + "    " * 4).join(
+            [f"{pin_name} = Electrical()" for _, pin_name in pinmap.values()]
         )
 
         # Traits --------------------------------------------------
-        trait_template = "\n    ".join(
+        trait_template = "".join(
             [
-                f"{name}" + ".add_trait({trait_name}(",
+                "self.add_trait({trait_name}(",
                 "    {trait_args}",
                 "))",
             ]
         )
 
         traits = []
+
         def add_trait(name, args):
-            traits.append(
-                trait_template.format(trait_name=name, trait_args=args)
-            )
+            traits.append(trait_template.format(trait_name=name, trait_args=args))
 
-
-        add_trait("has_defined_footprint_pinmap", dict_to_str(pinmap))
+        add_trait(
+            "has_defined_footprint_pinmap",
+            dict_to_str({k: v[0].format(name="self") for k, v in pinmap.items()}),
+        )
 
         if component["real"]:
             add_trait("has_defined_type_description", str_to_str(component["value"]))
 
-            add_trait("has_defined_footprint",
-                "KicadFootprint({})".format(str_to_str(component["properties"]["footprint"])),
+            add_trait(
+                "has_defined_footprint",
+                "KicadFootprint({})".format(
+                    str_to_str(component["properties"]["footprint"])
+                ),
             )
 
-        trait_expr = "\n    ".join(traits)
+        trait_expr = ("\n" + "    " * 3).join(traits)
 
         # ---------------------------------------------------------
 
         comp = comp_template.format(
             ifs="",
-            unnamed_if_expr="",
+            unnamed_ifs="()",
             name=name,
             named_if_expr=named_if_expr,
             trait_expr=trait_expr,
@@ -192,7 +206,9 @@ def from_t1_netlist(t1_netlist):
     name_map = {c["name"]: cname for cname, (_, __, c) in named_comps.items()}
 
     connections = {}
-    for cname, (ccode, pinmap, comp) in sorted(named_comps.items(), key=lambda x: not x[1][2]["real"]):
+    for cname, (ccode, pinmap, comp) in sorted(
+        named_comps.items(), key=lambda x: not x[1][2]["real"]
+    ):
         for pin, neighbors in comp["neighbors"].items():
             for neighbor in neighbors:
                 neighborcname = name_map[neighbor["vertex"]["name"]]
@@ -200,8 +216,9 @@ def from_t1_netlist(t1_netlist):
                 if ((neighborcname, npin), (cname, pin)) in connections:
                     # don't add connection if symmetric connection already exists
                     continue
-                connections[((cname, pin), (neighborcname, npin))] = \
-                    f"{pinmap[pin]}.connect({named_comps[neighborcname][1][npin]})"
+                connections[
+                    ((cname, pin), (neighborcname, npin))
+                ] = f"{pinmap[pin][0].format(name=cname)}.connect({named_comps[neighborcname][1][npin][0].format(name=neighborcname)})"
 
     project = project.format(
         header="",

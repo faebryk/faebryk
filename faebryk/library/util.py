@@ -3,14 +3,11 @@
 
 import logging
 
-from faebryk.library.traits import interface
-
 logger = logging.getLogger("library")
 
 # TODO this file should not exist
 
 from faebryk.library.core import Interface, Component
-from faebryk.library.traits.interface import is_part_of_component
 
 
 def default_with(given, default):
@@ -59,18 +56,11 @@ def get_all_components(component: Component) -> list[Component]:
 
 
 def get_components_of_interfaces(interfaces: list[Interface]) -> list[Component]:
+    from faebryk.library.traits.interface import is_part_of_component
+
     out = [
         i.get_trait(is_part_of_component).get_component()
         for i in interfaces
         if i.has_trait(is_part_of_component)
     ]
     return out
-
-
-class NotifiesOnPropertyChange(object):
-    def __init__(self, callback) -> None:
-        self.callback = callback
-
-    def __setattr__(self, __name, __value) -> None:
-        super().__setattr__(__name, __value)
-        self.callback(__name, __value)

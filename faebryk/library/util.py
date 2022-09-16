@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from typing import Any, Callable, List, TypeVar
 
 logger = logging.getLogger("library")
 
@@ -16,7 +17,10 @@ def default_with(given, default):
     return default
 
 
-def times(cnt, lamb):
+T = TypeVar("T")
+
+
+def times(cnt: int, lamb: Callable[[], T]) -> List[T]:
     return [lamb() for _ in range(cnt)]
 
 

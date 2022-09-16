@@ -14,7 +14,9 @@ class Electrical(Interface):
     def __init__(self) -> None:
         super().__init__()
 
-        class _contructable_from_interface_list(contructable_from_interface_list.impl()):
+        class _contructable_from_interface_list(
+            contructable_from_interface_list.impl()
+        ):
             @staticmethod
             def from_interfaces(interfaces: list[Electrical]) -> Electrical:
                 return next(interfaces)
@@ -26,10 +28,15 @@ class Power(Interface):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.IFs.hv = Electrical()
-        self.IFs.lv = Electrical()
+        class _IFs(Interface.InterfacesCls()):
+            hv = Electrical()
+            lv = Electrical()
 
-        class _contructable_from_interface_list(contructable_from_interface_list.impl()):
+        self.IFs = _IFs(self)
+
+        class _contructable_from_interface_list(
+            contructable_from_interface_list.impl()
+        ):
             @staticmethod
             def from_interfaces(interfaces: list[Electrical]) -> Power:
                 p = Power()

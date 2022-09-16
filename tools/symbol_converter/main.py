@@ -56,7 +56,7 @@ def generate_component(symbol, annotation_properties, keep_source):
     unnamed_if_cnt = 0
     for no, pin in pins.items():
         if pin["name"] == "~":
-            faebryk_if_map[no] = f"_unnamed[{unnamed_if_cnt}]"
+            faebryk_if_map[no] = f"unnamed[{unnamed_if_cnt}]"
             unnamed_if_cnt += 1
         else:
             pin_raw_name = pin["name"]
@@ -69,9 +69,9 @@ def generate_component(symbol, annotation_properties, keep_source):
 
             faebryk_if_map[no] = pin_name
 
-    ifs_exp = "\n        ".join(
+    ifs_exp = ("\n" + "    " * 3).join(
         [
-            f"self.IFs.{_if} = Electrical()"
+            f"{_if} = Electrical()"
             for pinno, _if in faebryk_if_map.items()
             if pins[pinno]["name"] != "~"
         ]
@@ -142,24 +142,39 @@ def generate_component(symbol, annotation_properties, keep_source):
                 f"        super()._setup_interfaces()"
                 if parent != "Component"
                 else None,
-                f'        {f"self.IFs.add_all(times({unnamed_if_cnt}, Electrical))"}'
-                if unnamed_if_cnt > 0
-                else None,
-                f"        {ifs_exp}" if ifs_exp != "" else None,
+                *(
+                    [
+                        f"        class _IFs(Component.InterfacesCls()):",
+                        f"            unnamed = times({unnamed_if_cnt}, Electrical)"
+                        if unnamed_if_cnt > 0
+                        else None,
+                        f"            {ifs_exp}" if ifs_exp != "" else None,
+                        f"",
+                        f"        self.IFs = _IFs(self)",
+                    ]
+                    if unnamed_if_cnt > 0 or ifs_exp != ""
+                    else []
+                ),
                 f"        return",
                 f"",
-                f"    def __new__(cls, *args, **kwargs):",
-                f"        self = super().__new__(cls)",
-                f"        self._setup_traits()" if parent == "Component" else None,
-                f"        return self",
-                f"",
+                *(
+                    [
+                        f"    def __new__(cls, *args, **kwargs):",
+                        f"        self = super().__new__(cls)",
+                        f"        self._setup_traits()",
+                        f"        return self",
+                        f"",
+                    ]
+                    if parent == "Component"
+                    else []
+                ),
                 f"    def __init__(self):",
                 f"        super().__init__()",
                 f"        self._setup_interfaces()" if parent == "Component" else None,
                 f"        {instance_traits_exp}" if instance_traits_exp != "" else None,
                 f"        return",
             ],
-        )
+        )  # type: ignore
     )
     return template
 
@@ -201,6 +216,7 @@ def main(sourcefile, destfile, keep_source):
             },
             keep_source,
         )
+        + "\n"
         for symbol in lib["symbols"].values()
     ]
 
@@ -213,12 +229,12 @@ def main(sourcefile, destfile, keep_source):
             "from faebryk.library.core import Component",
             "from faebryk.library.library.interfaces import Electrical",
             "from faebryk.library.util import times",
-            "from faebryk.library.traits.component import has_defined_footprint_pinmap, has_defined_footprint, has_defined_type_description",
+            "from faebryk.library.trait_impl.component import has_defined_footprint_pinmap, has_defined_footprint, has_defined_type_description",
             "from faebryk.library.kicad import has_defined_kicad_ref, KicadFootprint",
         ]
         + components
     )
-    output = black.format_file_contents(output, fast=True, mode=black.Mode())
+    # output = black.format_file_contents(output, fast=True, mode=black.Mode())
 
     destfile.write(output)
 

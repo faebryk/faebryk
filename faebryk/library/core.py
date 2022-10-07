@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: MIT
 
 from __future__ import annotations
+from types import NoneType
 from faebryk.libs.exceptions import FaebrykException
-from typing import Iterable, List
+from typing import Generic, Iterable, List, Type, TypeVar
 
 import logging
 
@@ -14,23 +15,25 @@ logger = logging.getLogger("library")
 # 1st order classes -----------------------------------------------------------
 class Trait:
     @classmethod
-    def impl(cls):
+    def impl(cls: Type[Trait]):
         class _Impl(TraitImpl, cls):
             pass
 
         return _Impl
 
+class TraitImpl():
+    trait : Type[Trait]
 
-class TraitImpl:
     def __init__(self) -> None:
         self._obj = None
-
-        self.trait = None
+        
+        found = False
         bases = type(self).__bases__
-        while not self.trait:
+        while not found:
             for base in bases:
                 if not issubclass(base, TraitImpl) and issubclass(base, Trait):
                     self.trait = base
+                    found = True
                     break
             bases = [
                 new_base
@@ -74,6 +77,8 @@ class TraitImpl:
 
 
 class FaebrykLibObject:
+    traits : List[TraitImpl]
+
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
         # TODO maybe dict[class => [obj]
@@ -120,12 +125,15 @@ class FaebrykLibObject:
     def has_trait(self, trait) -> bool:
         return len(self._find(trait)) > 0
 
-    def get_trait(self, trait):
+    T = TypeVar("T", bound=Trait)
+    def get_trait(self, trait: Type[T]) -> T:
         candidates = self._find(trait)
         assert len(candidates) <= 1
         assert len(candidates) == 1, "{} not in {}[{}]".format(trait, type(self), self)
 
-        return candidates[0][1]
+        out = candidates[0][1]
+        assert isinstance(out, trait)
+        return out
 
 
 # -----------------------------------------------------------------------------
@@ -158,12 +166,14 @@ class Footprint(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
-    def add_trait(self, trait: FootprintTrait):
+    def add_trait(self, trait: TraitImpl):
+        assert isinstance(trait, FootprintTrait)
         return super().add_trait(trait)
 
 
 class Interface(FaebrykLibObject):
     from faebryk.libs.util import NotifiesOnPropertyChange
+    connections: List[Interface]
 
     @classmethod
     def InterfacesCls(cls):
@@ -207,7 +217,8 @@ class Interface(FaebrykLibObject):
 
         self.IFs = Interface.InterfacesCls()(self)
 
-    def add_trait(self, trait: InterfaceTrait) -> None:
+    def add_trait(self, trait: TraitImpl) -> None:
+        assert isinstance(trait, InterfaceTrait)
         return super().add_trait(trait)
 
     def connect(self, other: Interface) -> Interface:
@@ -268,7 +279,7 @@ class Component(FaebrykLibObject):
             def __init__(self, comp: Component) -> None:
                 self._comp = comp
                 if not hasattr(self, "unnamed"):
-                    self.unnamed = ()
+                    self.unnamed : List = []
 
                 super().__init__()
 
@@ -276,7 +287,7 @@ class Component(FaebrykLibObject):
                 intf.set_component(self._comp)
 
             def add(self, intf: Interface):
-                self.unnamed += (intf,)
+                self.unnamed.append(intf)
                 intf.set_component(self._comp)
 
             def add_all(self, intfs: Iterable[Interface]):
@@ -313,7 +324,8 @@ class Component(FaebrykLibObject):
         if not hasattr(self, "CMPs"):
             self.CMPs = Component.ComponentsCls()(self)
 
-    def add_trait(self, trait: ComponentTrait) -> None:
+    def add_trait(self, trait: TraitImpl) -> None:
+        assert isinstance(trait, ComponentTrait)
         return super().add_trait(trait)
 
     @staticmethod
@@ -326,7 +338,8 @@ class Link(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
-    def add_trait(self, trait: LinkTrait) -> None:
+    def add_trait(self, trait: TraitImpl) -> None:
+        assert isinstance(trait, LinkTrait)
         return super().add_trait(trait)
 
 
@@ -334,7 +347,8 @@ class Parameter(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
-    def add_trait(self, trait: ParameterTrait) -> None:
+    def add_trait(self, trait: TraitImpl) -> None:
+        assert isinstance(trait, ParameterTrait)
         return super().add_trait(trait)
 
 

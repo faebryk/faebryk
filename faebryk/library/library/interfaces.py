@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from typing import Iterator
 
 logger = logging.getLogger("library")
 
@@ -18,7 +19,7 @@ class Electrical(Interface):
             contructable_from_interface_list.impl()
         ):
             @staticmethod
-            def from_interfaces(interfaces: list[Electrical]) -> Electrical:
+            def from_interfaces(interfaces: Iterator[Electrical]) -> Electrical:
                 return next(interfaces)
 
         self.add_trait(_contructable_from_interface_list())
@@ -38,7 +39,7 @@ class Power(Interface):
             contructable_from_interface_list.impl()
         ):
             @staticmethod
-            def from_interfaces(interfaces: list[Electrical]) -> Power:
+            def from_interfaces(interfaces: Iterator[Electrical]) -> Power:
                 p = Power()
                 p.IFs.hv = next(interfaces)
                 p.IFs.lv = next(interfaces)

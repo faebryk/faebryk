@@ -1,7 +1,10 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
+from abc import abstractmethod
 import logging
+from typing import List
+from typing_extensions import Self
 from faebryk.library.traits import component
 
 from faebryk.library.traits.component import (
@@ -37,7 +40,7 @@ class Resistor(Component):
                 assert len([i for i in interfaces if type(i) is not Electrical]) == 0
 
                 r = Resistor.__new__(Resistor)
-                r._setup_resistance(resistance)
+                r.set_resistance(resistance)
                 r.IFs.add_all(interfaces)
 
                 return r
@@ -113,13 +116,14 @@ class Capacitor(Component):
 
         if type(capacitance) is not Constant:
             return
+        _capacitance: Constant = capacitance
 
         class _has_type_description(has_type_description.impl()):
             @staticmethod
             def get_type_description():
                 capacitance = self.capacitance
                 return unit_map(
-                    capacitance.value, ["µF", "mF", "F", "KF", "MF", "GF"], start="F"
+                    _capacitance.value, ["µF", "mF", "F", "KF", "MF", "GF"], start="F"
                 )
 
         self.add_trait(_has_type_description())
@@ -173,7 +177,7 @@ class MOSFET(Component):
 class LED(Component):
     class has_calculatable_needed_series_resistance(ComponentTrait):
         @staticmethod
-        def get_needed_series_resistance_ohm(input_voltage_V) -> int:
+        def get_needed_series_resistance_ohm(input_voltage_V: float) -> Constant:
             raise NotImplemented
 
     def _setup_traits(self):
@@ -197,21 +201,23 @@ class LED(Component):
 
     def set_forward_parameters(self, voltage_V: Parameter, current_A: Parameter):
         if type(voltage_V) is Constant and type(current_A) is Constant:
+            _voltage_V: Constant = voltage_V
+            _current_A: Constant = current_A
 
             class _(self.has_calculatable_needed_series_resistance.impl()):
                 @staticmethod
-                def get_needed_series_resistance_ohm(input_voltage_V) -> int:
+                def get_needed_series_resistance_ohm(input_voltage_V: float) -> Constant:
                     return LED.needed_series_resistance_ohm(
-                        input_voltage_V, voltage_V.value, current_A.value
+                        input_voltage_V, _voltage_V.value, _current_A.value
                     )
 
             self.add_trait(_())
 
     @staticmethod
     def needed_series_resistance_ohm(
-        input_voltage_V, forward_voltage_V, forward_current_A
+        input_voltage_V: float, forward_voltage_V: float, forward_current_A: float
     ) -> Constant:
-        return Constant((input_voltage_V - forward_voltage_V) / forward_current_A)
+        return Constant(int((input_voltage_V - forward_voltage_V) / forward_current_A))
 
 
 class Potentiometer(Component):
@@ -341,16 +347,15 @@ class NAND(Component):
             Electrical().get_trait(contructable_from_interface_list).from_interfaces(it)
         )
         self.IFs.inputs = [
-            Electrical().get_trait(contructable_from_interface_list).from_interfaces(it)
-            for i in self.inputs
+            Electrical().get_trait(contructable_from_interface_list).from_interfaces(i)
+            for i in it
         ]
 
 
 class CD4011(Component):
     class constructable_from_nands(ComponentTrait):
-        @staticmethod
-        def from_comp(comp: Component):
-            raise NotImplemented
+        def from_nands(self, nands: List[NAND]):
+            raise NotImplementedError
 
     def _setup_traits(self):
         class _constructable_from_component(contructable_from_component.impl()):

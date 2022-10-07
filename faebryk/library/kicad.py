@@ -19,7 +19,7 @@ class KicadFootprint(Footprint):
 
 # Component Traits ------------------------------------------------------------
 class has_kicad_ref(ComponentTrait):
-    def get_ref() -> str:
+    def get_ref(self) -> str:
         raise NotImplementedError()
 
 

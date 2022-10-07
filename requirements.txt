@@ -4,3 +4,4 @@ matplotlib
 sexpdata
 black
 click
+typing-extensions

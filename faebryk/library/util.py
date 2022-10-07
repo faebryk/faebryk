@@ -43,7 +43,7 @@ def integer_base(value: int, base=1000):
     while value < 1:
         value *= base
     while value >= base:
-        value /= base
+        value //= base
     return value
 
 

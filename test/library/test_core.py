@@ -96,11 +96,11 @@ class TestTraits(unittest.TestCase):
 
         class trait1(Trait):
             @abstractmethod
-            def do(self) -> Integral:
+            def do(self) -> int:
                 raise NotImplementedError
 
         class trait1impl(trait1.impl()):
-            def do(self) -> Integral:
+            def do(self) -> int:
                 return 1
 
         class cfgtrait1(trait1impl):
@@ -108,7 +108,7 @@ class TestTraits(unittest.TestCase):
                 super().__init__()
                 self.cfg = cfg
 
-            def do(self) -> Integral:
+            def do(self) -> int:
                 return self.cfg
 
         class trait2(trait1):

@@ -8,6 +8,7 @@ import re
 import black
 import logging
 from faebryk.libs.pycodegen import sanitize_name
+from faebryk.libs.util import NotNone
 
 logger = logging.getLogger("export_faebryk")
 
@@ -134,12 +135,12 @@ def from_t1_netlist(t1_netlist):
     def comp_to_faebryk(component):
         def get_comp_name(component):
             if component["name"].startswith("COMP["):
-                class_name = re.search(r"\[(.*):.*\]", component["name"]).group(1)
+                class_name = NotNone(re.search(r"\[(.*):.*\]", component["name"])).group(1)
             else:
                 class_name = component["name"]
 
             class_name = sanitize_name(class_name)
-            if re.match("^[a-zA-Z_]+[a-zA-Z_0-9]*$", class_name) is None:
+            if re.match(pattern="^[a-zA-Z_]+[a-zA-Z_0-9]*$", string=class_name) is None:
                 assert False, class_name
 
             ctr = comp_names.get(class_name, 0)
@@ -194,7 +195,7 @@ def from_t1_netlist(t1_netlist):
 
         comp = comp_template.format(
             ifs="",
-            unnamed_ifs="()",
+            unnamed_ifs="[]",
             name=name,
             named_if_expr=named_if_expr,
             trait_expr=trait_expr,
@@ -230,7 +231,7 @@ def from_t1_netlist(t1_netlist):
         comps=",\n        ".join(named_comps.keys()),
     )
 
-    project = black.format_file_contents(project, fast=False, mode=black.Mode())
+    project = black.format_file_contents(project, fast=False, mode=black.FileMode())
     # project = black.format_str(project, mode=black.Mode())
 
     return project

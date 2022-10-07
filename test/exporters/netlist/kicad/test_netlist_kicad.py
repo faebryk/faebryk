@@ -185,11 +185,11 @@ def test_netlist_t2():
             vertices=[
                 Vertex(
                     component=resistor1,
-                    pin=2,
+                    pin="2",
                 ),
                 Vertex(
                     component=resistor2,
-                    pin=2,
+                    pin="2",
                 ),
             ],
         ),
@@ -200,11 +200,11 @@ def test_netlist_t2():
             vertices=[
                 Vertex(
                     component=resistor1,
-                    pin=1,
+                    pin="1",
                 ),
                 Vertex(
                     component=resistor2,
-                    pin=1,
+                    pin="1",
                 ),
             ],
         ),
@@ -270,11 +270,11 @@ def _test_netlist_manu():
             nodes=[
                 _gen_node(
                     ref="R1",
-                    pin=1,
+                    pin="1",
                 ),
                 _gen_node(
                     ref="R2",
-                    pin=1,
+                    pin="1",
                 ),
             ],
         ),
@@ -284,11 +284,11 @@ def _test_netlist_manu():
             nodes=[
                 _gen_node(
                     ref="R1",
-                    pin=2,
+                    pin="2",
                 ),
                 _gen_node(
                     ref="R2",
-                    pin=2,
+                    pin="2",
                 ),
             ],
         ),

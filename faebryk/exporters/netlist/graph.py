@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from typing import List
+from typing_extensions import Self
 
 logger = logging.getLogger("netlist")
 
@@ -30,6 +32,8 @@ def make_graph_from_components(components):
     from faebryk.library.util import get_all_components
 
     class wrapper:
+        wrapped_list: List[Self]
+
         def __init__(self, component: Component) -> None:
             self.component = component
             self._setup_non_rec()

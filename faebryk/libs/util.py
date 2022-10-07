@@ -135,3 +135,8 @@ def Holder(_type: Type):
     #    return type(f"{cls.__name__}Holder", (cls, wrapper,), {})
 
     # return decorate
+
+
+def NotNone(x):
+    assert x is not None
+    return x

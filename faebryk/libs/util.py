@@ -5,8 +5,7 @@
 from abc import abstractmethod
 import string
 from textwrap import wrap
-from typing import Any, Iterable, List, Type
-
+from typing import Any, Generic, Iterable, List, Type, TypeVar, cast
 
 class lazy:
     def __init__(self, expr):
@@ -82,23 +81,36 @@ class NotifiesOnPropertyChange(object):
 #    def decorate(cls: Type):
 
 
-def Holder(_type: Type):
-    class wrapper(NotifiesOnPropertyChange):
+T = TypeVar("T")
+class _wrapper(NotifiesOnPropertyChange, Generic[T]):
+    @abstractmethod
+    def get_all(self) -> List[T]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def handle_add(self, obj: T):
+        raise NotImplementedError
+
+_T = TypeVar("_T")
+def Holder(_type: Type[T]) -> Type[_wrapper[T]]:
+
+    class __wrapper(Generic[_T], _wrapper[_T]):
         def __init__(self) -> None:
-            self._list: List[_type] = []
+            self._list: List[T] = []
+            self.type = _type
 
             super().__init__(self._callback)
 
         def _callback(self, name: str, value: Any):
             if name.startswith("_"):
                 return
-            if isinstance(value, _type):
+            if isinstance(value, self.type):
                 self._list.append(value)
                 self.handle_add(value)
                 return
 
             if isinstance(value, Iterable):
-                if not all(map(lambda x: isinstance(x, _type), value)):
+                if not all(map(lambda x: isinstance(x, self.type), value)):
                     # TODO maybe warning on any?
                     return
 
@@ -107,34 +119,31 @@ def Holder(_type: Type):
                     self.handle_add(instance)
                 return
 
-        def get_all(self) -> List[_type]:
+        def get_all(self) -> List[T]:
             # TODO fix list stuff to use this
             # return self._list
 
-            out: List[_type] = []
+            out: List[T] = []
 
             for name in dir(self):
                 value = getattr(self, name)
                 if name.startswith("_"):
                     continue
-                if isinstance(value, _type):
+                if isinstance(value, self.type):
                     out.append(value)
                     continue
                 if isinstance(value, Iterable):
-                    if not all(map(lambda x: isinstance(x, _type), value)):
+                    if not all(map(lambda x: isinstance(x, self.type), value)):
                         continue
                     out += list(value)
                     continue
 
             return out
 
-        def handle_add(self, obj: _type):
+        def handle_add(self, obj: T):
             pass
 
-    return wrapper
-    #    return type(f"{cls.__name__}Holder", (cls, wrapper,), {})
-
-    # return decorate
+    return __wrapper[T]
 
 
 def NotNone(x):

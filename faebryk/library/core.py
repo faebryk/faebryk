@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from __future__ import annotations
-from types import NoneType
-from faebryk.libs.exceptions import FaebrykException
-from typing import Generic, Iterable, List, Type, TypeVar
+from typing import Iterable, List, Type, TypeVar
 
 import logging
 

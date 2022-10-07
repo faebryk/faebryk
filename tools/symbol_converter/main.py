@@ -3,8 +3,6 @@ import logging
 import re
 import hashlib
 import pprint
-from faebryk.libs.kicad.parser import parse_kicad_symbol_lib
-from faebryk.libs.pycodegen import sanitize_name
 import black
 import click
 
@@ -14,6 +12,8 @@ logger.setLevel(logging.DEBUG)
 
 
 def generate_component(symbol, annotation_properties, keep_source):
+    from faebryk.libs.pycodegen import sanitize_name
+
     annotation = "\n    ".join(
         [f"{key}: {val}" for key, val in annotation_properties.items()]
     )
@@ -196,6 +196,7 @@ def main(sourcefile, destfile, keep_source):
 
     DESTPATH: Path to generated file (.py)
     """
+    from faebryk.libs.kicad.parser import parse_kicad_symbol_lib
 
     logger.info("Parsing & Converting %s -> %s", sourcefile.name, destfile.name)
 
@@ -240,4 +241,9 @@ def main(sourcefile, destfile, keep_source):
 
 
 if __name__ == "__main__":
+    import os
+    import sys
+
+    root = os.path.join(os.path.dirname(__file__), "../..")
+    sys.path.append(root)
     main()

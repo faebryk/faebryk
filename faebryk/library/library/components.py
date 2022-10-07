@@ -77,7 +77,8 @@ class Resistor(Component):
         class _has_type_description(has_type_description.impl()):
             @staticmethod
             def get_type_description():
-                resistance = self.resistance
+                assert isinstance(self.resistance, Constant)
+                resistance : Constant = self.resistance
                 return unit_map(
                     resistance.value, ["µΩ", "mΩ", "Ω", "KΩ", "MΩ", "GΩ"], start="Ω"
                 )
@@ -124,7 +125,7 @@ class Capacitor(Component):
         self.add_trait(_has_type_description())
 
 
-class Transistor(Component):
+class BJT(Component):
     def __new__(cls):
         self = super().__new__(cls)
         self._setup_traits()
@@ -135,7 +136,7 @@ class Transistor(Component):
         self._setup_interfaces()
 
     def _setup_traits(self):
-        self.add_trait(has_defined_type_description("Transistor"))
+        self.add_trait(has_defined_type_description("BJT"))
 
     def _setup_interfaces(self):
         class _IFs(Component.InterfacesCls()):
@@ -144,6 +145,29 @@ class Transistor(Component):
             collector = Electrical()
 
         self.IFs = _IFs(self)
+
+
+class MOSFET(Component):
+    def __new__(cls):
+        self = super().__new__(cls)
+        self._setup_traits()
+        return self
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._setup_interfaces()
+
+    def _setup_traits(self):
+        self.add_trait(has_defined_type_description("MOSFET"))
+
+    def _setup_interfaces(self):
+        class _IFs(Component.InterfacesCls()):
+            source = Electrical()
+            gate = Electrical()
+            drain = Electrical()
+
+        self.IFs = _IFs(self)
+
 
 
 class LED(Component):

@@ -8,7 +8,7 @@ logger = logging.getLogger("library")
 
 # TODO this file should not exist
 
-from faebryk.library.core import Interface, Component
+from faebryk.library.core import FaebrykLibObject, Interface, Component
 
 
 def default_with(given, default):
@@ -47,9 +47,15 @@ def integer_base(value: int, base=1000):
     return value
 
 
-def get_all_interfaces(interfaces: list[Interface]) -> list[Interface]:
-    out = interfaces
-    out.extend([i for nested in out for i in get_all_interfaces(nested.IFs.get_all())])
+def get_all_interfaces(obj: Component | Interface, if_type: type) -> list[Interface]:
+    assert issubclass(if_type, Interface)
+    nested = obj.IFs.get_all()
+    out = []
+    for n in nested:
+        if isinstance(n, if_type):
+            out.append(n)
+            continue
+        out.extend(get_all_interfaces(n, if_type))
     return out
 
 

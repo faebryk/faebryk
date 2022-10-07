@@ -172,9 +172,6 @@ def run_experiment():
 
 
 # Boilerplate -----------------------------------------------------------------
-import sys
-
-
 def main(argc, argv, argi):
     logging.basicConfig(level=logging.INFO)
 
@@ -186,6 +183,4 @@ if __name__ == "__main__":
     import os
     import sys
 
-    root = os.path.join(os.path.dirname(__file__), "..")
-    sys.path.append(root)
     main(len(sys.argv), sys.argv, iter(sys.argv))

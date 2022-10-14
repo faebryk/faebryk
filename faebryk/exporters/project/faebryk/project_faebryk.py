@@ -141,6 +141,7 @@ def from_t1_netlist(t1_netlist):
                 class_name = component["name"]
 
             class_name = sanitize_name(class_name)
+            assert type(class_name) is str
             if re.match(pattern="^[a-zA-Z_]+[a-zA-Z_0-9]*$", string=class_name) is None:
                 assert False, class_name
 

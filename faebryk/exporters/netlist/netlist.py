@@ -149,9 +149,10 @@ def render_graph(t1_netlist):
     def _get_vertex_pins(vertex):
         return list(vertex.node["neighbors"].keys())
 
+    nodes : typing.List[_GraphVertex] = list(G.nodes)
     intra_comp_edges = [
         (_GraphVertex(vertex.node, spin), _GraphVertex(vertex.node, dpin))
-        for vertex in G.nodes()
+        for vertex in nodes
         for spin in _get_vertex_pins(vertex)
         for dpin in _get_vertex_pins(vertex)
         if spin != dpin

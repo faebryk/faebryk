@@ -39,6 +39,7 @@ class TestImportSchematicKicad(unittest.TestCase):
         pprint.pprint(t2, indent=4)
 
         netlist = from_faebryk_t2_netlist(t2)
+        assert netlist is not None
         print("-" * 80)
         import pprint
 

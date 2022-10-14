@@ -4,6 +4,9 @@
 from abc import abstractmethod
 from numbers import Integral
 import os
+from typing import cast
+
+from faebryk.library.core import TraitImpl
 
 
 if __name__ == "__main__":
@@ -150,7 +153,8 @@ class TestTraits(unittest.TestCase):
         # Test get obj
         self.assertRaises(AssertionError, lambda: trait1_inst.get_obj())
         obj.add_trait(trait1_inst)
-        self.assertEquals(obj.get_trait(trait1).get_obj(), obj)
+        _impl : TraitImpl = cast(TraitImpl, obj.get_trait(trait1))
+        self.assertEquals(_impl.get_obj(), obj)
         obj.del_trait(trait1)
         self.assertRaises(AssertionError, lambda: trait1_inst.get_obj())
 

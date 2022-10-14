@@ -5,7 +5,7 @@
 from abc import abstractmethod
 import string
 from textwrap import wrap
-from typing import Any, Generic, Iterable, List, Type, TypeVar, cast
+from typing import Any, Generic, Iterable, Iterator, List, Type, TypeVar, cast
 
 class lazy:
     def __init__(self, expr):
@@ -84,6 +84,10 @@ class NotifiesOnPropertyChange(object):
 T = TypeVar("T")
 class _wrapper(NotifiesOnPropertyChange, Generic[T]):
     @abstractmethod
+    def __init__(self) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_all(self) -> List[T]:
         raise NotImplementedError
 
@@ -91,15 +95,14 @@ class _wrapper(NotifiesOnPropertyChange, Generic[T]):
     def handle_add(self, obj: T):
         raise NotImplementedError
 
-_T = TypeVar("_T")
 def Holder(_type: Type[T]) -> Type[_wrapper[T]]:
-
-    class __wrapper(Generic[_T], _wrapper[_T]):
+    _T = TypeVar("_T")
+    class __wrapper(_wrapper[_T]):
         def __init__(self) -> None:
             self._list: List[T] = []
             self.type = _type
 
-            super().__init__(self._callback)
+            NotifiesOnPropertyChange.__init__(self, self._callback)
 
         def _callback(self, name: str, value: Any):
             if name.startswith("_"):
@@ -149,3 +152,10 @@ def Holder(_type: Type[T]) -> Type[_wrapper[T]]:
 def NotNone(x):
     assert x is not None
     return x
+
+def consume_iterator(target, it: Iterator):
+    while True:
+        try:
+            yield target(it)
+        except StopIteration:
+            return

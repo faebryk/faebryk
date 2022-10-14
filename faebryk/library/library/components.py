@@ -20,6 +20,7 @@ from faebryk.library.trait_impl.component import (
     has_defined_type_description,
     has_symmetric_footprint_pinmap,
 )
+from faebryk.libs.util import consume_iterator
 
 logger = logging.getLogger("library")
 
@@ -81,7 +82,7 @@ class Resistor(Component):
             @staticmethod
             def get_type_description():
                 assert isinstance(self.resistance, Constant)
-                resistance : Constant = self.resistance
+                resistance: Constant = self.resistance
                 return unit_map(
                     resistance.value, ["µΩ", "mΩ", "Ω", "KΩ", "MΩ", "GΩ"], start="Ω"
                 )
@@ -173,7 +174,6 @@ class MOSFET(Component):
         self.IFs = _IFs(self)
 
 
-
 class LED(Component):
     class has_calculatable_needed_series_resistance(ComponentTrait):
         @staticmethod
@@ -206,7 +206,9 @@ class LED(Component):
 
             class _(self.has_calculatable_needed_series_resistance.impl()):
                 @staticmethod
-                def get_needed_series_resistance_ohm(input_voltage_V: float) -> Constant:
+                def get_needed_series_resistance_ohm(
+                    input_voltage_V: float,
+                ) -> Constant:
                     return LED.needed_series_resistance_ohm(
                         input_voltage_V, _voltage_V.value, _current_A.value
                     )
@@ -346,10 +348,14 @@ class NAND(Component):
         self.IFs.output = (
             Electrical().get_trait(contructable_from_interface_list).from_interfaces(it)
         )
-        self.IFs.inputs = [
-            Electrical().get_trait(contructable_from_interface_list).from_interfaces(i)
-            for i in it
-        ]
+        self.IFs.inputs = list(
+            consume_iterator(
+                Electrical()
+                .get_trait(contructable_from_interface_list)
+                .from_interfaces,
+                it,
+            )
+        )
 
 
 class CD4011(Component):
@@ -443,10 +449,14 @@ class CD4011(Component):
             Power().get_trait(contructable_from_interface_list).from_interfaces(it)
         )
         self._setup_nands()
-        self.IFs.in_outs = [
-            Electrical().get_trait(contructable_from_interface_list).from_interfaces(i)
-            for i in it
-        ]
+        self.IFs.in_outs = list(
+            consume_iterator(
+                Electrical()
+                .get_trait(contructable_from_interface_list)
+                .from_interfaces,
+                it,
+            )
+        )
         self._setup_internal_connections()
 
     def _init_from_nands(self, nands: list[NAND]):

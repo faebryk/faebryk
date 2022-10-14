@@ -1,7 +1,1 @@
-networkx
-numpy
-matplotlib
-sexpdata
-black
-click
-typing-extensions
+setuptools >= 64.0.0

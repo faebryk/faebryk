@@ -30,3 +30,11 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/faebryk/faebryk "
 "Bug Tracker" = "https://github.com/faebryk/faebryk/issues "
+
+[tool.isort]
+profile = "black"
+
+[tool.autoflake]
+remove-all-unused-imports = true
+remove-unused-variables = true
+ignore-init-module-imports = true

@@ -1,14 +1,15 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
+import logging
 import os
-from typing import Iterable
-import faebryk.exporters.netlist.kicad.sexp as sexp_gen
-from faebryk.exporters.netlist.kicad.sexp import multi_key_dict
-import sexpdata
 import re
 import unittest
-import logging
+
+import sexpdata
+
+import faebryk.exporters.netlist.kicad.sexp as sexp_gen
+from faebryk.exporters.netlist.kicad.sexp import multi_key_dict
 
 logger = logging.getLogger("test")
 
@@ -81,7 +82,7 @@ def _test_py2net2py(obj):
     parsed = sexpdata.loads(sexp)
     try:
         cleaned = _cleanparsed(parsed)
-    except Exception as e:
+    except Exception:
         logger.error("Source:%s", sexp)
         logger.error("Died:%s", parsed)
         return False

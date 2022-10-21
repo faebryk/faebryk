@@ -4,9 +4,11 @@
 """
 """
 
-import re
-import black
 import logging
+import re
+
+import black
+
 from faebryk.libs.pycodegen import sanitize_name
 from faebryk.libs.util import NotNone
 
@@ -131,7 +133,6 @@ def from_t1_netlist(t1_netlist):
     project = template
 
     comp_names = {}
-    if_names = {}
 
     def comp_to_faebryk(component):
         def get_comp_name(component):

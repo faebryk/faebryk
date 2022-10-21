@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger("library")
 
-import typing
+
 from faebryk.library.core import ParameterTrait
 
 

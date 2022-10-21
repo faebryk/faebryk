@@ -38,3 +38,4 @@ profile = "black"
 remove-all-unused-imports = true
 remove-unused-variables = false
 ignore-init-module-imports = true
+expand-star-imports = true

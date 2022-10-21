@@ -36,5 +36,5 @@ profile = "black"
 
 [tool.autoflake]
 remove-all-unused-imports = true
-remove-unused-variables = true
+remove-unused-variables = false
 ignore-init-module-imports = true

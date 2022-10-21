@@ -117,7 +117,7 @@ class Capacitor(Component):
         class _has_type_description(has_type_description.impl()):
             @staticmethod
             def get_type_description():
-                self.capacitance
+                capacitance = self.capacitance
                 return unit_map(
                     _capacitance.value, ["µF", "mF", "F", "KF", "MF", "GF"], start="F"
                 )

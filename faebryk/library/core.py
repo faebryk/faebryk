@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Type, TypeVar
+from typing import List, Tuple, Type, TypeVar
 
 from faebryk.libs.util import Holder
 
@@ -138,6 +138,11 @@ class FaebrykLibObject:
 
     def set_parent(self, parent: FaebrykLibObject, name: str) -> None:
         self.parent = (parent, name)
+
+    def get_hierarchy(self) -> List[Tuple[FaebrykLibObject, str]]:
+        if self.parent is None:
+            return []
+        return self.parent[0].get_hierarchy() + [self.parent]
 
 
 # -----------------------------------------------------------------------------

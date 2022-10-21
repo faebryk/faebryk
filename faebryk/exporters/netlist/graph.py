@@ -57,7 +57,9 @@ def make_graph_from_components(components):
                 self.name = self.component.get_trait(has_overriden_name).get_name()
             else:
                 self.name = "{}[{}:{}]".format(
-                    self.component.parent[1]
+                    ".".join(
+                        [pname for parent, pname in self.component.get_hierarchy()]
+                    )
                     if self.component.parent is not None
                     else "",
                     type(self.component).__name__,

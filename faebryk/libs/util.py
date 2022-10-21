@@ -77,11 +77,12 @@ class NotifiesOnPropertyChange(object):
 
 
 T = TypeVar("T")
+P = TypeVar("P")
 
 
-class _wrapper(NotifiesOnPropertyChange, Generic[T]):
+class _wrapper(NotifiesOnPropertyChange, Generic[T, P]):
     @abstractmethod
-    def __init__(self) -> None:
+    def __init__(self, parent: P) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -92,14 +93,20 @@ class _wrapper(NotifiesOnPropertyChange, Generic[T]):
     def handle_add(self, name: str, obj: T):
         raise NotImplementedError
 
+    @abstractmethod
+    def get_parent(self) -> P:
+        raise NotImplementedError
 
-def Holder(_type: Type[T]) -> Type[_wrapper[T]]:
+
+def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
     _T = TypeVar("_T")
+    _P = TypeVar("_P")
 
-    class __wrapper(_wrapper[_T]):
-        def __init__(self) -> None:
+    class __wrapper(_wrapper[_T, _P]):
+        def __init__(self, parent: P) -> None:
             self._list: List[T] = []
             self.type = _type
+            self._parent: P = parent
 
             NotifiesOnPropertyChange.__init__(self, self._callback)
 
@@ -145,7 +152,10 @@ def Holder(_type: Type[T]) -> Type[_wrapper[T]]:
         def handle_add(self, name: str, obj: T) -> None:
             pass
 
-    return __wrapper[T]
+        def get_parent(self) -> P:
+            return self._parent
+
+    return __wrapper[T, P]
 
 
 def NotNone(x):

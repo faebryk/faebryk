@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable, List, Type, TypeVar
+from typing import List, Type, TypeVar
 
 from faebryk.libs.util import Holder
 
@@ -85,8 +85,8 @@ class FaebrykLibObject:
         return self
 
     def __init__(self) -> None:
-        if not hasattr(self, "name"):
-            self.name = None
+        if not hasattr(self, "parent"):
+            self.parent = None
 
     def add_trait(self, trait: TraitImpl) -> None:
         assert isinstance(trait, TraitImpl), ("not a traitimpl:", trait)
@@ -136,8 +136,8 @@ class FaebrykLibObject:
         assert isinstance(out, trait)
         return out
 
-    def set_name(self, name: str) -> None:
-        self.name = name
+    def set_parent(self, parent: FaebrykLibObject, name: str) -> None:
+        self.parent = (parent, name)
 
 
 # -----------------------------------------------------------------------------
@@ -182,41 +182,33 @@ class Interface(FaebrykLibObject):
 
     @classmethod
     def InterfacesCls(cls):
-        class _Interfaces(Holder(Interface)):
-            def __init__(self, intf: Interface) -> None:
-                self._intf = intf
-                if not hasattr(self, "unnamed"):
-                    self.unnamed = ()
-
-                super().__init__()
-
+        class _Interfaces(Holder(Interface, Interface)):
             def handle_add(self, name: str, intf: Interface):
-                if self._intf.component is None:
-                    return
-                intf.set_component(self._intf.component)
-                intf.set_name(name)
+                intf.set_parent(self.get_parent(), name)
                 return super().handle_add(name, intf)
-
-            # TODO this is blocking a nicer implementation of Holder
-            # due to not putting into the list, maybe just remove the whole thing
-            def add(self, intf: Interface):
-                self.unnamed += (intf,)
-                if self._intf.component is None:
-                    return
-                intf.set_component(self._intf.component)
-
-            def add_all(self, intfs: Iterable[Interface]):
-                for intf in intfs:
-                    self.add(intf)
 
         return _Interfaces
 
-    def __new__(cls, *args, component=None, **kwargs):
+    def __new__(cls):
         self = super().__new__(cls)
         self.connections = []
-        self.component = None
-        if component is not None:
-            self.set_component(component)
+
+        from faebryk.library.traits.interface import is_part_of_component
+
+        # TODO we need to have a more dynamic way to check if a trait exists
+        class _(is_part_of_component.impl()):
+            @staticmethod
+            def get_component() -> Component | None:
+                if self.parent is None:
+                    return None
+                parent = self.parent[0]
+                if isinstance(parent, Component):
+                    return parent
+                assert isinstance(parent, Interface)
+                return parent.get_trait(is_part_of_component).get_component()
+
+        self.add_trait(_())
+
         return self
 
     def __init__(self) -> None:
@@ -255,75 +247,23 @@ class Interface(FaebrykLibObject):
             end = bridge.get_trait(can_bridge).get_out()
         end.connect(target)
 
-    def set_component(self, component):
-        from faebryk.library.traits.interface import is_part_of_component
-
-        self.component = component
-
-        class _(is_part_of_component.impl()):
-            @staticmethod
-            def get_component() -> Component:
-                return self.component
-
-        if component is None:
-            self.del_trait(is_part_of_component)
-        else:
-            self.add_trait(_())
-
-        # TODO I think its nicer to have a parent relationship to the other interface
-        #   instead of carrying the component through all compositions
-        for i in self.IFs.get_all():
-            assert i != self
-            i.set_component(component)
-
 
 class Component(FaebrykLibObject):
-    from faebryk.libs.util import NotifiesOnPropertyChange
-
     @classmethod
+    # TODO maybe make WithParent(Holder(...))
     def InterfacesCls(cls):
-        class _Interfaces(Holder(Interface)):
-            def __init__(self, comp: Component) -> None:
-                self._comp = comp
-                if not hasattr(self, "unnamed"):
-                    self.unnamed: List = []
-
-                super().__init__()
-
-            def handle_add(self, name: str, intf: Interface):
-                intf.set_component(self._comp)
-                intf.set_name(name)
+        class _Interfaces(Holder(Interface, Component)):
+            def handle_add(self, name: str, intf: Interface) -> None:
+                intf.set_parent(self.get_parent(), name)
                 return super().handle_add(name, intf)
-
-            def add(self, intf: Interface):
-                self.unnamed.append(intf)
-                intf.set_component(self._comp)
-
-            def add_all(self, intfs: Iterable[Interface]):
-                for intf in intfs:
-                    self.add(intf)
 
         return _Interfaces
 
     @classmethod
     def ComponentsCls(cls):
-        class _Components(Holder(Component)):
-            def __init__(self, comp: Component) -> None:
-                self._comp = comp
-                if not hasattr(self, "unnamed"):
-                    self.unnamed = ()
-
-                super().__init__()
-
-            def add(self, cmp: Component):
-                self.unnamed += (cmp,)
-
-            def add_all(self, cmps: Iterable[Component]):
-                for cmp in cmps:
-                    self.add(cmp)
-
+        class _Components(Holder(Component, Component)):
             def handle_add(self, name: str, obj: Component) -> None:
-                obj.set_name(name)
+                obj.set_parent(self.get_parent(), name)
                 return super().handle_add(name, obj)
 
         return _Components

@@ -85,7 +85,8 @@ class FaebrykLibObject:
         return self
 
     def __init__(self) -> None:
-        pass
+        if not hasattr(self, "name"):
+            self.name = None
 
     def add_trait(self, trait: TraitImpl) -> None:
         assert isinstance(trait, TraitImpl), ("not a traitimpl:", trait)
@@ -134,6 +135,9 @@ class FaebrykLibObject:
         out = candidates[0][1]
         assert isinstance(out, trait)
         return out
+
+    def set_name(self, name: str) -> None:
+        self.name = name
 
 
 # -----------------------------------------------------------------------------
@@ -186,10 +190,12 @@ class Interface(FaebrykLibObject):
 
                 super().__init__()
 
-            def handle_add(self, intf: Interface):
+            def handle_add(self, name: str, intf: Interface):
                 if self._intf.component is None:
                     return
                 intf.set_component(self._intf.component)
+                intf.set_name(name)
+                return super().handle_add(name, intf)
 
             # TODO this is blocking a nicer implementation of Holder
             # due to not putting into the list, maybe just remove the whole thing
@@ -284,8 +290,10 @@ class Component(FaebrykLibObject):
 
                 super().__init__()
 
-            def handle_add(self, intf: Interface):
+            def handle_add(self, name: str, intf: Interface):
                 intf.set_component(self._comp)
+                intf.set_name(name)
+                return super().handle_add(name, intf)
 
             def add(self, intf: Interface):
                 self.unnamed.append(intf)
@@ -313,6 +321,10 @@ class Component(FaebrykLibObject):
             def add_all(self, cmps: Iterable[Component]):
                 for cmp in cmps:
                     self.add(cmp)
+
+            def handle_add(self, name: str, obj: Component) -> None:
+                obj.set_name(name)
+                return super().handle_add(name, obj)
 
         return _Components
 

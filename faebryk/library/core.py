@@ -170,6 +170,26 @@ class ParameterTrait(Trait):
 
 # -----------------------------------------------------------------------------
 
+from faebryk.libs.util import _wrapper
+
+T = TypeVar("T")
+P = TypeVar("P")
+
+
+def ParentContainer(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
+    assert issubclass(_ptype, FaebrykLibObject)
+    assert issubclass(_type, FaebrykLibObject)
+
+    class _(Holder(_type, _ptype)):
+        def handle_add(self, name: str, obj: T) -> None:
+            assert isinstance(obj, FaebrykLibObject)
+            parent: P = self.get_parent()
+            obj.set_parent(parent, name)
+            return super().handle_add(name, obj)
+
+    return _
+
+
 # FaebrykLibObjects -----------------------------------------------------------
 class Footprint(FaebrykLibObject):
     def __init__(self) -> None:
@@ -181,18 +201,11 @@ class Footprint(FaebrykLibObject):
 
 
 class Interface(FaebrykLibObject):
-    from faebryk.libs.util import NotifiesOnPropertyChange
-
     connections: List[Interface]
 
     @classmethod
     def InterfacesCls(cls):
-        class _Interfaces(Holder(Interface, Interface)):
-            def handle_add(self, name: str, intf: Interface):
-                intf.set_parent(self.get_parent(), name)
-                return super().handle_add(name, intf)
-
-        return _Interfaces
+        return ParentContainer(Interface, Interface)
 
     def __new__(cls):
         self = super().__new__(cls)
@@ -255,23 +268,12 @@ class Interface(FaebrykLibObject):
 
 class Component(FaebrykLibObject):
     @classmethod
-    # TODO maybe make WithParent(Holder(...))
     def InterfacesCls(cls):
-        class _Interfaces(Holder(Interface, Component)):
-            def handle_add(self, name: str, intf: Interface) -> None:
-                intf.set_parent(self.get_parent(), name)
-                return super().handle_add(name, intf)
-
-        return _Interfaces
+        return ParentContainer(Interface, Component)
 
     @classmethod
     def ComponentsCls(cls):
-        class _Components(Holder(Component, Component)):
-            def handle_add(self, name: str, obj: Component) -> None:
-                obj.set_parent(self.get_parent(), name)
-                return super().handle_add(name, obj)
-
-        return _Components
+        return ParentContainer(Component, Component)
 
     def __init__(self) -> None:
         super().__init__()

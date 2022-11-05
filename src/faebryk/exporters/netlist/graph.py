@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from collections import defaultdict
 from typing import List
 
 from typing_extensions import Self
@@ -85,43 +86,17 @@ def make_graph_from_components(components):
 
         def get_comp(self):
             # only executed once
-            neighbors = {}
+            neighbors = defaultdict(lambda: [])
             for pin, interface in (
                 self.component.get_trait(has_footprint_pinmap).get_pin_map().items()
             ):
-                neighbors[pin] = []
-                for target_interface in interface.connections:
-                    if target_interface.has_trait(is_part_of_component):
-                        target_component = target_interface.get_trait(
-                            is_part_of_component
-                        ).get_component()
-                        target_pinmap = target_component.get_trait(
-                            has_footprint_pinmap
-                        ).get_pin_map()
-                        try:
-                            target_pin = list(target_pinmap.items())[
-                                list(target_pinmap.values()).index(target_interface)
-                            ][0]
-                        except ValueError:
-                            raise FaebrykException(
-                                "Pinmap of component does not contain referenced pin"
-                            )
-                        try:
-                            target_wrapped = [
-                                i
-                                for i in wrapped_list
-                                if i.component == target_component
-                            ][0]
-                        except IndexError:
-                            raise FaebrykException(
-                                "Discovered associated component not in component list:",
-                                target_component,
-                            )
-
-                        neighbors[pin].append(
-                            {"vertex": target_wrapped._get_comp(), "pin": target_pin}
-                        )
-                    else:
+                for target_interface in [
+                    i
+                    for link in interface.connections
+                    for i in link.interfaces
+                    if i != interface
+                ]:
+                    if not target_interface.has_trait(is_part_of_component):
                         logger.warn(
                             "{comp} pin {pin} is connected to interface without component".format(
                                 comp=self.name,
@@ -129,6 +104,35 @@ def make_graph_from_components(components):
                                 pin=pin,
                             )
                         )
+                        continue
+
+                    target_component = target_interface.get_trait(
+                        is_part_of_component
+                    ).get_component()
+                    target_pinmap = target_component.get_trait(
+                        has_footprint_pinmap
+                    ).get_pin_map()
+                    try:
+                        target_pin = list(target_pinmap.items())[
+                            list(target_pinmap.values()).index(target_interface)
+                        ][0]
+                    except ValueError:
+                        raise FaebrykException(
+                            "Pinmap of component does not contain referenced pin"
+                        )
+                    try:
+                        target_wrapped = [
+                            i for i in wrapped_list if i.component == target_component
+                        ][0]
+                    except IndexError:
+                        raise FaebrykException(
+                            "Discovered associated component not in component list:",
+                            target_component,
+                        )
+
+                    neighbors[pin].append(
+                        {"vertex": target_wrapped._get_comp(), "pin": target_pin}
+                    )
 
             self.neighbors = neighbors
             self._update_comp()

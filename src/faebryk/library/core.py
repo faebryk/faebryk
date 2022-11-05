@@ -209,8 +209,18 @@ class Footprint(FaebrykLibObject):
         return super().add_trait(trait)
 
 
+class Link(FaebrykLibObject):
+    def __init__(self, interfaces: List[Interface]) -> None:
+        super().__init__()
+        self.interfaces = interfaces
+
+    def add_trait(self, trait: TraitImpl) -> None:
+        assert isinstance(trait, LinkTrait)
+        return super().add_trait(trait)
+
+
 class Interface(FaebrykLibObject):
-    connections: List[Interface]
+    connections: List[Link]
 
     @classmethod
     def InterfacesCls(cls):
@@ -258,10 +268,12 @@ class Interface(FaebrykLibObject):
         assert isinstance(trait, InterfaceTrait)
         return super().add_trait(trait)
 
-    def connect(self, other: Interface) -> Interface:
+    def connect(self, other: Interface, linkcls: type = Link) -> Interface:
         assert type(other) is type(self), "{} is not {}".format(type(other), type(self))
-        self.connections.append(other)
-        other.connections.append(self)
+        assert issubclass(linkcls, Link)
+        link = linkcls([other, self])
+        self.connections.append(link)
+        other.connections.append(link)
 
         return self
 
@@ -312,15 +324,6 @@ class Component(FaebrykLibObject):
     def from_comp(other: Component) -> Component:
         # TODO traits?
         return Component()
-
-
-class Link(FaebrykLibObject):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def add_trait(self, trait: TraitImpl) -> None:
-        assert isinstance(trait, LinkTrait)
-        return super().add_trait(trait)
 
 
 class Parameter(FaebrykLibObject):

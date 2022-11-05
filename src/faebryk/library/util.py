@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-from typing import Callable, List, TypeVar
+from typing import Callable, Dict, Iterable, List, TypeVar
 
 logger = logging.getLogger("library")
 
@@ -74,3 +74,18 @@ def get_components_of_interfaces(interfaces: list[Interface]) -> list[Component]
         if i.has_trait(is_part_of_component)
     ]
     return out
+
+
+T = TypeVar("T")
+U = TypeVar("U")
+
+
+def get_key(haystack: Dict[T, U], needle: U) -> T:
+    return find(haystack.items(), lambda x: x[1] == needle)[0]
+
+
+def find(haystack: Iterable[T], needle: Callable) -> T:
+    results = list(filter(needle, haystack))
+    if len(results) != 1:
+        raise ValueError
+    return results[0]

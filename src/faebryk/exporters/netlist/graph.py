@@ -8,6 +8,7 @@ from typing import List
 from typing_extensions import Self
 
 from faebryk.library.traits.component import has_overriden_name
+from faebryk.library.util import find, get_key
 from faebryk.libs.util import groupby
 
 logger = logging.getLogger("netlist")
@@ -87,6 +88,8 @@ def make_graph_from_components(components):
         def get_comp(self):
             # only executed once
             neighbors = defaultdict(lambda: [])
+
+            # iterate through connections
             for pin, interface in (
                 self.component.get_trait(has_footprint_pinmap).get_pin_map().items()
             ):
@@ -113,19 +116,21 @@ def make_graph_from_components(components):
                     target_pinmap = target_component.get_trait(
                         has_footprint_pinmap
                     ).get_pin_map()
+
+                    # find pin in target pinmap
                     try:
-                        target_pin = list(target_pinmap.items())[
-                            list(target_pinmap.values()).index(target_interface)
-                        ][0]
+                        target_pin = get_key(target_pinmap, target_interface)
                     except ValueError:
                         raise FaebrykException(
                             "Pinmap of component does not contain referenced pin"
                         )
+
+                    # find wrapped component in global list
                     try:
-                        target_wrapped = [
-                            i for i in wrapped_list if i.component == target_component
-                        ][0]
-                    except IndexError:
+                        target_wrapped = find(
+                            wrapped_list, lambda w: w.component == target_component
+                        )
+                    except ValueError:
                         raise FaebrykException(
                             "Discovered associated component not in component list:",
                             target_component,

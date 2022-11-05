@@ -210,13 +210,24 @@ class Footprint(FaebrykLibObject):
 
 
 class Link(FaebrykLibObject):
-    def __init__(self, interfaces: List[Interface]) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.interfaces = interfaces
 
     def add_trait(self, trait: TraitImpl) -> None:
         assert isinstance(trait, LinkTrait)
         return super().add_trait(trait)
+
+    def get_connections(self) -> List[List[Interface]]:
+        raise NotImplementedError
+
+
+class LinkDirect(Link):
+    def __init__(self, interfaces: List[Interface]) -> None:
+        super().__init__()
+        self.interfaces = interfaces
+
+    def get_connections(self) -> List[List[Interface]]:
+        return [self.interfaces]
 
 
 class Interface(FaebrykLibObject):
@@ -268,9 +279,9 @@ class Interface(FaebrykLibObject):
         assert isinstance(trait, InterfaceTrait)
         return super().add_trait(trait)
 
-    def connect(self, other: Interface, linkcls: type = Link) -> Interface:
+    def connect(self, other: Interface, linkcls: type = LinkDirect) -> Interface:
         assert type(other) is type(self), "{} is not {}".format(type(other), type(self))
-        assert issubclass(linkcls, Link)
+        assert issubclass(linkcls, LinkDirect)
         link = linkcls([other, self])
         self.connections.append(link)
         other.connections.append(link)

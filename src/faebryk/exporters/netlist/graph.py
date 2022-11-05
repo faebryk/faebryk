@@ -93,7 +93,8 @@ def make_graph_from_components(components):
                 for target_interface in [
                     i
                     for link in interface.connections
-                    for i in link.interfaces
+                    for connects in link.get_connections()
+                    for i in connects
                     if i != interface
                 ]:
                     if not target_interface.has_trait(is_part_of_component):

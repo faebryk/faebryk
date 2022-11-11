@@ -12,6 +12,9 @@ logger = logging.getLogger("library")
 
 # 1st order classes -----------------------------------------------------------
 class Trait:
+    def __init__(self, pretty_child_fns=None):
+        self._pretty_child_fns = pretty_child_fns
+
     @classmethod
     def impl(cls: Type[Trait]):
         class _Impl(TraitImpl, cls):
@@ -19,11 +22,41 @@ class Trait:
 
         return _Impl
 
+    @property
+    def name(self):
+        return type(self).__name__
+
+    def __str__(self):
+        if self._pretty_child_fns is None:
+            return self.name
+        try:
+            return f"{self.name}({','.join([fn() for fn in self._pretty_child_fns])})"
+        except NotImplementedError:
+            return self.name
+
+    def __pretty__(self, p, cycle):
+        if self._pretty_child_fns is None:
+            p.text(self.name)
+        elif cycle:
+            p.text(f"{self.name}(…)")
+        else:
+            try:
+                with p.group(4, f"{self.name}(", ")"):
+                    p.breakable(sep="")
+                    for i, fn in enumerate(self._pretty_child_fns):
+                        if i > 0:
+                            p.text(",")
+                            p.breakable()
+                        p.pretty(fn())
+            except NotImplementedError:
+                p.text(self.name)
+
 
 class TraitImpl:
     trait: Type[Trait]
 
     def __init__(self) -> None:
+        super().__init__()
         self._obj = None
 
         found = False
@@ -152,6 +185,24 @@ class FaebrykLibObject:
         if self.parent is None:
             return []
         return self.parent[0].get_hierarchy() + [self.parent]
+
+    def __str__(self):
+        return "{}[{}]".format(
+            type(self).__name__, ", ".join(map(lambda t: t.name, self.traits))
+        )
+
+    def __pretty__(self, p, cycle):
+        name = type(self).__name__
+        if cycle:
+            p.text(f"{name}[…]")
+        else:
+            with p.group(4, f"{name}[", "]"):
+                p.breakable(sep="")
+                for idx, trait in enumerate(self.traits):
+                    if idx > 0:
+                        p.text(",")
+                        p.breakable()
+                    p.pretty(trait)
 
 
 # -----------------------------------------------------------------------------

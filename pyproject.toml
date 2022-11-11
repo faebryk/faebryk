@@ -25,6 +25,7 @@ dependencies = [
     "black",
     "click",
     "typing-extensions",
+    "pretty-py3",
 ]
 
 [project.urls]

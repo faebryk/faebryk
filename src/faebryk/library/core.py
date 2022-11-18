@@ -191,18 +191,22 @@ class FaebrykLibObject:
             type(self).__name__, ", ".join(map(lambda t: t.name, self.traits))
         )
 
+    def _pretty_children(self):
+        return {"traits": self.traits}
+
     def __pretty__(self, p, cycle):
         name = type(self).__name__
         if cycle:
             p.text(f"{name}[…]")
         else:
-            with p.group(4, f"{name}[", "]"):
+            with p.group(4, f"{name}{{", "}"):
                 p.breakable(sep="")
-                for idx, trait in enumerate(self.traits):
+                for idx, (name, child) in enumerate(self._pretty_children().items()):
                     if idx > 0:
                         p.text(",")
                         p.breakable()
-                    p.pretty(trait)
+                    p.text(f"{name}:")
+                    p.pretty(child)
 
 
 # -----------------------------------------------------------------------------
@@ -336,6 +340,11 @@ class Interface(FaebrykLibObject):
             end = bridge.get_trait(can_bridge).get_out()
         end.connect(target)
 
+    def _pretty_children(self):
+        children = super()._pretty_children()
+        children["IFs"] = self.IFs.get_all()
+        return children
+
 
 class Component(FaebrykLibObject):
     @classmethod
@@ -363,6 +372,12 @@ class Component(FaebrykLibObject):
     def from_comp(other: Component) -> Component:
         # TODO traits?
         return Component()
+
+    def _pretty_children(self):
+        children = super()._pretty_children()
+        children["IFs"] = self.IFs.get_all()
+        children["CMPs"] = self.CMPs.get_all()
+        return children
 
 
 class Link(FaebrykLibObject):

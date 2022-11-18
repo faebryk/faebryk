@@ -85,7 +85,7 @@ def run_experiment():
     assert netlist is not None
 
     # from pretty import pretty
-    # logger.info("Experiement components")
+    # logger.info("Experiment components")
     # logger.info("\n" + "\n".join(pretty(c) for c in comps))
     export_netlist(netlist)
     export_graph(t1_, show=True)

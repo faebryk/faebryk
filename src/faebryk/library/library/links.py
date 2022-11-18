@@ -13,14 +13,5 @@ class LinkDirect(Link):
         assert len(set(map(type, interfaces))) == 1
         self.interfaces = interfaces
 
-    def get_connections(self) -> List[List[Interface]]:
-        return [self.interfaces]
-
-
-class ParentLink(Link):
-    def __init__(self, interfaces: List[Interface]) -> None:
-        super().__init__()
-        self.interfaces = interfaces
-
-    def get_connections(self) -> List[List[Interface]]:
-        return [self.interfaces]
+    def get_connections(self) -> List[Interface]:
+        return self.interfaces

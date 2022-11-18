@@ -2,18 +2,76 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from typing import Dict, List
+
+from faebryk.library.core import Component, ComponentTrait, Trait, TraitImpl
+from faebryk.library.library.interfaces import Electrical
+from faebryk.library.util import get_all_interfaces, times
 
 logger = logging.getLogger("library")
 
 from enum import Enum
 
-from faebryk.library.core import Footprint
 from faebryk.library.kicad import has_kicad_footprint
+
+
+class FootprintTrait(Trait):
+    pass
+
+
+class Footprint(Component):
+    class IFS(Component.InterfacesCls()):
+        pass
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def add_trait(self, trait: TraitImpl):
+        assert isinstance(trait, FootprintTrait)
+        return super().add_trait(trait)
+
+
+# TODO move file --------------------------------------------------------------
+class can_attach_via_pinmap(FootprintTrait):
+    def attach(self, pinmap: Dict[str, Electrical]):
+        raise NotImplementedError()
+
+
+class can_attach_via_pinmap_pinlist(can_attach_via_pinmap.impl()):
+    def __init__(self, pin_list: List[Electrical]) -> None:
+        super().__init__()
+        self.pin_list = pin_list
+
+    def attach(self, pinmap: Dict[int, Electrical]):
+        for no, intf in pinmap.items():
+            self.pin_list[no].connect(intf)
+
+
+class can_attach_to_footprint(ComponentTrait):
+    def attach(self, footprint: Footprint):
+        raise NotImplementedError()
+
+
+class can_attach_to_footprint_symmetricaly(can_attach_to_footprint.impl()):
+    def attach(self, footprint: Footprint):
+        for i, j in zip(
+            get_all_interfaces(footprint, Electrical),
+            get_all_interfaces(self.get_obj(), Electrical),
+        ):
+            i.connect(j)
+
+
+# -----------------------------------------------------------------------------
 
 
 class DIP(Footprint):
     def __init__(self, pin_cnt: int, spacing_mm: float, long_pads: bool) -> None:
         super().__init__()
+
+        class _IFs(Footprint.IFS):
+            pins = times(pin_cnt, Electrical)
+
+        self.IFs = _IFs(self)
 
         class _has_kicad_footprint(has_kicad_footprint.impl()):
             @staticmethod
@@ -25,6 +83,7 @@ class DIP(Footprint):
                 )
 
         self.add_trait(_has_kicad_footprint())
+        self.add_trait(can_attach_via_pinmap_pinlist(self.IFs.pins))
 
 
 class QFN(Footprint):
@@ -38,6 +97,11 @@ class QFN(Footprint):
         has_thermal_vias: bool,
     ) -> None:
         super().__init__()
+
+        class _IFs(Footprint.IFS):
+            pins = times(pin_cnt, Electrical)
+
+        self.IFs = _IFs(self)
 
         # Constraints
         assert exposed_thermal_pad_cnt > 0 or not has_thermal_vias
@@ -62,6 +126,7 @@ class QFN(Footprint):
                 )
 
         self.add_trait(_has_kicad_footprint())
+        self.add_trait(can_attach_via_pinmap_pinlist(self.IFs.pins))
 
 
 class SMDTwoPin(Footprint):
@@ -79,6 +144,11 @@ class SMDTwoPin(Footprint):
 
     def __init__(self, type: Type) -> None:
         super().__init__()
+
+        class _IFs(Footprint.IFS):
+            pins = times(2, Electrical)
+
+        self.IFs = _IFs(self)
 
         class _has_kicad_footprint(has_kicad_footprint.impl()):
             @staticmethod
@@ -101,3 +171,4 @@ class SMDTwoPin(Footprint):
                 )
 
         self.add_trait(_has_kicad_footprint())
+        self.add_trait(can_attach_via_pinmap_pinlist(self.IFs.pins))

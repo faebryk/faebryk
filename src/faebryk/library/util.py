@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-from typing import Callable, Dict, Iterable, List, TypeVar
+from typing import Callable, Dict, Iterable, List, Type, TypeVar
+
+from faebryk.libs.util import flatten
 
 logger = logging.getLogger("library")
 
@@ -47,15 +49,14 @@ def integer_base(value: int, base=1000):
     return value
 
 
-def get_all_interfaces(obj: Component | Interface, if_type: type) -> list[Interface]:
+def get_all_interfaces(obj: Component, if_type: Type[T]) -> List[T]:
     assert issubclass(if_type, Interface)
-    nested = obj.IFs.get_all()
-    out = []
-    for n in nested:
-        if isinstance(n, if_type):
-            out.append(n)
-            continue
-        out.extend(get_all_interfaces(n, if_type))
+
+    out = [i for i in obj.IFs.get_all() if isinstance(i, if_type)]
+    out.extend(
+        flatten([get_all_interfaces(cmp, if_type) for cmp in obj.CMPs.get_all()])
+    )
+
     return out
 
 
@@ -93,3 +94,26 @@ def find(haystack: Iterable[T], needle: Callable) -> T:
 
 def get_all_interfaces_link(link: Link) -> List[Interface]:
     return [i for c in link.get_connections() for i in c]
+
+
+def connect_interfaces_via_chain(
+    start: Interface, bridges: Iterable[Component], end: Interface
+):
+    from faebryk.library.traits.component import can_bridge
+
+    end = start
+    for bridge in bridges:
+        end.connect(bridge.get_trait(can_bridge).get_in())
+        end = bridge.get_trait(can_bridge).get_out()
+    end.connect(end)
+
+
+def connect_all_interfaces(interfaces: List[Interface]):
+    for i in interfaces:
+        for j in interfaces:
+            i.connect(j)
+
+
+def connect_to_all_interfaces(source: Interface, targets: Iterable[Interface]):
+    for i in targets:
+        source.connect(i)

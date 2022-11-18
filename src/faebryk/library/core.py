@@ -4,10 +4,8 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Type, TypeVar
+from typing import List, Optional, Self, Type, TypeVar
 
-from faebryk.library.library.links import ParentLink
-from faebryk.library.util import find
 from faebryk.libs.util import Holder
 
 logger = logging.getLogger("library")
@@ -150,10 +148,6 @@ class FaebrykLibObject:
 # -----------------------------------------------------------------------------
 
 # Traits ----------------------------------------------------------------------
-class FootprintTrait(Trait):
-    pass
-
-
 class InterfaceTrait(Trait):
     pass
 
@@ -172,36 +166,8 @@ class ParameterTrait(Trait):
 
 # -----------------------------------------------------------------------------
 
-from faebryk.libs.util import _wrapper
-
-T = TypeVar("T")
-P = TypeVar("P")
-
-
-def ParentContainer(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
-    assert issubclass(_ptype, FaebrykLibObject)
-    assert issubclass(_type, FaebrykLibObject)
-
-    class _(Holder(_type, _ptype)):
-        def handle_add(self, name: str, obj: T) -> None:
-            assert isinstance(obj, FaebrykLibObject)
-            parent: P = self.get_parent()
-            obj.set_parent(parent, name)
-            return super().handle_add(name, obj)
-
-    return _
-
 
 # FaebrykLibObjects -----------------------------------------------------------
-class Footprint(FaebrykLibObject):
-    def __init__(self) -> None:
-        super().__init__()
-
-    def add_trait(self, trait: TraitImpl):
-        assert isinstance(trait, FootprintTrait)
-        return super().add_trait(trait)
-
-
 class Link(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
@@ -210,62 +176,29 @@ class Link(FaebrykLibObject):
         assert isinstance(trait, LinkTrait)
         return super().add_trait(trait)
 
-    def get_connections(self) -> List[List[Interface]]:
+    def get_connections(self) -> List[Interface]:
         raise NotImplementedError
 
 
 class Interface(FaebrykLibObject):
     connections: List[Link]
-
-    def __new__(cls):
-        self = super().__new__(cls)
-        self.connections = []
-
-        from faebryk.library.library.interfaces import ComponentInterface
-        from faebryk.library.traits.interface import is_part_of_component
-        from faebryk.library.util import get_all_interfaces_link
-
-        class _(is_part_of_component.impl()):
-            @staticmethod
-            def _get_component() -> Component | None:
-                try:
-                    interfaces = [
-                        i for l in self.connections for i in get_all_interfaces_link(l)
-                    ]
-                    # find connection to component interface
-                    return (
-                        find(interfaces, lambda x: isinstance(x, ComponentInterface))
-                        .get_trait(is_part_of_component)
-                        .get_component()
-                    )
-                except ValueError:
-                    return None
-
-            @staticmethod
-            def get_component() -> Component:
-                comp = _._get_component()
-                assert comp is not None
-                return comp
-
-            def is_implemented(self):
-                if _._get_component() is None:
-                    return False
-
-                return super().is_implemented()
-
-        self.add_trait(_())
-
-        return self
+    component: Optional[Component]
 
     def __init__(self) -> None:
         super().__init__()
+        self.connections = []
+        # can't put it into constructor
+        # else it needs a reference when defining IFs
+        self.component = None
 
     def add_trait(self, trait: TraitImpl) -> None:
         assert isinstance(trait, InterfaceTrait)
         return super().add_trait(trait)
 
     # TODO make link trait to initialize from list
-    def connect(self, other: Interface, linkcls=None) -> Interface:
+    def connect(self, other: Self, linkcls=None) -> Self:
+        assert self.component is not None
+
         from faebryk.library.library.links import LinkDirect
 
         if linkcls is None:
@@ -276,28 +209,8 @@ class Interface(FaebrykLibObject):
 
         return self
 
-    def connect_all(self, others: list[Interface]) -> Interface:
-        for i in others:
-            self.connect(i)
 
-        return self
-
-    def connect_via(self, bridge: Component, target: Interface):
-        from faebryk.library.traits.component import can_bridge
-
-        bridge.get_trait(can_bridge).bridge(self, target)
-
-    def connect_via_chain(self, bridges: list[Component], target: Interface):
-        from faebryk.library.traits.component import can_bridge
-
-        end = self
-        for bridge in bridges:
-            end.connect(bridge.get_trait(can_bridge).get_in())
-            end = bridge.get_trait(can_bridge).get_out()
-        end.connect(target)
-
-
-# TODO rename to module?
+# TODO rename to module/node?
 class Component(FaebrykLibObject):
     @classmethod
     def InterfacesCls(cls):
@@ -305,15 +218,13 @@ class Component(FaebrykLibObject):
             def handle_add(self, name: str, obj: Interface) -> None:
                 assert isinstance(obj, Interface)
                 parent: Component = self.get_parent()
-                obj.connect(self.interfaces, linkcls=ParentLink)
+                obj.component = parent
                 return super().handle_add(name, obj)
 
             def __init__(self, parent: Component) -> None:
                 super().__init__(parent)
-                # TODO check for duplicate
-                from faebryk.library.library.interfaces import ComponentInterface
 
-                self.interfaces = ComponentInterface(component=parent)
+                # Default Component Interfaces
                 self.children = Interface()
                 self.parent = Interface()
 

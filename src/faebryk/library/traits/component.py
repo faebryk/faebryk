@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-from typing import Dict
 
 logger = logging.getLogger("library")
 
-from faebryk.library.core import Component, ComponentTrait, Footprint, Interface
+from faebryk.library.core import Component, ComponentTrait
 
 
 class has_type_description(ComponentTrait):
@@ -16,16 +15,6 @@ class has_type_description(ComponentTrait):
 
 class contructable_from_component(ComponentTrait):
     def from_comp(self, comp: Component):
-        raise NotImplementedError()
-
-
-class has_footprint(ComponentTrait):
-    def get_footprint(self) -> Footprint:
-        raise NotImplementedError()
-
-
-class has_footprint_pinmap(ComponentTrait):
-    def get_pin_map(self) -> Dict[str, Interface]:
         raise NotImplementedError()
 
 

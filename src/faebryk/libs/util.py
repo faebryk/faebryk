@@ -55,7 +55,7 @@ def get_dict(obj, key, default):
     return obj[key]
 
 
-def flatten(obj, depth=1):
+def flatten(obj: List, depth=1) -> List:
     if depth == 0:
         return obj
     return [flatten(nested, depth=depth - 1) for top in obj for nested in top]

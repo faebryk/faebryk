@@ -6,8 +6,11 @@ from typing import Iterator
 
 logger = logging.getLogger("library")
 
-from faebryk.library.core import Interface
-from faebryk.library.traits.interface import contructable_from_interface_list
+from faebryk.library.core import Component, Interface
+from faebryk.library.traits.interface import (
+    contructable_from_interface_list,
+    is_part_of_component,
+)
 
 
 class Electrical(Interface):
@@ -55,3 +58,15 @@ class Power(Interface):
             s.connect(d)
 
         return self
+
+
+class ComponentInterface(Interface):
+    def __init__(self, component: Component) -> None:
+        super().__init__()
+
+        class _(is_part_of_component.impl()):
+            @staticmethod
+            def get_component() -> Component:
+                return component
+
+        self.add_trait(_())

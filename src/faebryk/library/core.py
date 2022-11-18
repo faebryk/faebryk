@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple, Type, TypeVar
+from typing import List, Type, TypeVar
 
+from faebryk.library.library.links import ParentLink
+from faebryk.library.util import find
 from faebryk.libs.util import Holder
 
 logger = logging.getLogger("library")
@@ -89,8 +91,7 @@ class FaebrykLibObject:
         return self
 
     def __init__(self) -> None:
-        if not hasattr(self, "parent"):
-            self.parent = None
+        pass
 
     def add_trait(self, trait: TraitImpl) -> None:
         assert isinstance(trait, TraitImpl), ("not a traitimpl:", trait)
@@ -144,14 +145,6 @@ class FaebrykLibObject:
         out = candidates[0][1]
         assert isinstance(out, trait)
         return out
-
-    def set_parent(self, parent: FaebrykLibObject, name: str) -> None:
-        self.parent = (parent, name)
-
-    def get_hierarchy(self) -> List[Tuple[FaebrykLibObject, str]]:
-        if self.parent is None:
-            return []
-        return self.parent[0].get_hierarchy() + [self.parent]
 
 
 # -----------------------------------------------------------------------------
@@ -221,38 +214,32 @@ class Link(FaebrykLibObject):
         raise NotImplementedError
 
 
-class LinkDirect(Link):
-    def __init__(self, interfaces: List[Interface]) -> None:
-        super().__init__()
-        self.interfaces = interfaces
-
-    def get_connections(self) -> List[List[Interface]]:
-        return [self.interfaces]
-
-
 class Interface(FaebrykLibObject):
     connections: List[Link]
-
-    @classmethod
-    def InterfacesCls(cls):
-        return ParentContainer(Interface, Interface)
 
     def __new__(cls):
         self = super().__new__(cls)
         self.connections = []
 
+        from faebryk.library.library.interfaces import ComponentInterface
         from faebryk.library.traits.interface import is_part_of_component
+        from faebryk.library.util import get_all_interfaces_link
 
         class _(is_part_of_component.impl()):
             @staticmethod
             def _get_component() -> Component | None:
-                if self.parent is None:
+                try:
+                    interfaces = [
+                        i for l in self.connections for i in get_all_interfaces_link(l)
+                    ]
+                    # find connection to component interface
+                    return (
+                        find(interfaces, lambda x: isinstance(x, ComponentInterface))
+                        .get_trait(is_part_of_component)
+                        .get_component()
+                    )
+                except ValueError:
                     return None
-                parent = self.parent[0]
-                if isinstance(parent, Component):
-                    return parent
-                assert isinstance(parent, Interface)
-                return parent.get_trait(is_part_of_component).get_component()
 
             @staticmethod
             def get_component() -> Component:
@@ -273,15 +260,16 @@ class Interface(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
-        self.IFs = Interface.InterfacesCls()(self)
-
     def add_trait(self, trait: TraitImpl) -> None:
         assert isinstance(trait, InterfaceTrait)
         return super().add_trait(trait)
 
-    def connect(self, other: Interface, linkcls: type = LinkDirect) -> Interface:
-        assert type(other) is type(self), "{} is not {}".format(type(other), type(self))
-        assert issubclass(linkcls, LinkDirect)
+    # TODO make link trait to initialize from list
+    def connect(self, other: Interface, linkcls=None) -> Interface:
+        from faebryk.library.library.links import LinkDirect
+
+        if linkcls is None:
+            linkcls = LinkDirect
         link = linkcls([other, self])
         self.connections.append(link)
         other.connections.append(link)
@@ -309,14 +297,41 @@ class Interface(FaebrykLibObject):
         end.connect(target)
 
 
+# TODO rename to module?
 class Component(FaebrykLibObject):
     @classmethod
     def InterfacesCls(cls):
-        return ParentContainer(Interface, Component)
+        class InterfaceHolder(Holder(Interface, Component)):
+            def handle_add(self, name: str, obj: Interface) -> None:
+                assert isinstance(obj, Interface)
+                parent: Component = self.get_parent()
+                obj.connect(self.interfaces, linkcls=ParentLink)
+                return super().handle_add(name, obj)
+
+            def __init__(self, parent: Component) -> None:
+                super().__init__(parent)
+                # TODO check for duplicate
+                from faebryk.library.library.interfaces import ComponentInterface
+
+                self.interfaces = ComponentInterface(component=parent)
+                self.children = Interface()
+                self.parent = Interface()
+
+        return InterfaceHolder
 
     @classmethod
     def ComponentsCls(cls):
-        return ParentContainer(Component, Component)
+        class ComponentHolder(Holder(Component, Component)):
+            def handle_add(self, name: str, obj: Component) -> None:
+                assert isinstance(obj, Component)
+                parent: Component = self.get_parent()
+                obj.IFs.parent.connect(parent.IFs.children)
+                return super().handle_add(name, obj)
+
+            def __init__(self, parent: Component) -> None:
+                super().__init__(parent)
+
+        return ComponentHolder
 
     def __init__(self) -> None:
         super().__init__()

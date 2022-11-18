@@ -8,7 +8,7 @@ logger = logging.getLogger("library")
 
 # TODO this file should not exist
 
-from faebryk.library.core import Component, Interface
+from faebryk.library.core import Component, Interface, Link
 
 
 def default_with(given, default):
@@ -89,3 +89,7 @@ def find(haystack: Iterable[T], needle: Callable) -> T:
     if len(results) != 1:
         raise ValueError
     return results[0]
+
+
+def get_all_interfaces_link(link: Link) -> List[Interface]:
+    return [i for c in link.get_connections() for i in c]

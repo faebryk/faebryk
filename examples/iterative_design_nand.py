@@ -14,13 +14,13 @@ The netlist is printed to stdout.
 """
 import logging
 
-from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
 from faebryk.exporters.netlist.graph import (
     make_graph_from_components,
     make_t1_netlist_from_graph,
 )
 from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
-from faebryk.library.core import Component, Footprint, Parameter
+from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
+from faebryk.library.core import Footprint, Node, Parameter
 from faebryk.library.kicad import has_kicad_manual_footprint
 from faebryk.library.library.components import CD4011, LED, NAND, Resistor, Switch
 from faebryk.library.library.footprints import DIP, SMDTwoPin
@@ -43,11 +43,11 @@ def run_experiment():
     low = Electrical()
 
     # power
-    class Battery(Component):
+    class Battery(Node):
         def __init__(self) -> None:
             super().__init__()
 
-            class _IFs(Component.InterfacesCls()):
+            class _IFs(Node.InterfacesCls()):
                 power = Power()
 
             self.IFs = _IFs(self)
@@ -140,7 +140,7 @@ def run_experiment():
 
     # TODO: remove, just compensation for old graph
     battery.add_trait(has_symmetric_footprint_pinmap())
-    logic_virt = Component()
+    logic_virt = Node()
     logic_virt.IFs.high = high
     logic_virt.IFs.low = low
     logic_virt.add_trait(has_symmetric_footprint_pinmap())

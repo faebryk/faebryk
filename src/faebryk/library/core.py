@@ -4,7 +4,10 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Self, Type, TypeVar
+from abc import ABC
+from typing import List, Optional, Type, TypeVar
+
+from typing_extensions import Self
 
 from faebryk.libs.util import Holder
 
@@ -20,7 +23,7 @@ class Trait:
         return _Impl
 
 
-class TraitImpl:
+class TraitImpl(ABC):
     trait: Type[Trait]
 
     def __init__(self) -> None:
@@ -152,7 +155,7 @@ class InterfaceTrait(Trait):
     pass
 
 
-class ComponentTrait(Trait):
+class NodeTrait(Trait):
     pass
 
 
@@ -182,7 +185,7 @@ class Link(FaebrykLibObject):
 
 class Interface(FaebrykLibObject):
     connections: List[Link]
-    component: Optional[Component]
+    component: Optional[Node]
 
     def __init__(self) -> None:
         super().__init__()
@@ -211,56 +214,56 @@ class Interface(FaebrykLibObject):
 
 
 # TODO rename to module/node?
-class Component(FaebrykLibObject):
-    @classmethod
-    def InterfacesCls(cls):
-        class InterfaceHolder(Holder(Interface, Component)):
+class Node(FaebrykLibObject):
+    @staticmethod
+    def InterfacesCls():
+        class InterfaceHolder(Holder(Interface, Node)):
             def handle_add(self, name: str, obj: Interface) -> None:
                 assert isinstance(obj, Interface)
-                parent: Component = self.get_parent()
+                parent: Node = self.get_parent()
                 obj.component = parent
                 return super().handle_add(name, obj)
 
-            def __init__(self, parent: Component) -> None:
+            def __init__(self, parent: Node) -> None:
                 super().__init__(parent)
 
                 # Default Component Interfaces
                 self.children = Interface()
                 self.parent = Interface()
+                # TODO
+                self.external_children = Interface()
 
         return InterfaceHolder
 
-    @classmethod
-    def ComponentsCls(cls):
-        class ComponentHolder(Holder(Component, Component)):
-            def handle_add(self, name: str, obj: Component) -> None:
-                assert isinstance(obj, Component)
-                parent: Component = self.get_parent()
-                obj.IFs.parent.connect(parent.IFs.children)
+    @staticmethod
+    def NodesCls():
+        class NodeHolder(Holder(Node, Node)):
+            def handle_add(self, name: str, obj: Node) -> None:
+                assert isinstance(obj, Node)
+                parent: Node = self.get_parent()
+                obj.LLIFs.parent.connect(parent.LLIFs.children)
                 return super().handle_add(name, obj)
 
-            def __init__(self, parent: Component) -> None:
+            def __init__(self, parent: Node) -> None:
                 super().__init__(parent)
 
-        return ComponentHolder
+        return NodeHolder
+
+    class LLIFS(InterfacesCls()):
+        pass
+
+    class NODES(NodesCls()):
+        pass
 
     def __init__(self) -> None:
         super().__init__()
 
-        if not hasattr(self, "IFs"):
-            self.IFs = Component.InterfacesCls()(self)
-
-        if not hasattr(self, "CMPs"):
-            self.CMPs = Component.ComponentsCls()(self)
+        self.LLIFs = Node.LLIFS(self)
+        self.NODEs = Node.NODES(self)
 
     def add_trait(self, trait: TraitImpl) -> None:
-        assert isinstance(trait, ComponentTrait)
+        assert isinstance(trait, NodeTrait)
         return super().add_trait(trait)
-
-    @staticmethod
-    def from_comp(other: Component) -> Component:
-        # TODO traits?
-        return Component()
 
 
 class Parameter(FaebrykLibObject):

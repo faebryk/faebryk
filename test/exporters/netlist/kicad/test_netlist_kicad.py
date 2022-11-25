@@ -11,13 +11,13 @@ logger = logging.getLogger("test")
 
 # Netlists --------------------------------------------------------------------
 def test_netlist_graph():
-    from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
     from faebryk.exporters.netlist.graph import (
         make_graph_from_components,
         make_t1_netlist_from_graph,
     )
     from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
-    from faebryk.library.core import Component, Footprint
+    from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
+    from faebryk.library.core import Footprint, Node
     from faebryk.library.kicad import has_defined_kicad_ref, has_kicad_manual_footprint
     from faebryk.library.library.interfaces import Electrical
     from faebryk.library.trait_impl.component import (
@@ -29,8 +29,8 @@ def test_netlist_graph():
     # component definition
     gnd = Electrical()
     vcc = Electrical()
-    resistor1 = Component()
-    resistor2 = Component()
+    resistor1 = Node()
+    resistor2 = Node()
 
     # name
     resistor1.add_trait(has_defined_kicad_ref("R1"))
@@ -38,7 +38,7 @@ def test_netlist_graph():
     resistor1.add_trait(has_overriden_name_defined("R1"))
     resistor2.add_trait(has_overriden_name_defined("R2"))
 
-    class _RIFs(Component.InterfacesCls()):
+    class _RIFs(Node.InterfacesCls()):
         unnamed = times(2, Electrical)
 
     for r in [resistor1, resistor2]:
@@ -70,7 +70,7 @@ def test_netlist_graph():
     # net naming
     net_wrappers = []
     for i in [gnd, vcc]:
-        wrap = Component()
+        wrap = Node()
         wrap.IFs.to_wrap = i
         wrap.add_trait(has_defined_kicad_ref("+3V3" if i == vcc else "GND"))
         wrap.add_trait(has_overriden_name_defined("+3V3" if i == vcc else "GND"))
@@ -100,8 +100,8 @@ def test_netlist_graph():
 
 
 def test_netlist_t1():
-    from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
     from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
+    from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
 
     gnd = {
         "vertex": {
@@ -165,8 +165,8 @@ def test_netlist_t1():
 
 
 def test_netlist_t2():
-    from faebryk.exporters.netlist.netlist import Component, Net, Vertex
     from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
+    from faebryk.exporters.netlist.netlist import Component, Net, Vertex
 
     # t2_netlist = [(properties, vertices=[comp=(name, value, properties), pin)])]
 

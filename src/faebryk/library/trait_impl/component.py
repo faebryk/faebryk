@@ -5,12 +5,10 @@ import logging
 
 logger = logging.getLogger("library")
 
-from faebryk.library.core import Footprint, Interface
-from faebryk.library.library.interfaces import Electrical
+from faebryk.library.core import Interface
+from faebryk.library.library.interfaces import InterfaceNode
 from faebryk.library.traits.component import (
     can_bridge,
-    has_footprint,
-    has_footprint_pinmap,
     has_overriden_name,
     has_type_description,
 )
@@ -25,34 +23,10 @@ class has_defined_type_description(has_type_description.impl()):
         return self.value
 
 
-class has_defined_footprint(has_footprint.impl()):
-    def __init__(self, fp: Footprint) -> None:
-        super().__init__()
-        self.fp = fp
-
-    def get_footprint(self) -> Footprint:
-        return self.fp
-
-
-class has_defined_footprint_pinmap(has_footprint_pinmap.impl()):
-    def __init__(self, pin_map) -> None:
-        super().__init__()
-        self.pin_map = pin_map
-
-    def get_pin_map(self):
-        return self.pin_map
-
-
-class has_symmetric_footprint_pinmap(has_footprint_pinmap.impl()):
-    def get_pin_map(self):
-        from faebryk.library.util import get_all_interfaces
-
-        ifs = get_all_interfaces(self.get_obj(), Electrical)
-        return {k + 1: v for k, v in enumerate(ifs)}
-
-
 class can_bridge_defined(can_bridge.impl()):
-    def __init__(self, in_if: Interface, out_if: Interface) -> None:
+    def __init__(
+        self, in_if: Interface | InterfaceNode, out_if: Interface | InterfaceNode
+    ) -> None:
         super().__init__()
 
         self.get_in = lambda: in_if

@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from abc import abstractmethod
 from typing import Dict, List
 
-from faebryk.library.core import Component, ComponentTrait, Trait, TraitImpl
-from faebryk.library.library.interfaces import Electrical
-from faebryk.library.util import get_all_interfaces, times
+from faebryk.library.core import NodeTrait, Trait, TraitImpl
+from faebryk.library.library.components import Module
+from faebryk.library.library.interfaces import Electrical, InterfaceNode
+from faebryk.library.util import times
 
 logger = logging.getLogger("library")
 
@@ -19,8 +21,8 @@ class FootprintTrait(Trait):
     pass
 
 
-class Footprint(Component):
-    class IFS(Component.InterfacesCls()):
+class Footprint(Module):
+    class IFS(Module.IFS):
         pass
 
     def __init__(self) -> None:
@@ -33,8 +35,9 @@ class Footprint(Component):
 
 # TODO move file --------------------------------------------------------------
 class can_attach_via_pinmap(FootprintTrait):
+    @abstractmethod
     def attach(self, pinmap: Dict[str, Electrical]):
-        raise NotImplementedError()
+        ...
 
 
 class can_attach_via_pinmap_pinlist(can_attach_via_pinmap.impl()):
@@ -47,18 +50,24 @@ class can_attach_via_pinmap_pinlist(can_attach_via_pinmap.impl()):
             self.pin_list[no].connect(intf)
 
 
-class can_attach_to_footprint(ComponentTrait):
+class can_attach_to_footprint(NodeTrait):
+    @abstractmethod
     def attach(self, footprint: Footprint):
-        raise NotImplementedError()
+        ...
 
 
-class can_attach_to_footprint_symmetricaly(can_attach_to_footprint.impl()):
+class can_attach_to_footprint_symmetrically(can_attach_to_footprint.impl()):
     def attach(self, footprint: Footprint):
         for i, j in zip(
-            get_all_interfaces(footprint, Electrical),
-            get_all_interfaces(self.get_obj(), Electrical),
+            footprint.IFs.get_all(),
+            self.get_obj().IFs.get_all(),
         ):
+            # TODO should be already encoded into IFS
+            assert type(i) == type(j)
+            assert isinstance(i, InterfaceNode)
             i.connect(j)
+
+        self.get_obj().NODEs.footprint = footprint
 
 
 # -----------------------------------------------------------------------------

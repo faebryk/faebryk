@@ -25,7 +25,7 @@ def make_t1_netlist_from_graph(comps):
 # In the future we will generate a high-level graph which the netlist can be
 #   built from directly
 def make_graph_from_components(components):
-    from faebryk.library.core import Component
+    from faebryk.library.core import Node
     from faebryk.library.kicad import has_kicad_footprint
     from faebryk.library.traits.component import (
         has_footprint,
@@ -37,7 +37,7 @@ def make_graph_from_components(components):
     from faebryk.libs.exceptions import FaebrykException
 
     class wrapper:
-        def __init__(self, component: Component, wrapped_list: List[Self]) -> None:
+        def __init__(self, component: Node, wrapped_list: List[Self]) -> None:
             self.component = component
             self._setup_non_rec()
             self.wrapped_list: List[Self]

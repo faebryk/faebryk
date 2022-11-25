@@ -2,34 +2,35 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from abc import abstractmethod
+from typing import Any
 
 logger = logging.getLogger("library")
 
-from faebryk.library.core import Component, ComponentTrait
+from faebryk.library.core import NodeTrait
 
 
-class has_type_description(ComponentTrait):
+class has_type_description(NodeTrait):
+    @abstractmethod
     def get_type_description(self) -> str:
-        raise NotImplementedError(type(self))
+        ...
 
 
-class contructable_from_component(ComponentTrait):
-    def from_comp(self, comp: Component):
-        raise NotImplementedError()
-
-
-class can_bridge(ComponentTrait):
+class can_bridge(NodeTrait):
     def bridge(self, _in, out):
         _in.connect(self.get_in())
         out.connect(self.get_out())
 
-    def get_in(self):
-        raise NotImplementedError(type(self))
+    @abstractmethod
+    def get_in(self) -> Any:
+        ...
 
-    def get_out(self):
-        raise NotImplementedError(type(self))
+    @abstractmethod
+    def get_out(self) -> Any:
+        ...
 
 
-class has_overriden_name(ComponentTrait):
-    def get_name(self):
-        raise NotImplementedError
+class has_overriden_name(NodeTrait):
+    @abstractmethod
+    def get_name(self) -> str:
+        ...

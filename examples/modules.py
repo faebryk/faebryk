@@ -14,13 +14,13 @@ The netlist is printed to stdout.
 """
 import logging
 
-from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
 from faebryk.exporters.netlist.graph import (
     make_graph_from_components,
     make_t1_netlist_from_graph,
 )
 from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
-from faebryk.library.core import Component, Footprint, Parameter
+from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
+from faebryk.library.core import Footprint, Node, Parameter
 from faebryk.library.kicad import has_kicad_manual_footprint
 from faebryk.library.library.components import LED, MOSFET, Resistor, Switch
 from faebryk.library.library.footprints import SMDTwoPin
@@ -40,25 +40,25 @@ logger = logging.getLogger("main")
 
 def run_experiment():
     # power
-    class Battery(Component):
+    class Battery(Node):
         def __init__(self) -> None:
             super().__init__()
 
-            class _IFs(Component.InterfacesCls()):
+            class _IFs(Node.InterfacesCls()):
                 power = Power()
 
             self.IFs = _IFs(self)
             self.voltage: Parameter = TBD()
 
-    class LED_Indicator(Component):
+    class LED_Indicator(Node):
         def __init__(self) -> None:
             super().__init__()
 
-            class _ifs(Component.InterfacesCls()):
+            class _ifs(Node.InterfacesCls()):
                 input_power = Power()
                 input_control = Electrical()
 
-            class _cmps(Component.ComponentsCls()):
+            class _cmps(Node.NodesCls()):
                 led = LED()
                 current_limiting_resistor = Resistor(TBD())
                 switch = MOSFET()
@@ -76,15 +76,15 @@ def run_experiment():
             self.CMPs.switch.IFs.source.connect(self.IFs.input_power.IFs.hv)
             self.CMPs.switch.IFs.gate.connect(self.IFs.input_control)
 
-    class LogicSwitch(Component):
+    class LogicSwitch(Node):
         def __init__(self) -> None:
             super().__init__()
 
-            class _ifs(Component.InterfacesCls()):
+            class _ifs(Node.InterfacesCls()):
                 input_power = Power()
                 output_control = Electrical()
 
-            class _cmps(Component.ComponentsCls()):
+            class _cmps(Node.NodesCls()):
                 switch = Switch()
                 pull_down_resistor = Resistor(TBD())
 
@@ -99,14 +99,14 @@ def run_experiment():
                 self.CMPs.pull_down_resistor, self.IFs.output_control
             )
 
-    class App(Component):
+    class App(Node):
         def __init__(self) -> None:
             super().__init__()
 
-            class _ifs(Component.InterfacesCls()):
+            class _ifs(Node.InterfacesCls()):
                 pass
 
-            class _cmps(Component.ComponentsCls()):
+            class _cmps(Node.NodesCls()):
                 battery = Battery()
                 led_ind = LED_Indicator()
                 switch = LogicSwitch()

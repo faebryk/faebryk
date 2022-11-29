@@ -139,6 +139,10 @@ class FaebrykLibObject:
     T = TypeVar("T", bound=Trait)
 
     def get_trait(self, trait: Type[T]) -> T:
+        assert not issubclass(
+            trait, TraitImpl
+        ), "You need to specify the trait, not an impl"
+
         candidates = self._find(trait, only_implemented=True)
         assert len(candidates) <= 1
         assert len(candidates) == 1, "{} not in {}[{}]".format(trait, type(self), self)
@@ -183,16 +187,27 @@ class Link(FaebrykLibObject):
         raise NotImplementedError
 
 
+class LinkSibling(Link):
+    def __init__(self, interfaces: List[Interface]) -> None:
+        super().__init__()
+        self.interfaces = interfaces
+
+    def get_connections(self) -> List[Interface]:
+        return self.interfaces
+
+
 class Interface(FaebrykLibObject):
     connections: List[Link]
-    component: Optional[Node]
+    node: Optional[Node]
+    name: str
 
     def __init__(self) -> None:
         super().__init__()
         self.connections = []
         # can't put it into constructor
         # else it needs a reference when defining IFs
-        self.component = None
+        self.node = None
+        self.name = type(self).__name__
 
     def add_trait(self, trait: TraitImpl) -> None:
         assert isinstance(trait, InterfaceTrait)
@@ -200,43 +215,64 @@ class Interface(FaebrykLibObject):
 
     # TODO make link trait to initialize from list
     def connect(self, other: Self, linkcls=None) -> Self:
-        assert self.component is not None
+        assert self.node is not None
+        assert other is not self
 
         from faebryk.library.library.links import LinkDirect
 
         if linkcls is None:
             linkcls = LinkDirect
         link = linkcls([other, self])
+        assert link not in self.connections
+        assert link not in other.connections
         self.connections.append(link)
         other.connections.append(link)
 
         return self
 
 
-# TODO rename to module/node?
+class ParentInterface(Interface):
+    ...
+
+
+class SelfInterface(Interface):
+    ...
+
+
 class Node(FaebrykLibObject):
-    @staticmethod
-    def InterfacesCls():
+    @classmethod
+    def InterfacesCls(cls):
         class InterfaceHolder(Holder(Interface, Node)):
             def handle_add(self, name: str, obj: Interface) -> None:
                 assert isinstance(obj, Interface)
                 parent: Node = self.get_parent()
-                obj.component = parent
+                obj.node = parent
+                obj.name = name
+                # from faebryk.library.library.links import LinkSibling
+                if not isinstance(obj, SelfInterface):
+                    if hasattr(self, "self"):
+                        obj.connect(self.self, linkcls=LinkSibling)
+                if isinstance(obj, SelfInterface):
+                    assert obj is self.self
+                    for target in self.get_all():
+                        if target is self.self:
+                            continue
+                        target.connect(obj, linkcls=LinkSibling)
+
                 return super().handle_add(name, obj)
 
             def __init__(self, parent: Node) -> None:
                 super().__init__(parent)
 
                 # Default Component Interfaces
-                self.children = Interface()
-                self.parent = Interface()
-                # TODO
-                self.external_children = Interface()
+                self.self = SelfInterface()
+                self.children = ParentInterface()
+                self.parent = ParentInterface()
 
         return InterfaceHolder
 
-    @staticmethod
-    def NodesCls():
+    @classmethod
+    def NodesCls(cls):
         class NodeHolder(Holder(Node, Node)):
             def handle_add(self, name: str, obj: Node) -> None:
                 assert isinstance(obj, Node)
@@ -249,20 +285,28 @@ class Node(FaebrykLibObject):
 
         return NodeHolder
 
-    class LLIFS(InterfacesCls()):
-        pass
+    @classmethod
+    def LLIFS(cls):
+        return cls.InterfacesCls()
 
-    class NODES(NodesCls()):
-        pass
+    @classmethod
+    def NODES(cls):
+        return cls.NodesCls()
+
+    # class LLIFS(InterfacesCls()):
+    #    pass
+
+    # class NODES(NodesCls()):
+    #    pass
 
     def __init__(self) -> None:
         super().__init__()
 
-        self.LLIFs = Node.LLIFS(self)
-        self.NODEs = Node.NODES(self)
+        self.LLIFs = Node.LLIFS()(self)
+        self.NODEs = Node.NODES()(self)
 
     def add_trait(self, trait: TraitImpl) -> None:
-        assert isinstance(trait, NodeTrait)
+        assert isinstance(trait, NodeTrait), f"tried adding {type(trait)}"
         return super().add_trait(trait)
 
 
@@ -272,6 +316,68 @@ class Parameter(FaebrykLibObject):
 
     def add_trait(self, trait: TraitImpl) -> None:
         assert isinstance(trait, ParameterTrait)
+        return super().add_trait(trait)
+
+
+# -----------------------------------------------------------------------------
+
+# TODO: move file--------------------------------------------------------------
+
+
+class InterfaceNode(Node):
+    @classmethod
+    def NODES(cls):
+        class NODES(Node.NODES()):
+            pass
+
+        return NODES
+
+    @classmethod
+    def LLIFS(cls):
+        class LLIFS(Node.LLIFS()):
+            parent = Interface()
+
+        return LLIFS
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.LLIFs = InterfaceNode.LLIFS()(self)
+
+    def connect(self, other: Self) -> Self:
+        assert type(other) is type(self), "can't connect to non-compatible type"
+        return self
+
+
+class Module(Node):
+    @classmethod
+    def IFS(cls):
+        class IFS(Node.NODES()):
+            def handle_add(self, name: str, obj: InterfaceNode):
+                assert isinstance(obj, InterfaceNode)
+                return super().handle_add(name, obj)
+
+        return IFS
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.IFs = Module.IFS()(self)
+
+
+class ModuleTrait(NodeTrait):
+    pass
+
+
+class FootprintTrait(ModuleTrait):
+    pass
+
+
+class Footprint(Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def add_trait(self, trait: TraitImpl):
+        assert isinstance(trait, FootprintTrait)
         return super().add_trait(trait)
 
 

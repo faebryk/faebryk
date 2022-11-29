@@ -7,29 +7,16 @@ from typing_extensions import Self
 
 logger = logging.getLogger("library")
 
-from faebryk.library.core import Interface, Node
+from faebryk.library.core import Interface, InterfaceNode
 
 # TODO: move file (interface component)----------------------------------------
-
-
-class InterfaceNode(Node):
-    class LLIFS(super().LLIFS):
-        parent = Interface()
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.LLIFs = InterfaceNode.LLIFS(self)
-
-    def connect(self, other: Self) -> Self:
-        assert type(other) is type(self), "can't connect to non-compatible type"
-        return self
 
 
 class Electrical(InterfaceNode):
     def __init__(self) -> None:
         super().__init__()
 
-        class LLIFS(super().LLIFS):
+        class LLIFS(InterfaceNode.LLIFS()):
             electrical = Interface()
 
         self.LLIFs = LLIFS(self)
@@ -41,12 +28,16 @@ class Electrical(InterfaceNode):
 
 
 class Bus(InterfaceNode):
-    class LLIFS(super().LLIFS):
-        bus = Interface()
+    @classmethod
+    def LLIFS(cls):
+        class LLIFS(InterfaceNode.LLIFS()):
+            bus = Interface()
+
+        return LLIFS
 
     def __init__(self) -> None:
         super().__init__()
-        self.LLIFs = Bus.LLIFS(self)
+        self.LLIFs = Bus.LLIFS()(self)
 
     # TODO: make trait
     def connect(self, other: Self) -> Self:
@@ -59,7 +50,7 @@ class ElectricPower(Bus):
     def __init__(self) -> None:
         super().__init__()
 
-        class _NODES(super().NODES):
+        class _NODES(Bus.NODES()):
             hv = Electrical()
             lv = Electrical()
 

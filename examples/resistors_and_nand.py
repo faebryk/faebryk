@@ -12,22 +12,14 @@ The netlist is printed to stdout.
 """
 import logging
 
-from faebryk.exporters.netlist.graph import (
-    make_graph_from_components,
-    make_t1_netlist_from_graph,
-)
-from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
-
-# function imports
-from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
-
 # library imports
-from faebryk.library.core import Node
+from faebryk.library.core import Module
+from faebryk.library.graph import make_graph_from_nodes
 from faebryk.library.library.components import TI_CD4011BE, Resistor
 from faebryk.library.library.footprints import SMDTwoPin, can_attach_to_footprint
 from faebryk.library.library.interfaces import ElectricPower
 from faebryk.library.library.parameters import Constant
-from faebryk.libs.experiments.buildutil import export_graph, export_netlist
+from faebryk.libs.experiments.buildutil import export_graph
 
 logger = logging.getLogger("main")
 
@@ -38,8 +30,8 @@ def main():
     logger.info("Running experiment")
 
     # power
-    class Battery(Node):
-        class _IFS(super().IFS):
+    class Battery(Module):
+        class _IFS(Module.IFS()):
             power = ElectricPower()
 
         def __init__(self) -> None:
@@ -73,18 +65,20 @@ def main():
         r.get_trait(can_attach_to_footprint).attach(SMDTwoPin(SMDTwoPin.Type._0805))
 
     comps = [
+        battery,
         resistor1,
         resistor2,
         cd4011,
     ]
 
-    t1_ = make_t1_netlist_from_graph(make_graph_from_components(comps))
+    G = make_graph_from_nodes(comps)
+    # t1_ = make_t1_netlist_from_graph(make_graph_from_components(comps))
 
-    netlist = from_faebryk_t2_netlist(make_t2_netlist_from_t1(t1_))
-    assert netlist is not None
+    # netlist = from_faebryk_t2_netlist(make_t2_netlist_from_t1(t1_))
+    # assert netlist is not None
 
-    export_netlist(netlist)
-    export_graph(t1_, show=True)
+    # export_netlist(netlist)
+    export_graph(G, show=True)
 
 
 if __name__ == "__main__":

@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 
-from faebryk.library.core import NodeTrait
-from faebryk.library.library.footprints import Footprint, FootprintTrait
+from faebryk.library.core import Footprint, FootprintTrait, NodeTrait
 
 
 # Footprints ------------------------------------------------------------------

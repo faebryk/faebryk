@@ -3,11 +3,10 @@
 
 import logging
 from abc import abstractmethod
-from typing import Dict, List
+from typing import Dict
 
-from faebryk.library.core import NodeTrait, Trait, TraitImpl
-from faebryk.library.library.components import Module
-from faebryk.library.library.interfaces import Electrical, InterfaceNode
+from faebryk.library.core import Footprint, FootprintTrait, InterfaceNode, NodeTrait
+from faebryk.library.library.interfaces import Electrical
 from faebryk.library.util import times
 
 logger = logging.getLogger("library")
@@ -15,22 +14,6 @@ logger = logging.getLogger("library")
 from enum import Enum
 
 from faebryk.library.kicad import has_kicad_footprint
-
-
-class FootprintTrait(Trait):
-    pass
-
-
-class Footprint(Module):
-    class IFS(Module.IFS):
-        pass
-
-    def __init__(self) -> None:
-        super().__init__()
-
-    def add_trait(self, trait: TraitImpl):
-        assert isinstance(trait, FootprintTrait)
-        return super().add_trait(trait)
 
 
 # TODO move file --------------------------------------------------------------
@@ -41,11 +24,11 @@ class can_attach_via_pinmap(FootprintTrait):
 
 
 class can_attach_via_pinmap_pinlist(can_attach_via_pinmap.impl()):
-    def __init__(self, pin_list: List[Electrical]) -> None:
+    def __init__(self, pin_list: Dict[str, Electrical]) -> None:
         super().__init__()
         self.pin_list = pin_list
 
-    def attach(self, pinmap: Dict[int, Electrical]):
+    def attach(self, pinmap: Dict[str, Electrical]):
         for no, intf in pinmap.items():
             self.pin_list[no].connect(intf)
 
@@ -77,7 +60,7 @@ class DIP(Footprint):
     def __init__(self, pin_cnt: int, spacing_mm: float, long_pads: bool) -> None:
         super().__init__()
 
-        class _IFs(Footprint.IFS):
+        class _IFs(Footprint.IFS()):
             pins = times(pin_cnt, Electrical)
 
         self.IFs = _IFs(self)
@@ -92,7 +75,11 @@ class DIP(Footprint):
                 )
 
         self.add_trait(_has_kicad_footprint())
-        self.add_trait(can_attach_via_pinmap_pinlist(self.IFs.pins))
+        self.add_trait(
+            can_attach_via_pinmap_pinlist(
+                {str(i + 1): p for i, p in enumerate(self.IFs.pins)}
+            )
+        )
 
 
 class QFN(Footprint):
@@ -107,7 +94,7 @@ class QFN(Footprint):
     ) -> None:
         super().__init__()
 
-        class _IFs(Footprint.IFS):
+        class _IFs(Footprint.IFS()):
             pins = times(pin_cnt, Electrical)
 
         self.IFs = _IFs(self)
@@ -135,7 +122,11 @@ class QFN(Footprint):
                 )
 
         self.add_trait(_has_kicad_footprint())
-        self.add_trait(can_attach_via_pinmap_pinlist(self.IFs.pins))
+        self.add_trait(
+            can_attach_via_pinmap_pinlist(
+                {str(i + 1): p for i, p in enumerate(self.IFs.pins)}
+            )
+        )
 
 
 class SMDTwoPin(Footprint):
@@ -154,7 +145,7 @@ class SMDTwoPin(Footprint):
     def __init__(self, type: Type) -> None:
         super().__init__()
 
-        class _IFs(Footprint.IFS):
+        class _IFs(Footprint.IFS()):
             pins = times(2, Electrical)
 
         self.IFs = _IFs(self)
@@ -180,4 +171,8 @@ class SMDTwoPin(Footprint):
                 )
 
         self.add_trait(_has_kicad_footprint())
-        self.add_trait(can_attach_via_pinmap_pinlist(self.IFs.pins))
+        self.add_trait(
+            can_attach_via_pinmap_pinlist(
+                {str(i + 1): p for i, p in enumerate(self.IFs.pins)}
+            )
+        )

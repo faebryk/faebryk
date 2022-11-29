@@ -6,7 +6,7 @@ import logging
 from faebryk.library.library.footprints import (
     DIP,
     can_attach_to_footprint_symmetrically,
-    can_attach_via_pinmap_pinlist,
+    can_attach_via_pinmap,
 )
 from faebryk.library.trait_impl.component import (
     can_bridge_defined,
@@ -16,27 +16,10 @@ from faebryk.library.traits.component import has_type_description
 
 logger = logging.getLogger("library")
 
-from faebryk.library.core import Node, NodeTrait, Parameter
-from faebryk.library.library.interfaces import Electrical, ElectricPower, InterfaceNode
+from faebryk.library.core import Module, NodeTrait, Parameter
+from faebryk.library.library.interfaces import Electrical, ElectricPower
 from faebryk.library.library.parameters import TBD, Constant
 from faebryk.library.util import connect_to_all_interfaces, times, unit_map
-
-# TODO: move file--------------------------------------------------------------
-
-
-class Module(Node):
-    class IFS(Node.NODES):
-        def handle_add(self, name: str, obj: InterfaceNode):
-            assert isinstance(obj, InterfaceNode)
-            return super().handle_add(name, obj)
-
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.IFs = Module.IFS(self)
-
-
-# -----------------------------------------------------------------------------
 
 
 class Resistor(Module):
@@ -57,7 +40,7 @@ class Resistor(Module):
         self.add_trait(can_attach_to_footprint_symmetrically())
 
     def _setup_interfaces(self):
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             unnamed = times(2, Electrical)
 
         self.IFs = _IFs(self)
@@ -108,7 +91,7 @@ class Capacitor(Module):
         self.add_trait(_has_type_description())
 
     def _setup_interfaces(self):
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             unnamed = times(2, Electrical)
 
         self.IFs = _IFs(self)
@@ -132,7 +115,7 @@ class BJT(Module):
         self.add_trait(has_defined_type_description("BJT"))
 
     def _setup_interfaces(self):
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             emitter = Electrical()
             base = Electrical()
             collector = Electrical()
@@ -154,7 +137,7 @@ class MOSFET(Module):
         self.add_trait(has_defined_type_description("MOSFET"))
 
     def _setup_interfaces(self):
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             source = Electrical()
             gate = Electrical()
             drain = Electrical()
@@ -192,7 +175,7 @@ class LED(Module):
         self.add_trait(_())
 
     def _setup_interfaces(self):
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             anode = Electrical()
             cathode = Electrical()
 
@@ -233,11 +216,11 @@ class Potentiometer(Module):
         pass
 
     def _setup_interfaces(self, resistance):
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             resistors = times(2, Electrical)
             wiper = Electrical()
 
-        class _NODEs(Node.NodesCls()):
+        class _NODEs(super().NODES()):
             resistors = [Resistor(resistance) for _ in range(2)]
 
         self.IFs = _IFs(self)
@@ -265,7 +248,7 @@ class Switch(Module):
         self.add_trait(has_defined_type_description("SW"))
 
     def _setup_interfaces(self):
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             unnamed = times(2, Electrical)
 
         self.IFs = _IFs(self)
@@ -295,7 +278,7 @@ class PJ398SM(Module):
         self.add_trait(has_defined_type_description("Connector"))
 
     def _setup_interfaces(self):
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             tip = Electrical()
             sleeve = Electrical()
             switch = Electrical()
@@ -310,21 +293,21 @@ class NAND(Module):
     def _setup_interfaces(self, input_cnt):
         # TODO
         # constraint: cant connect to outside
-        class _NODEs(Node.NodesCls()):
+        class _NODEs(super().NODES()):
             power = ElectricPower()
 
         self.NODEs = _NODEs(self)
 
         # self.IFs.external_children.connect(self.NODEs.power.IFs.parent)
-        class _IFNODEs(Node.NodesCls()):
+        class _IFNODEs(super().NODES()):
             power = ElectricPower()
 
         self.IFNODEs = _IFNODEs(self)
 
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             output = Electrical()
             inputs = times(input_cnt, Electrical)
-            # power : List[Electrical] = self.NODEs.power.interfaces()
+            power = ElectricPower()
 
         self.IFs = _IFs(self)
 
@@ -347,37 +330,37 @@ class CD4011(Module):
     def _setup_traits(self):
         self.add_trait(has_defined_type_description("cd4011"))
 
-    def _setup_nands(self):
-        class _NODEs(Node.NodesCls()):
+    @classmethod
+    def NODES(cls):
+        class NODES(Module.NODES()):
             nands = times(4, lambda: NAND(input_cnt=2))
 
-        self.NODEs = _NODEs(self)
+        return NODES
+
+    def _setup_nands(self):
+        self.NODEs = CD4011.NODES()(self)
 
     def _setup_interfaces(self):
         nand_inout_interfaces = [
             i for n in self.NODEs.nands for i in [n.IFs.output, *n.IFs.inputs]
         ]
 
-        class _IFs(super().IFS):
+        class _IFs(super().IFS()):
             power = ElectricPower()
             in_outs = times(len(nand_inout_interfaces), Electrical)
 
         self.IFs = _IFs(self)
 
     def _setup_internal_connections(self):
-        self.connection_map = {}
-
         it = iter(self.IFs.in_outs)
         for n in self.NODEs.nands:
             n.IFs.power.connect(self.IFs.power)
             target = next(it)
             target.connect(n.IFs.output)
-            self.connection_map[n.IFs.output] = target
 
             for i in n.IFs.inputs:
                 target = next(it)
                 target.connect(i)
-                self.connection_map[i] = target
 
         # TODO
         # assert(len(self.interfaces) == 14)
@@ -401,10 +384,7 @@ class TI_CD4011BE(CD4011):
     def __init__(self):
         super().__init__()
 
-        class _NODES(super().NODES):
-            footprint = DIP(pin_cnt=14, spacing_mm=7.62, long_pads=False)
-
-        self.NODEs = _NODES(self)
+        self.NODEs.footprint = DIP(pin_cnt=14, spacing_mm=7.62, long_pads=False)
 
         self.__setup_internal_connections()
 
@@ -414,22 +394,22 @@ class TI_CD4011BE(CD4011):
         return self
 
     def __setup_internal_connections(self):
-        self.NODEs.footprint.get_trait(can_attach_via_pinmap_pinlist).attach(
+        self.NODEs.footprint.get_trait(can_attach_via_pinmap).attach(
             {
-                7: self.IFs.power.NODEs.lv,
-                14: self.IFs.power.NODEs.hv,
-                3: self.connection_map[self.NODEs.nands[0].IFs.output],
-                4: self.connection_map[self.NODEs.nands[1].IFs.output],
-                11: self.connection_map[self.NODEs.nands[2].IFs.output],
-                10: self.connection_map[self.NODEs.nands[3].IFs.output],
-                1: self.connection_map[self.NODEs.nands[0].IFs.inputs[0]],
-                2: self.connection_map[self.NODEs.nands[0].IFs.inputs[1]],
-                5: self.connection_map[self.NODEs.nands[1].IFs.inputs[0]],
-                6: self.connection_map[self.NODEs.nands[1].IFs.inputs[1]],
-                12: self.connection_map[self.NODEs.nands[2].IFs.inputs[0]],
-                13: self.connection_map[self.NODEs.nands[2].IFs.inputs[1]],
-                9: self.connection_map[self.NODEs.nands[3].IFs.inputs[0]],
-                8: self.connection_map[self.NODEs.nands[3].IFs.inputs[1]],
+                "7": self.IFs.power.NODEs.lv,
+                "14": self.IFs.power.NODEs.hv,
+                "3": self.NODEs.nands[0].IFs.output,
+                "4": self.NODEs.nands[1].IFs.output,
+                "11": self.NODEs.nands[2].IFs.output,
+                "10": self.NODEs.nands[3].IFs.output,
+                "1": self.NODEs.nands[0].IFs.inputs[0],
+                "2": self.NODEs.nands[0].IFs.inputs[1],
+                "5": self.NODEs.nands[1].IFs.inputs[0],
+                "6": self.NODEs.nands[1].IFs.inputs[1],
+                "12": self.NODEs.nands[2].IFs.inputs[0],
+                "13": self.NODEs.nands[2].IFs.inputs[1],
+                "9": self.NODEs.nands[3].IFs.inputs[0],
+                "8": self.NODEs.nands[3].IFs.inputs[1],
             }
         )
 

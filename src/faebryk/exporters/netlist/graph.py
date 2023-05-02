@@ -8,6 +8,7 @@ from typing import List
 from typing_extensions import Self
 
 from faebryk.library.traits.component import has_overriden_name
+from faebryk.library.trait_impl.component import has_overriden_name_defined
 
 logger = logging.getLogger("netlist")
 
@@ -53,10 +54,8 @@ def make_graph_from_components(components):
                     .get_trait(has_kicad_footprint)
                     .get_kicad_footprint()
                 )
-            if self.component.has_trait(has_overriden_name):
-                self.name = self.component.get_trait(has_overriden_name).get_name()
-            else:
-                self.name = "{}[{}:{}]".format(
+            if not self.component.has_trait(has_overriden_name):
+                self.component.add_trait(has_overriden_name_defined("{}[{}:{}]".format(
                     ".".join(
                         [pname for parent, pname in self.component.get_hierarchy()]
                     )
@@ -64,7 +63,9 @@ def make_graph_from_components(components):
                     else "",
                     type(self.component).__name__,
                     self.value if self.real else "virt",
-                )
+                )))
+
+            self.name = self.component.get_trait(has_overriden_name).get_name()
             self._comp = {}
             self._update_comp()
 

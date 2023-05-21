@@ -76,13 +76,14 @@ Setup
 > pip install faebryk
 ```
 
-Running samples
+Running examples
 
 ```bash
 > mkdir my_faebryk_project
 > cd my_faebryk_project
-> # download a sample from the github repo in /samples
-> python3 <sample_name.py> | tail -n1 > netlist.net
+> # download a sample from the github repo in /examples
+# This will create ./build/faebryk/faebryk.net which contains the kicad netlist that can be imported into pcbnew
+> python3 <sample_name.py>
 ```
 
 ### From source
@@ -98,14 +99,16 @@ Setup
 > . venv/bin/activate
 >
 > # requires pip version >= 21.3
+> pip install --require-hashes -r requirements-hash.txt
 > pip install -r requirements.txt
 > pip install --editable .
 ```
 
-Running samples
+Running examples
 
 ```bash
-> ./samples/<sample_name>.py | tail -n1 > netlist.net
+# This will create ./build/faebryk/faebryk.net which contains the kicad netlist that can be imported into pcbnew
+> ./examples/<sample_name>.py
 ```
 
 ---
@@ -128,8 +131,8 @@ To get inspiration on things to work on check out the issues.
 #### Running your own experiments/Making samples
 
 First follow the steps in get running from source.
-Then add a file in samples/ (you can use one of the samples as template).
-Call your file with `python3 samples/<yourfile>.py`.
+Then add a file in examples/ (you can use one of the examples as template).
+Call your file with `python3 examples/<yourfile>.py`.
 
 #### Running tests
 

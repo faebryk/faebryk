@@ -10,11 +10,12 @@ from faebryk.library.library.footprints import (
 )
 from faebryk.library.trait_impl.component import (
     can_bridge_defined,
+    has_defined_footprint,
     has_defined_type_description,
 )
 from faebryk.library.traits.component import has_type_description
 
-logger = logging.getLogger("library")
+logger = logging.getLogger(__name__)
 
 from faebryk.library.core import Module, NodeTrait, Parameter
 from faebryk.library.library.interfaces import Electrical, ElectricPower
@@ -34,7 +35,9 @@ class Resistor(Module):
                 )
 
             def is_implemented(self):
-                return type(self.get_obj().resistance) is Constant
+                c = self.get_obj()
+                assert isinstance(c, Resistor)
+                return type(c.resistance) is Constant
 
         self.add_trait(_has_type_description())
         self.add_trait(can_attach_to_footprint_symmetrically())
@@ -86,7 +89,9 @@ class Capacitor(Module):
                 )
 
             def is_implemented(self):
-                return type(self.get_obj().capacitance) is Constant
+                c = self.get_obj()
+                assert isinstance(c, Capacitor)
+                return type(c.capacitance) is Constant
 
         self.add_trait(_has_type_description())
 
@@ -168,6 +173,7 @@ class LED(Module):
 
             def is_implemented(self):
                 obj = self.get_obj()
+                assert isinstance(obj, LED)
                 return isinstance(obj.voltage_V, Constant) and isinstance(
                     obj.current_A, Constant
                 )
@@ -246,6 +252,7 @@ class Potentiometer(Module):
 class Switch(Module):
     def _setup_traits(self):
         self.add_trait(has_defined_type_description("SW"))
+        self.add_trait(can_attach_to_footprint_symmetrically())
 
     def _setup_interfaces(self):
         class _IFs(super().IFS()):
@@ -384,17 +391,9 @@ class TI_CD4011BE(CD4011):
     def __init__(self):
         super().__init__()
 
-        self.NODEs.footprint = DIP(pin_cnt=14, spacing_mm=7.62, long_pads=False)
-
-        self.__setup_internal_connections()
-
-    def __new__(cls):
-        self = super().__new__(cls)
-
-        return self
-
-    def __setup_internal_connections(self):
-        self.NODEs.footprint.get_trait(can_attach_via_pinmap).attach(
+        fp = DIP(pin_cnt=14, spacing_mm=7.62, long_pads=False)
+        self.add_trait(has_defined_footprint(fp))
+        fp.get_trait(can_attach_via_pinmap).attach(
             {
                 "7": self.IFs.power.NODEs.lv,
                 "14": self.IFs.power.NODEs.hv,
@@ -412,6 +411,3 @@ class TI_CD4011BE(CD4011):
                 "8": self.NODEs.nands[3].IFs.inputs[1],
             }
         )
-
-    def _setup_traits(self):
-        pass

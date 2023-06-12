@@ -5,7 +5,7 @@ from sexpdata import SExpBase, loads
 
 from faebryk.libs.util import get_dict
 
-logger = logging.getLogger("parse")
+logger = logging.getLogger(__name__)
 
 
 def _cleanparsed(parsed):

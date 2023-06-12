@@ -3,7 +3,7 @@
 
 import logging
 
-logger = logging.getLogger("netlist")
+logger = logging.getLogger(__name__)
 
 import typing
 from dataclasses import dataclass

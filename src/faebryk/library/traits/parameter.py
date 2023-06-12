@@ -4,7 +4,7 @@
 import logging
 from abc import abstractmethod
 
-logger = logging.getLogger("library")
+logger = logging.getLogger(__name__)
 
 from faebryk.library.core import ParameterTrait
 

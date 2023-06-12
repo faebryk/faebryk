@@ -5,7 +5,7 @@ import logging
 import os
 import unittest
 
-logger = logging.getLogger("test")
+logger = logging.getLogger(__name__)
 
 
 class TestImportNetlistKicad(unittest.TestCase):

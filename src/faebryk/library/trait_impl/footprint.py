@@ -3,4 +3,4 @@
 
 import logging
 
-logger = logging.getLogger("library")
+logger = logging.getLogger(__name__)

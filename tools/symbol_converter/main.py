@@ -9,7 +9,7 @@ from faebryk.libs.pycodegen import sanitize_name
 from faebryk.libs.util import groupby
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
-logger = logging.getLogger("sym_gen")
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 

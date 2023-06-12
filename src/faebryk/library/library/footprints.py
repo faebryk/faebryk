@@ -5,15 +5,14 @@ import logging
 from abc import abstractmethod
 from typing import Dict
 
-from faebryk.library.core import Footprint, FootprintTrait, InterfaceNode, NodeTrait
+from faebryk.library.core import Footprint, FootprintTrait, InterfaceNode, ModuleTrait
 from faebryk.library.library.interfaces import Electrical
+from faebryk.library.trait_impl.component import has_defined_footprint
 from faebryk.library.util import times
 
-logger = logging.getLogger("library")
+logger = logging.getLogger(__name__)
 
 from enum import Enum
-
-from faebryk.library.kicad import has_kicad_footprint
 
 
 # TODO move file --------------------------------------------------------------
@@ -33,7 +32,17 @@ class can_attach_via_pinmap_pinlist(can_attach_via_pinmap.impl()):
             self.pin_list[no].connect(intf)
 
 
-class can_attach_to_footprint(NodeTrait):
+class can_attach_via_pinmap_equal(can_attach_via_pinmap.impl()):
+    def attach(self, pinmap: Dict[str, Electrical]):
+        pin_list = {
+            v: k
+            for k, v in self.get_obj().get_trait(has_equal_pins).get_pin_map().items()
+        }
+        for no, intf in pinmap.items():
+            pin_list[no].connect(intf)
+
+
+class can_attach_to_footprint(ModuleTrait):
     @abstractmethod
     def attach(self, footprint: Footprint):
         ...
@@ -41,16 +50,40 @@ class can_attach_to_footprint(NodeTrait):
 
 class can_attach_to_footprint_symmetrically(can_attach_to_footprint.impl()):
     def attach(self, footprint: Footprint):
+        self.get_obj().add_trait(has_defined_footprint(footprint))
+
+        # connect interfaces footprint <-> component
         for i, j in zip(
             footprint.IFs.get_all(),
             self.get_obj().IFs.get_all(),
         ):
             # TODO should be already encoded into IFS
-            assert type(i) == type(j)
             assert isinstance(i, InterfaceNode)
+            assert isinstance(j, InterfaceNode)
+            assert type(i) == type(j)
             i.connect(j)
 
-        self.get_obj().NODEs.footprint = footprint
+
+class can_attach_to_footprint_via_pinmap(can_attach_to_footprint.impl()):
+    def __init__(self, pinmap: Dict[str, Electrical]) -> None:
+        super().__init__()
+        self.pinmap = pinmap
+
+    def attach(self, footprint: Footprint):
+        self.get_obj().add_trait(has_defined_footprint(footprint))
+
+        footprint.get_trait(can_attach_via_pinmap).attach(self.pinmap)
+
+
+class has_equal_pins(FootprintTrait):
+    @abstractmethod
+    def get_pin_map(self) -> dict[Electrical, str]:
+        ...
+
+
+class has_equal_pins_in_ifs(has_equal_pins.impl()):
+    def get_pin_map(self):
+        return {p: str(i + 1) for i, p in enumerate(self.get_obj().IFs.get_all())}
 
 
 # -----------------------------------------------------------------------------
@@ -65,7 +98,9 @@ class DIP(Footprint):
 
         self.IFs = _IFs(self)
 
-        class _has_kicad_footprint(has_kicad_footprint.impl()):
+        from faebryk.library.kicad import has_kicad_footprint_equal_ifs
+
+        class _has_kicad_footprint(has_kicad_footprint_equal_ifs):
             @staticmethod
             def get_kicad_footprint() -> str:
                 return "Package_DIP:DIP-{leads}_W{spacing:.2f}mm{longpads}".format(
@@ -75,11 +110,8 @@ class DIP(Footprint):
                 )
 
         self.add_trait(_has_kicad_footprint())
-        self.add_trait(
-            can_attach_via_pinmap_pinlist(
-                {str(i + 1): p for i, p in enumerate(self.IFs.pins)}
-            )
-        )
+        self.add_trait(has_equal_pins_in_ifs())
+        self.add_trait(can_attach_via_pinmap_equal())
 
 
 class QFN(Footprint):
@@ -106,7 +138,9 @@ class QFN(Footprint):
             and exposed_thermal_pad_dimensions_mm[1] < size_xy_mm[1]
         )
 
-        class _has_kicad_footprint(has_kicad_footprint.impl()):
+        from faebryk.library.kicad import has_kicad_footprint_equal_ifs
+
+        class _has_kicad_footprint(has_kicad_footprint_equal_ifs):
             @staticmethod
             def get_kicad_footprint() -> str:
                 # example: QFN-16-1EP_4x4mm_P0.5mm_EP2.45x2.45mm_ThermalVias
@@ -122,11 +156,8 @@ class QFN(Footprint):
                 )
 
         self.add_trait(_has_kicad_footprint())
-        self.add_trait(
-            can_attach_via_pinmap_pinlist(
-                {str(i + 1): p for i, p in enumerate(self.IFs.pins)}
-            )
-        )
+        self.add_trait(has_equal_pins_in_ifs())
+        self.add_trait(can_attach_via_pinmap_equal())
 
 
 class SMDTwoPin(Footprint):
@@ -150,7 +181,9 @@ class SMDTwoPin(Footprint):
 
         self.IFs = _IFs(self)
 
-        class _has_kicad_footprint(has_kicad_footprint.impl()):
+        from faebryk.library.kicad import has_kicad_footprint_equal_ifs
+
+        class _has_kicad_footprint(has_kicad_footprint_equal_ifs):
             @staticmethod
             def get_kicad_footprint() -> str:
                 table = {
@@ -171,8 +204,5 @@ class SMDTwoPin(Footprint):
                 )
 
         self.add_trait(_has_kicad_footprint())
-        self.add_trait(
-            can_attach_via_pinmap_pinlist(
-                {str(i + 1): p for i, p in enumerate(self.IFs.pins)}
-            )
-        )
+        self.add_trait(has_equal_pins_in_ifs())
+        self.add_trait(can_attach_via_pinmap_equal())

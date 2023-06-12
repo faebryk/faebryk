@@ -1,33 +1,22 @@
 import logging
-from typing import Callable, Dict, Iterable, List, Set, Tuple, TypeVar
+from typing import Callable, Iterable, TypeVar
 
 import networkx as nx
 
-from faebryk.library.core import Interface, Link, LinkSibling, Node
-from faebryk.library.library.interfaces import Electrical
-from faebryk.library.library.links import LinkDirect
+from faebryk.library.core import Interface, Node
 
-logger = logging.getLogger("graph")
-
-# def _get_llifs_of_nodes(nodes: Iterable[Node]) -> Iterable[Interface]:
-#    llifs = []
-#    for node in nodes:
-#        _llifs = node.LLIFs.get_all()
-#
-#        subnodes = node.NODEs.get_all()
-#        if isinstance(node, Module):
-#            subnodes.extend(node.IFs.get_all())
-#
-#        _llifs.extend(_get_llifs_of_nodes(subnodes))
-#        llifs.extend(_llifs)
-#    return llifs
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
 
-def bfs(neighbours: Callable[[T], List[T]], nodes: Iterable[T]) -> Set[T]:
-    queue: List[T] = list(nodes)
-    visited: Set[T] = set(queue)
+def bfs_visit(neighbours: Callable[[T], list[T]], nodes: Iterable[T]) -> set[T]:
+    """
+    Generic BFS (not depending on Graph)
+    Returns all visited nodes.
+    """
+    queue: list[T] = list(nodes)
+    visited: set[T] = set(queue)
 
     while queue:
         m = queue.pop(0)
@@ -40,76 +29,46 @@ def bfs(neighbours: Callable[[T], List[T]], nodes: Iterable[T]) -> Set[T]:
     return visited
 
 
-def _get_llifs_of_nodes(nodes: Iterable[Node]) -> Iterable[Interface]:
-    llifs = set([l for n in nodes for l in n.LLIFs.get_all()])
+def _get_connected_llifs(nodes: Iterable[Node]) -> Iterable[Interface]:
+    """
+    Gets LLIFs from supplied Nodes.
+    Then traces all connected LLIFs from them to find the rest.
+    """
+    llifs = {l for n in nodes for l in n.LLIFs.get_all()}
 
-    out = bfs(
+    out = bfs_visit(
         lambda i: [j for l in i.connections for j in l.get_connections() if j != i],
         llifs,
     )
 
-    return llifs.union(out)
+    return llifs | out
 
 
-def make_graph_from_nodes(nodes: Iterable[Node]) -> nx.Graph:
+class Graph:
+    def __init__(self, nodes: Iterable[Node]):
+        G = nx.Graph()
+        llifs = _get_connected_llifs(nodes)
+        links = {l for i in llifs for l in i.connections}
 
-    G = nx.Graph()
-    llifs = _get_llifs_of_nodes(nodes)
-    links = set([l for i in llifs for l in i.connections])
+        assert all(map(lambda l: len(l.get_connections()) == 2, links))
+        edges = [tuple(l.get_connections() + [{"link": l}]) for l in links]
 
-    assert all(map(lambda l: len(l.get_connections()) == 2, links))
-    edges = [tuple(l.get_connections() + [{"link": l}]) for l in links]
+        G.add_edges_from(edges)
+        G.add_nodes_from(llifs)
 
-    G.add_edges_from(edges)
-    G.add_nodes_from(llifs)
-
-    return G
+        self.G = G
 
 
-def render_graph(G: nx.Graph):
-    import matplotlib.pyplot as plt
+# TODO:
+# fix get_llifs (current not return hierarchical interfaces I think)
 
-    def color_edges_by_type(edges: List[Tuple[Interface, Interface, Dict[str, Link]]]):
-        def lookup(link: Link):
-            if isinstance(link, LinkSibling):
-                return "#000000"
-            if isinstance(link, LinkDirect):
-                sub = link.get_connections()[0]
-                if isinstance(sub.node, Electrical):
-                    return "#00FF00"
-            return "#FF0000"
 
-        return [lookup(l["link"]) for t0, t1, l in edges]
-
-    # Draw
-    plt.subplot(121)
-    layout = nx.spring_layout(G)
-    nx.draw_networkx_nodes(G, pos=layout, node_size=150)
-    nx.draw_networkx_edges(
-        G,
-        pos=layout,
-        edgelist=G.edges,
-        edge_color=color_edges_by_type(G.edges(data=True)),
-    )
-
-    # nx.draw_networkx_edges(
-    #    G, pos=layout, edgelist=intra_comp_edges, edge_color="#0000FF"
-    # )
-
-    nodes: List[Interface] = G.nodes
-    vertex_names = {
-        vertex: f"{type(vertex.node).__name__}.{vertex.name}" for vertex in nodes
-    }
-    nx.draw_networkx_labels(G, pos=layout, labels=vertex_names, font_size=6)
-
-    # nx.draw_networkx_edge_labels(
-    #    G,
-    #    pos=layout,
-    #    edge_labels=intra_edge_dict,
-    #    font_size=10,
-    #    rotate=False,
-    #    bbox=dict(fc="blue"),
-    #    font_color="white",
-    # )
-
-    return plt
+# TODO next time:
+# - just finished rendering working graph
+#   - made node graph consist of llif representative
+# - Replace in render the names with node name maybe
+# - after that build netlist exporter from graph
+# ----
+# - build graph while connecting components instead of afterwards
+# - rethink extending NODES/IFS/.. for intellisense
+# - repair samples & tests

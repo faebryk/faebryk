@@ -4,7 +4,7 @@
 import itertools
 import logging
 
-logger = logging.getLogger("netlist")
+logger = logging.getLogger(__name__)
 
 import faebryk.exporters.netlist.kicad.sexp as sexp
 
@@ -129,7 +129,6 @@ def _gen_netlist(
     libraries,
     nets,
 ):
-
     return _clean_none_and_empty(
         {
             "export": {

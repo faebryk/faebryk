@@ -6,18 +6,11 @@ from typing import Callable, Dict, Iterable, List, TypeVar
 
 from faebryk.library.library.interfaces import InterfaceNode
 
-logger = logging.getLogger("library")
+logger = logging.getLogger(__name__)
 
 # TODO this file should not exist
 
 from faebryk.library.core import Interface, Node
-
-
-def default_with(given, default):
-    if given is not None:
-        return given
-    return default
-
 
 T = TypeVar("T")
 
@@ -58,14 +51,25 @@ def integer_base(value: int, base=1000):
 #    )
 #
 #    return out
-#
-#
-# def get_all_components(component: Node) -> list[Node]:
-#    out = component.CMPs.get_all()
-#    out.extend([i for nested in out for i in get_all_components(nested)])
-#    return out
-#
-#
+
+
+def get_all_nodes(node: Node, order_types=None) -> list[Node]:
+    if order_types is None:
+        order_types = []
+
+    out = node.NODEs.get_all()
+    out.extend([i for nested in out for i in get_all_nodes(nested)])
+
+    out = sorted(
+        out,
+        key=lambda x: order_types.index(type(x))
+        if type(x) in order_types
+        else len(order_types),
+    )
+
+    return out
+
+
 # def get_components_of_interfaces(interfaces: list[Interface]) -> list[Node]:
 #    from faebryk.library.traits.interface import is_part_of_component
 #

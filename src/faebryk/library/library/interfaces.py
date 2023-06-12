@@ -5,7 +5,7 @@ import logging
 
 from typing_extensions import Self
 
-logger = logging.getLogger("library")
+logger = logging.getLogger(__name__)
 
 from faebryk.library.core import Interface, InterfaceNode
 

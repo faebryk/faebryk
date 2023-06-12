@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from faebryk.library.graph import render_graph
+from faebryk.exporters.visualize.graph import render_sidebyside
 
 
 def export_netlist(netlist):
@@ -15,8 +15,8 @@ def export_netlist(netlist):
     netlist_filepath.write_text(netlist)
 
 
-def export_graph(t1, show):
-    plt = render_graph(t1)
+def export_graph(g, show):
+    plt = render_sidebyside(g)
 
     build_folder_path = Path("./build/faebryk/")
     build_folder_path.mkdir(

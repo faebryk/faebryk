@@ -11,7 +11,7 @@ import sexpdata
 import faebryk.exporters.netlist.kicad.sexp as sexp_gen
 from faebryk.exporters.netlist.kicad.sexp import multi_key_dict
 
-logger = logging.getLogger("test")
+logger = logging.getLogger(__name__)
 
 """
     Converts python dict to format which can be recovered by sexp without

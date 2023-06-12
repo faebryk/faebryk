@@ -7,7 +7,8 @@ import unittest
 from faebryk.library.trait_impl.component import has_overriden_name_defined
 from faebryk.library.util import times
 
-logger = logging.getLogger("test")
+logger = logging.getLogger(__name__)
+
 
 # Netlists --------------------------------------------------------------------
 def test_netlist_graph():

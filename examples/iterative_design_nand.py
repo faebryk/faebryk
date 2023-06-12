@@ -33,11 +33,10 @@ from faebryk.library.trait_impl.component import (
 )
 from faebryk.libs.experiments.buildutil import export_graph, export_netlist
 
-logger = logging.getLogger("main")
+logger = logging.getLogger(__name__)
 
 
 def run_experiment():
-
     # levels
     high = Electrical()
     low = Electrical()

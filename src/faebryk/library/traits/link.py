@@ -2,5 +2,14 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from abc import abstractmethod
 
-logger = logging.getLogger("library")
+from faebryk.library.core import Interface, LinkTrait
+
+logger = logging.getLogger(__name__)
+
+
+class can_determine_partner_by_single_end(LinkTrait):
+    @abstractmethod
+    def get_partner(self, other: Interface) -> Interface:
+        ...

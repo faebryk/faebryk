@@ -5,9 +5,9 @@ import logging
 from abc import abstractmethod
 from typing import Any
 
-logger = logging.getLogger("library")
+logger = logging.getLogger(__name__)
 
-from faebryk.library.core import NodeTrait
+from faebryk.library.core import Footprint, NodeTrait
 
 
 class has_type_description(NodeTrait):
@@ -33,4 +33,11 @@ class can_bridge(NodeTrait):
 class has_overriden_name(NodeTrait):
     @abstractmethod
     def get_name(self) -> str:
+        ...
+
+
+# TODO should this be a module trait or so?
+class has_footprint(NodeTrait):
+    @abstractmethod
+    def get_footprint(self) -> Footprint:
         ...

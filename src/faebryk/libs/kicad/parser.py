@@ -103,9 +103,9 @@ def parse_symbol(obj):
                     "output_low",
                     "falling_edge_clock",
                 ]:
-                    pass
+                    ...
                 elif type(i) is tuple and i[0] in ["length"]:
-                    pass
+                    ...
                 elif type(i) is tuple and i[0] in "name":
                     pin["name"] = i[1]
                 elif type(i) is tuple and i[0] in "at":
@@ -115,7 +115,7 @@ def parse_symbol(obj):
                     pin["number"] = i[1]
                 elif type(i) is tuple and i[0] == "alternate":
                     # no idea what this is
-                    pass
+                    ...
                 elif i == "hide":
                     pin["hide"] = True
                 else:
@@ -135,7 +135,7 @@ def parse_symbol(obj):
                 "arc",
                 "circle",
             ]:
-                pass
+                ...
             else:
                 assert False, i
 
@@ -147,14 +147,14 @@ def parse_symbol(obj):
             symbol[key] = i[1]
         elif key == "pin_names":
             # parse_pin_name(i)
-            pass  # TODO test
+            ...  # TODO test
         elif key == "property":
             parse_property(i)
         elif key == "symbol":
             parse_symbol_2(i)
         elif key == "power":
             # symbol[key] = True
-            pass
+            ...
         else:
             assert (
                 False
@@ -207,7 +207,7 @@ def parse_netlist(obj):
                     "datasheet",
                     "fields",
                 ]:
-                    pass
+                    ...
                 elif key in ["ref", "value", "footprint"]:
                     comp[key] = i[1]
                 else:
@@ -240,7 +240,7 @@ def parse_netlist(obj):
                 for i in obj[1:]:
                     key = i[0]
                     if key in ["pintype", "pinfunction"]:
-                        pass
+                        ...
                     elif key in ["ref", "pin"]:
                         node[key] = i[1]
                     else:
@@ -251,7 +251,7 @@ def parse_netlist(obj):
             for i in obj[1:]:
                 key = i[0]
                 if key in ["code"]:
-                    pass
+                    ...
                 elif key in ["name"]:
                     net[key] = i[1]
                 elif key in ["node"]:
@@ -275,13 +275,13 @@ def parse_netlist(obj):
         if key in ["version"]:
             netlist[key] = i[1]
         elif key in ["design"]:
-            pass
+            ...
         elif key in ["components"]:
             parse_components(i)
         elif key in ["nets"]:
             parse_nets(i)
         elif key in ["libparts", "libraries"]:
-            pass
+            ...
         else:
             assert False, f"encountered unexpected token [{i}] in netlist"
 
@@ -317,7 +317,7 @@ def parse_schematic(obj, file_loader=None):
         for i in obj[1:]:
             key = i[0]
             if key in ["stroke", "type", "color", "uuid"]:
-                pass
+                ...
             elif key in ["pts"]:
                 parse_pts(i)
             else:
@@ -333,7 +333,7 @@ def parse_schematic(obj, file_loader=None):
         for i in obj[1:]:
             key = i[0]
             if key in ["in_bom", "on_board", "fields_autoplaced", "uuid", "pin"]:
-                pass
+                ...
             elif key in ["at", "unit", "lib_id", "convert", "mirror"]:
                 symbol[key] = i[1:] if len(i[1:]) > 1 else i[1]
             elif key in ["property"]:
@@ -377,7 +377,7 @@ def parse_schematic(obj, file_loader=None):
         for i in obj[2:]:
             key = i[0]
             if key in ["shape", "effects", "uuid", "fields_autoplaced", "property"]:
-                pass
+                ...
             elif key in ["at"]:
                 parse_at(i)
             else:
@@ -403,7 +403,7 @@ def parse_schematic(obj, file_loader=None):
             for i in obj[2:]:
                 key = i[0] if type(i) is tuple else i
                 if key in ["input", "effects", "uuid"]:
-                    pass
+                    ...
                 elif key in ["at"]:
                     parse_at(i)
                 else:
@@ -414,7 +414,7 @@ def parse_schematic(obj, file_loader=None):
         for i in obj[1:]:
             key = i[0]
             if key in ["at", "size", "fields_autoplaced", "stroke", "fill", "uuid"]:
-                pass
+                ...
             elif key in ["property"]:
                 sheet["properties"][i[1]] = i[2]
             elif key in ["pin"]:
@@ -456,7 +456,7 @@ def parse_schematic(obj, file_loader=None):
             "sheet_instances",
             "text",
         ]:
-            pass
+            ...
         else:
             assert False, f"encountered unexpected token [{i}] in schematic"
 

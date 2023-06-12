@@ -219,7 +219,7 @@ class Potentiometer(Module):
         self._setup_interfaces(resistance)
 
     def _setup_traits(self):
-        pass
+        ...
 
     def _setup_interfaces(self, resistance):
         class _IFs(super().IFS()):
@@ -295,7 +295,7 @@ class PJ398SM(Module):
 
 class NAND(Module):
     def _setup_traits(self):
-        pass
+        ...
 
     def _setup_interfaces(self, input_cnt):
         # TODO

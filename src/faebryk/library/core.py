@@ -23,7 +23,7 @@ class Trait(Generic[T]):
         T_ = TypeVar("T_", bound="FaebrykLibObject")
 
         class _Impl(Generic[T_], TraitImpl[T_], cls):
-            pass
+            ...
 
         return _Impl[T]
 
@@ -104,7 +104,7 @@ class FaebrykLibObject:
         return self
 
     def __init__(self) -> None:
-        pass
+        ...
 
     _TImpl = TypeVar("_TImpl", bound=TraitImpl)
 
@@ -186,7 +186,7 @@ TN = TypeVar("TN", bound="Node")
 
 
 class _NodeTrait(Generic[TN], Trait[TN]):
-    pass
+    ...
 
 
 class NodeTrait(_NodeTrait["Node"]):
@@ -197,7 +197,7 @@ TL = TypeVar("TL", bound="Link")
 
 
 class _LinkTrait(Generic[TL], Trait[TL]):
-    pass
+    ...
 
 
 class LinkTrait(_LinkTrait["Link"]):
@@ -208,7 +208,7 @@ TP = TypeVar("TP", bound="Parameter")
 
 
 class _ParameterTrait(Generic[TP], Trait[TP]):
-    pass
+    ...
 
 
 class ParameterTrait(_ParameterTrait["Parameter"]):
@@ -382,10 +382,10 @@ class Node(FaebrykLibObject):
         return cls.NodesCls()
 
     # class LLIFS(InterfacesCls()):
-    #    pass
+    #    ...
 
     # class NODES(NodesCls()):
-    #    pass
+    #    ...
 
     def __init__(self) -> None:
         super().__init__()
@@ -426,7 +426,7 @@ class InterfaceNode(Node):
     @classmethod
     def NODES(cls):
         class NODES(Node.NODES()):
-            pass
+            ...
 
         return NODES
 
@@ -482,7 +482,7 @@ TF = TypeVar("TF", bound="Footprint")
 
 
 class _FootprintTrait(Generic[TF], _ModuleTrait[TF]):
-    pass
+    ...
 
 
 class FootprintTrait(_FootprintTrait["Footprint"]):

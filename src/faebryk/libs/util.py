@@ -158,7 +158,7 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
             return out
 
         def handle_add(self, name: str, obj: T) -> None:
-            pass
+            ...
 
         def get_parent(self) -> P:
             return self._parent

@@ -177,3 +177,11 @@ def consume_iterator(target, it: Iterator):
             yield target(it)
         except StopIteration:
             return
+
+
+T = TypeVar("T")
+
+
+def cast_assert(t: type[T], obj) -> T:
+    assert isinstance(obj, t)
+    return obj

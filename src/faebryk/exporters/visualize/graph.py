@@ -4,7 +4,13 @@ from typing import Any, List, Set, Tuple
 
 import networkx as nx
 
-from faebryk.library.core import GraphInterface, GraphInterfaceSelf, LinkSibling, Node
+from faebryk.library.core import (
+    GraphInterface,
+    GraphInterfaceSelf,
+    LinkParent,
+    LinkSibling,
+    Node,
+)
 from faebryk.library.library.interfaces import Electrical
 from faebryk.library.library.links import LinkDirect
 
@@ -91,14 +97,17 @@ def render_graph(G: nx.Graph, ax=None):
         if isinstance(link, LinkSibling):
             color = "#000000"
             weight = 100
-        elif isinstance(link, LinkDirect) and isinstance(
-            link.get_connections()[0].node, Electrical
+        elif isinstance(link, LinkParent):
+            color = "#FF0000"
+            weight = 40
+        elif isinstance(link, LinkDirect) and all(
+            isinstance(c.node, Electrical) for c in link.get_connections()
         ):
             color = "#00FF00"
             weight = 1
         else:
-            color = "#FF0000"
-            weight = 40
+            color = "#1BD0D3"
+            weight = 10
 
         d["color"] = color
         d["weight"] = weight

@@ -21,28 +21,40 @@ from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlis
 from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
 from faebryk.library.core import Module, Node, Parameter
 from faebryk.library.kicad import KicadFootprint
-from faebryk.library.library.components import LED, NAND, TI_CD4011BE, Resistor, Switch
+from faebryk.library.library.components import (
+    LED,
+    NAND,
+    TI_CD4011BE,
+    ElectricNAND,
+    Resistor,
+    Switch,
+)
 from faebryk.library.library.footprints import (
     SMDTwoPin,
     can_attach_to_footprint,
     can_attach_to_footprint_via_pinmap,
 )
-from faebryk.library.library.interfaces import Electrical, ElectricPower
+from faebryk.library.library.interfaces import (
+    Electrical,
+    ElectricLogic,
+    ElectricPower,
+    Logic,
+)
 from faebryk.library.library.parameters import TBD, Constant
 from faebryk.library.trait_impl.component import has_defined_type_description
-from faebryk.library.traits.component import has_footprint
-from faebryk.library.util import get_all_nodes, zip_connect_modules
-from faebryk.libs.experiments.buildutil import export_graph, export_netlist
+from faebryk.library.util import get_all_nodes, specialize_interface, specialize_module
+from faebryk.libs.experiments.buildutil import export_netlist
 
 logger = logging.getLogger(__name__)
 
 
 def main():
     # levels
-    high = Electrical()
-    low = Electrical()
+    high = Logic()
+    low = Logic()
 
     # power
+    # TODO replace with powersource in the beginning and specialize later
     class Battery(Node):
         def __init__(self) -> None:
             super().__init__()
@@ -73,15 +85,33 @@ def main():
     led.IFs.cathode.connect_via(current_limiting_resistor, gnd)
 
     # application
-    switch = Switch()
-    pull_down_resistor = Resistor(TBD())
+    switch = Switch(Logic)()
 
-    logic_in.connect_via(pull_down_resistor, low)
     logic_in.connect_via(switch, high)
-    logic_out.connect(led.IFs.anode)
 
-    high.connect(power.NODEs.hv)
-    low.connect(power.NODEs.lv)
+    e_in = specialize_interface(logic_in, ElectricLogic())
+    pull_down_resistor = Resistor(TBD())
+    e_in.pull_down(pull_down_resistor)
+
+    e_out = specialize_interface(logic_out, ElectricLogic())
+    e_out.NODEs.signal.connect(led.IFs.anode)
+
+    e_high = specialize_interface(high, ElectricLogic()).connect_to_electric(
+        power.NODEs.hv, power
+    )
+    e_low = specialize_interface(low, ElectricLogic()).connect_to_electric(
+        power.NODEs.lv, power
+    )
+
+    e_nands = [specialize_module(n, ElectricNAND(n.input_cnt)) for n in nands]
+
+    el_switch = specialize_module(switch, Switch(ElectricLogic)())
+    e_switch = Switch(Electrical)()
+    # TODO make switch generic to remove the asserts
+    for e, l in zip(e_switch.IFs.unnamed, el_switch.IFs.unnamed):
+        assert isinstance(l, ElectricLogic)
+        assert isinstance(e, Electrical)
+        l.connect_to_electric(e, battery.IFs.power)
 
     # build graph
     app = Module()
@@ -91,8 +121,10 @@ def main():
         current_limiting_resistor,
         switch,
         battery,
+        e_switch,
     ]
     app.NODEs.nands = nands
+    app.NODEs.e_nands = e_nands
 
     # parametrizing
     pull_down_resistor.set_resistance(Constant(100_000))
@@ -114,6 +146,9 @@ def main():
     )
 
     # packaging
+    e_switch.get_trait(can_attach_to_footprint).attach(
+        KicadFootprint.with_simple_names("Panasonic_EVQPUJ_EVQPUA", 2)
+    )
     for node in get_all_nodes(app):
         if isinstance(node, Battery):
             node.add_trait(
@@ -132,11 +167,6 @@ def main():
                 SMDTwoPin(SMDTwoPin.Type._0805)
             )
 
-        if isinstance(node, Switch):
-            node.get_trait(can_attach_to_footprint).attach(
-                KicadFootprint.with_simple_names("Panasonic_EVQPUJ_EVQPUA", 2)
-            )
-
         if isinstance(node, LED):
             node.add_trait(
                 can_attach_to_footprint_via_pinmap(
@@ -146,10 +176,10 @@ def main():
 
     # packages single nands as explicit IC
     nand_ic = TI_CD4011BE()
-    zip_connect_modules(nand_ic.NODEs.nands, nands)
+    for s, d in zip(nand_ic.NODEs.nands, e_nands):
+        specialize_module(s, d)
+
     app.NODEs.nand_ic = nand_ic
-    for nand in nands:
-        nand.del_trait(has_footprint)
 
     # export
     G = app.get_graph()
@@ -158,7 +188,7 @@ def main():
     t2 = make_t2_netlist_from_t1(t1)
     netlist = from_faebryk_t2_netlist(t2)
 
-    export_graph(G.G, True)
+    # export_graph(G.G, True)
     export_netlist(netlist)
 
 

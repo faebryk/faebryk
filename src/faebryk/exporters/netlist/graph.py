@@ -90,7 +90,6 @@ class can_represent_kicad_footprint_via_attached_component(
         #        c.get_trait(has_descriptive_properties).get_properties()
         #    )
 
-        # TODO rename that trait
         name, value = self.get_name_and_value()
 
         pin_names = fp.get_trait(has_kicad_footprint).get_pin_names()
@@ -103,7 +102,7 @@ class can_represent_kicad_footprint_via_attached_component(
                         i.node
                     ],
                 )
-                for i in self.graph[pin.GIFs.electrical]
+                for i in self.graph[pin.GIFs.connected]
                 if i.node is not pin
                 and isinstance(i.node, Electrical)
                 and (fp_tup := i.node.get_parent()) is not None
@@ -132,8 +131,8 @@ def close_electrical_graph(G: nx.Graph):
             if isinstance(t0.node, Electrical)
             and isinstance(t1.node, Electrical)
             and t0.node != t1.node
-            and t0.node.GIFs.electrical == t0
-            and t1.node.GIFs.electrical == t1
+            and t0.node.GIFs.connected == t0
+            and t1.node.GIFs.connected == t1
             and isinstance(d.get("link"), LinkDirect)
             # TODO this does not characterize an electrical link very well
         ]

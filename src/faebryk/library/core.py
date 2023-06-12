@@ -9,7 +9,7 @@ from typing import Generic, List, Optional, Tuple, Type, TypeVar
 
 from typing_extensions import Self
 
-from faebryk.libs.util import Holder
+from faebryk.libs.util import Holder, cast_assert
 
 logger = logging.getLogger(__name__)
 
@@ -429,7 +429,8 @@ class ModuleInterface(Node):
     @classmethod
     def GIFS(cls):
         class GIFS(Node.GIFS()):
-            ...
+            sibling = GraphInterface()
+            connected = GraphInterface()
 
         return GIFS
 
@@ -437,9 +438,27 @@ class ModuleInterface(Node):
         super().__init__()
         self.GIFs = ModuleInterface.GIFS()(self)
 
-    def connect(self, other: Self) -> Self:
-        assert type(other) is type(self), "can't connect to non-compatible type"
+    def _connect(self, other: ModuleInterface) -> ModuleInterface:
+        from faebryk.library.util import get_connected_mifs
+
+        # Already connected
+        if other in get_connected_mifs(self.GIFs.connected):
+            return self
+
+        # Connect to all siblings
+        for s in get_connected_mifs(self.GIFs.sibling):
+            for d in get_connected_mifs(other.GIFs.sibling):
+                s._connect(d)
+
+        # Connect graph IF
+        self.GIFs.connected.connect(other.GIFs.connected)
+
         return self
+
+    def connect(self, other: Self) -> Self:
+        # TODO consider some type of check at the end within the graph instead
+        # assert type(other) is type(self)
+        return self._connect(other)
 
     def connect_via(self, bridge: Node, other: Self):
         from faebryk.library.traits.component import can_bridge
@@ -462,7 +481,9 @@ class Module(Node):
     @classmethod
     def IFS(cls):
         class IFS(Module.NodesCls(ModuleInterface)):
-            ...
+            # workaround to help pylance
+            def get_all(self) -> List[ModuleInterface]:
+                return [cast_assert(ModuleInterface, i) for i in super().get_all()]
 
         return IFS
 

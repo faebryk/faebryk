@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # TODO this file should not exist
 
-from faebryk.library.core import Interface, Node
+from faebryk.library.core import Interface, Module, Node
 
 T = TypeVar("T")
 
@@ -97,3 +97,11 @@ def connect_all_interfaces(interfaces: List[IF]):
 def connect_to_all_interfaces(source: IF, targets: Iterable[IF]):
     for i in targets:
         source.connect(i)
+
+
+def zip_connect_modules(src: Iterable[Module], dst: Iterable[Module]):
+    for src_m, dst_m in zip(src, dst):
+        for src_i, dst_i in zip(src_m.IFs.get_all(), dst_m.IFs.get_all()):
+            assert isinstance(src_i, InterfaceNode)
+            assert isinstance(dst_i, InterfaceNode)
+            src_i.connect(dst_i)

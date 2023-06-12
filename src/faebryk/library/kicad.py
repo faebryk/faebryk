@@ -27,6 +27,13 @@ class KicadFootprint(Footprint):
             )
         )
 
+        self.add_trait(
+            has_kicad_manual_footprint(
+                kicad_identifier,
+                {self.IFs.pins[i]: pin_name for i, pin_name in enumerate(pin_names)},
+            )
+        )
+
     @classmethod
     def with_simple_names(cls, kicad_identifier: str, pin_cnt: int):
         return cls(kicad_identifier, [str(i + 1) for i in range(pin_cnt)])

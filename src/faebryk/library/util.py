@@ -42,17 +42,6 @@ def integer_base(value: int, base=1000):
     return value
 
 
-# def get_all_interfaces(obj: Node, if_type: Type[T]) -> List[T]:
-#    assert issubclass(if_type, Interface)
-#
-#    out = [i for i in obj.IFs.get_all() if isinstance(i, if_type)]
-#    out.extend(
-#        flatten([get_all_interfaces(cmp, if_type) for cmp in obj.CMPs.get_all()])
-#    )
-#
-#    return out
-
-
 def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     if order_types is None:
         order_types = []
@@ -68,17 +57,6 @@ def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     )
 
     return out
-
-
-# def get_components_of_interfaces(interfaces: list[Interface]) -> list[Node]:
-#    from faebryk.library.traits.interface import is_part_of_component
-#
-#    out = [
-#        i.get_trait(is_part_of_component).get_component()
-#        for i in interfaces
-#        if i.has_trait(is_part_of_component)
-#    ]
-#    return out
 
 
 T = TypeVar("T")

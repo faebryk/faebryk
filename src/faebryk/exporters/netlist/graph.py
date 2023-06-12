@@ -164,6 +164,8 @@ def make_t1_netlist_from_graph(g: Graph):
         and n.has_trait(has_footprint)
     }
 
+    logger.debug(f"node_fps: {node_fps}")
+
     # add trait/info to footprints
     for n, fp in node_fps.items():
         fp = n.get_trait(has_footprint).get_footprint()
@@ -190,6 +192,8 @@ def make_t1_netlist_from_graph(g: Graph):
 
     # convert into old/generic format
     converted = {fp: convert_kicad_obj_base(obj) for fp, obj in kicad_objs.items()}
+
+    logger.debug(f"stage_1: {converted}")
 
     def convert_kicad_obj_neighbors(obj: dict[str, Any]):
         obj["neighbors"] = {

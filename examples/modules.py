@@ -187,10 +187,6 @@ def main():
     # make graph
     G = app.get_graph()
 
-    from faebryk.exporters.netlist.graph import logger as glogger
-
-    glogger.setLevel(logging.DEBUG)
-
     t1 = make_t1_netlist_from_graph(G)
     t2 = make_t2_netlist_from_t1(t1)
     netlist = from_faebryk_t2_netlist(t2)

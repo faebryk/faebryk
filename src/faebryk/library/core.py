@@ -171,14 +171,14 @@ class FaebrykLibObject:
 # -----------------------------------------------------------------------------
 
 # Traits ----------------------------------------------------------------------
-TI = TypeVar("TI", bound="Interface")
+TI = TypeVar("TI", bound="GraphInterface")
 
 
 class _InterfaceTrait(Generic[TI], Trait[TI]):
     ...
 
 
-class InterfaceTrait(_InterfaceTrait["Interface"]):
+class InterfaceTrait(_InterfaceTrait["GraphInterface"]):
     ...
 
 
@@ -332,7 +332,7 @@ class GraphInterfaceSelf(GraphInterface):
 class Node(FaebrykLibObject):
     @classmethod
     def GraphInterfacesCls(cls):
-        class InterfaceHolder(Holder(GraphInterface, Node)):
+        class InterfaceHolder(Holder(GraphInterface, cls)):
             def handle_add(self, name: str, obj: GraphInterface) -> None:
                 assert isinstance(obj, GraphInterface)
                 parent: Node = self.get_parent()
@@ -359,11 +359,13 @@ class Node(FaebrykLibObject):
 
         return InterfaceHolder
 
+    NT = TypeVar("NT", bound="Node")
+
     @classmethod
-    def NodesCls(cls):
-        class NodeHolder(Holder(Node, Node)):
-            def handle_add(self, name: str, obj: Node) -> None:
-                assert isinstance(obj, Node)
+    def NodesCls(cls, t: Type[NT]):
+        class NodeHolder(Holder(t, cls)):
+            def handle_add(self, name: str, obj: Node.NT) -> None:
+                assert isinstance(obj, t)
                 parent: Node = self.get_parent()
                 obj.GIFs.parent.connect(parent.GIFs.children, LinkParent.curry(name))
                 return super().handle_add(name, obj)
@@ -379,7 +381,7 @@ class Node(FaebrykLibObject):
 
     @classmethod
     def NODES(cls):
-        return cls.NodesCls()
+        return cls.NodesCls(Node)
 
     def __init__(self) -> None:
         super().__init__()
@@ -459,10 +461,8 @@ class ModuleTrait(_ModuleTrait["Module"]):
 class Module(Node):
     @classmethod
     def IFS(cls):
-        class IFS(Node.NODES()):
-            def handle_add(self, name: str, obj: ModuleInterface):
-                assert isinstance(obj, ModuleInterface)
-                return super().handle_add(name, obj)
+        class IFS(Module.NodesCls(ModuleInterface)):
+            ...
 
         return IFS
 
@@ -499,7 +499,7 @@ def holder(trait_type: Type[Trait], obj):
         def get(self):
             return obj
 
-    for m in trait_type.__abstractmethods__:
+    for m in getattr(trait_type, "__abstractmethods__"):
         setattr(holder, m, holder.get)
 
     return _holder

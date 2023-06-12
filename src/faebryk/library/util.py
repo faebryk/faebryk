@@ -46,7 +46,7 @@ def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     if order_types is None:
         order_types = []
 
-    out = node.NODEs.get_all()
+    out: List[Node] = list(node.NODEs.get_all())
     out.extend([i for nested in out for i in get_all_nodes(nested)])
 
     out = sorted(

@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger("library")
 
-from faebryk.library.core import Footprint, Interface
+from faebryk.library.core import Footprint, Interface, Parameter
 from faebryk.library.library.interfaces import Electrical
 from faebryk.library.traits.component import (
     can_bridge,
@@ -13,6 +13,7 @@ from faebryk.library.traits.component import (
     has_footprint,
     has_footprint_pinmap,
     has_overriden_name,
+    has_resistance,
     has_type_description,
 )
 
@@ -79,3 +80,12 @@ class has_defined_descriptive_properties(has_descriptive_properties.impl()):
 
     def get_properties(self) -> dict[str, str]:
         return self.properties
+
+
+class has_defined_resistance(has_resistance.impl()):
+    def __init__(self, resistance: Parameter) -> None:
+        super().__init__()
+        self.component_resistance = resistance
+
+    def get_resistance(self):
+        return self.component_resistance

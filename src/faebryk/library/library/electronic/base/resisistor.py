@@ -1,9 +1,13 @@
 import logging
+from math import sqrt
 
 from faebryk.library.core import Component, Parameter
 from faebryk.library.library.interfaces import Electrical
 from faebryk.library.library.parameters import Constant
-from faebryk.library.trait_impl.component import can_bridge_defined
+from faebryk.library.trait_impl.component import (
+    can_bridge_defined,
+    has_defined_resistance,
+)
 from faebryk.library.traits.component import has_type_description
 from faebryk.library.util import times, unit_map
 
@@ -51,7 +55,7 @@ class Resistor(Component):
         self.set_resistance(resistance)
 
     def set_resistance(self, resistance: Parameter):
-        self.resistance = resistance
+        self.add_trait(has_defined_resistance(resistance))
 
         if type(resistance) is not Constant:
             # TODO this is a bit ugly
@@ -64,10 +68,94 @@ class Resistor(Component):
         class _has_type_description(has_type_description.impl()):
             @staticmethod
             def get_type_description():
-                assert isinstance(self.resistance, Constant)
-                resistance: Constant = self.resistance
+                assert isinstance(
+                    self.get_trait(has_defined_resistance).get_resistance(), Constant
+                )
+                resistance = self.get_trait(has_defined_resistance).get_resistance()
+                assert isinstance(resistance, Constant)
                 return unit_map(
                     resistance.value, ["µΩ", "mΩ", "Ω", "KΩ", "MΩ", "GΩ"], start="Ω"
                 )
 
         self.add_trait(_has_type_description())
+
+    def get_voltage_drop_by_current_resistance(self, current_A: Constant) -> Constant:
+        resistance = self.get_trait(has_defined_resistance).get_resistance()
+        assert isinstance(resistance, Constant)
+        voltage_drop = current_A.value * resistance.value
+        return Constant(voltage_drop)
+
+    def get_voltage_drop_by_power_resistance(self, power_W: Constant) -> Constant:
+        resistance = self.get_trait(has_defined_resistance).get_resistance()
+        assert isinstance(resistance, Constant)
+        voltage_drop = sqrt(resistance.value * power_W.value)
+        return Constant(voltage_drop)
+
+    def get_voltage_drop_by_power_current(
+        self, power_W: Constant, current_A: Constant
+    ) -> Constant:
+        voltage_drop = power_W.value / current_A
+        return Constant(voltage_drop)
+
+    def get_current_flow_by_voltage_resistance(
+        self, voltage_drop_V: Constant
+    ) -> Constant:
+        resistance = self.get_trait(has_defined_resistance).get_resistance()
+        assert isinstance(resistance, Constant)
+        current_flow = voltage_drop_V.value / resistance.value
+        return Constant(current_flow)
+
+    def get_current_flow_by_power_resistance(self, power_W: Constant) -> Constant:
+        resistance = self.get_trait(has_defined_resistance).get_resistance()
+        assert isinstance(resistance, Constant)
+        current_flow = sqrt(power_W.value / resistance.value)
+        return Constant(current_flow)
+
+    def get_current_flow_by_voltage_power(
+        self, voltage_drop_V: Constant, power_W: Constant
+    ) -> Constant:
+        current_flow = power_W.value / voltage_drop_V.value
+        return Constant(current_flow)
+
+    def get_resistance_by_voltage_current(
+        self, voltage_drop_V: Constant, current_A: Constant
+    ) -> Constant:
+        resistance: Constant = voltage_drop_V.value / current_A.value
+        self.add_trait(has_defined_resistance(resistance))
+        return Constant(resistance)
+
+    def get_resistance_by_voltage_power(
+        self, voltage_drop_V: Constant, power_W: Constant
+    ) -> Constant:
+        resistance: Constant = pow(voltage_drop_V.value, 2) / power_W.value
+        self.add_trait(has_defined_resistance(resistance))
+        return Constant(resistance)
+
+    def get_resistance_by_power_current(
+        self, current_A: Constant, power_W: Constant
+    ) -> Constant:
+        resistance: Constant = power_W.value / pow(current_A.value, 2)
+        self.add_trait(has_defined_resistance(resistance))
+        return Constant(resistance)
+
+    def get_power_dissipation_by_voltage_resistance(
+        self, voltage_drop_V: Constant
+    ) -> Constant:
+        resistance = self.get_trait(has_defined_resistance).get_resistance()
+        assert isinstance(resistance, Constant)
+        energy_dissipation = pow(voltage_drop_V.value, 2) / resistance
+        return Constant(energy_dissipation)
+
+    def get_power_dissipation_by_current_resistance(
+        self, current_A: Constant
+    ) -> Constant:
+        resistance = self.get_trait(has_defined_resistance).get_resistance()
+        assert isinstance(resistance, Constant)
+        energy_dissipation = pow(current_A.value, 2) * resistance
+        return Constant(energy_dissipation)
+
+    def get_power_dissipation_by_voltage_current(
+        self, voltage_drop_V: Constant, current_A
+    ) -> Constant:
+        energy_dissipation = voltage_drop_V.value * current_A.value
+        return Constant(energy_dissipation)

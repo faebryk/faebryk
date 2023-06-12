@@ -3,9 +3,11 @@
 
 import logging
 
-logger = logging.getLogger("library")
+from faebryk.library.library.parameters import Constant
 
 from faebryk.library.core import Component, ComponentTrait, Footprint
+
+logger = logging.getLogger("library")
 
 
 class has_type_description(ComponentTrait):
@@ -82,4 +84,12 @@ class has_descriptive_properties(ComponentTrait):
         raise NotImplementedError()
 
     def add_properties(self, propertis: dict[str, str]):
+        raise NotImplementedError()
+
+
+class has_resistance(ComponentTrait):
+    def __init__(self):
+        super().__init__(pretty_child_fns=[self.get_resistance])
+
+    def get_resistance(self) -> Constant:
         raise NotImplementedError()

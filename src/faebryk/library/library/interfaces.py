@@ -7,41 +7,41 @@ from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
-from faebryk.library.core import Interface, InterfaceNode
+from faebryk.library.core import GraphInterface, ModuleInterface
 
 # TODO: move file (interface component)----------------------------------------
 
 
-class Electrical(InterfaceNode):
+class Electrical(ModuleInterface):
     def __init__(self) -> None:
         super().__init__()
 
-        class LLIFS(InterfaceNode.LLIFS()):
-            electrical = Interface()
+        class GIFS(ModuleInterface.GIFS()):
+            electrical = GraphInterface()
 
-        self.LLIFs = LLIFS(self)
+        self.GIFs = GIFS(self)
 
     def connect(self, other: Self) -> Self:
-        self.LLIFs.electrical.connect(other.LLIFs.electrical)
+        self.GIFs.electrical.connect(other.GIFs.electrical)
 
         return super().connect(other)
 
 
-class Bus(InterfaceNode):
+class Bus(ModuleInterface):
     @classmethod
-    def LLIFS(cls):
-        class LLIFS(InterfaceNode.LLIFS()):
-            bus = Interface()
+    def GIFS(cls):
+        class GIFS(ModuleInterface.GIFS()):
+            bus = GraphInterface()
 
-        return LLIFS
+        return GIFS
 
     def __init__(self) -> None:
         super().__init__()
-        self.LLIFs = Bus.LLIFS()(self)
+        self.GIFs = Bus.GIFS()(self)
 
     # TODO: make trait
     def connect(self, other: Self) -> Self:
-        self.LLIFs.bus.connect(other.LLIFs.bus)
+        self.GIFs.bus.connect(other.GIFs.bus)
 
         return super().connect(other)
 

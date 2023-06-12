@@ -6,8 +6,8 @@ from abc import abstractmethod
 
 logger = logging.getLogger(__name__)
 
-from faebryk.library.core import Footprint, Interface, LinkParent
-from faebryk.library.library.interfaces import InterfaceNode
+from faebryk.library.core import Footprint, GraphInterface, LinkParent
+from faebryk.library.library.interfaces import ModuleInterface
 from faebryk.library.traits.component import (
     can_bridge,
     has_footprint,
@@ -27,7 +27,9 @@ class has_defined_type_description(has_type_description.impl()):
 
 class can_bridge_defined(can_bridge.impl()):
     def __init__(
-        self, in_if: Interface | InterfaceNode, out_if: Interface | InterfaceNode
+        self,
+        in_if: GraphInterface | ModuleInterface,
+        out_if: GraphInterface | ModuleInterface,
     ) -> None:
         super().__init__()
 
@@ -46,7 +48,7 @@ class has_overriden_name_defined(has_overriden_name.impl()):
 
 class has_footprint_impl(has_footprint.impl()):
     # TODO
-    class FootprintInterface(Interface):
+    class FootprintInterface(GraphInterface):
         ...
 
     @abstractmethod
@@ -57,19 +59,19 @@ class has_footprint_impl(has_footprint.impl()):
         # fp_if = self.FootprintInterface()
         # comp_if = self.FootprintInterface()
 
-        # self.get_obj().LLIFs.footprint = fp_if
-        # fp.LLIFs.component = comp_if
+        # self.get_obj().GIFs.footprint = fp_if
+        # fp.GIFs.component = comp_if
 
         # fp_if.connect(comp_if)
 
         ## TODO: consider child vs direct
-        self.get_obj().LLIFs.children.connect(
-            fp.LLIFs.parent, LinkParent.curry("footprint")
+        self.get_obj().GIFs.children.connect(
+            fp.GIFs.parent, LinkParent.curry("footprint")
         )
 
     def get_footprint(self) -> Footprint:
         # fp_if: has_footprint_impl.FootprintInterface = getattr(
-        #    self.get_obj().LLIFs, "footprint"
+        #    self.get_obj().GIFs, "footprint"
         # )
 
         # fp = (
@@ -83,7 +85,7 @@ class has_footprint_impl(has_footprint.impl()):
 
         # return fp
 
-        children = self.get_obj().LLIFs.children.get_children()
+        children = self.get_obj().GIFs.children.get_children()
         fps = [c for _, c in children if isinstance(c, Footprint)]
         assert len(fps) == 1
         return fps[0]

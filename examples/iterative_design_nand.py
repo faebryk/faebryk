@@ -47,7 +47,7 @@ def main():
         def __init__(self) -> None:
             super().__init__()
 
-            class _IFs(Node.InterfacesCls()):
+            class _IFs(Node.GraphInterfacesCls()):
                 power = ElectricPower()
 
             self.IFs = _IFs(self)

@@ -75,21 +75,10 @@ def main():
     ]:
         r.get_trait(can_attach_to_footprint).attach(SMDTwoPin(SMDTwoPin.Type._0805))
 
+    # Export
     app = Module()
     app.NODEs.components = [battery, resistor1, resistor2, cd4011]
     G = app.get_graph()
-
-    # TODO
-    def export_gexf():
-        import networkx as nx
-
-        g = nx.Graph()
-        g.add_nodes_from(G.G)
-        g.add_edges_from(G.G.edges())
-
-        nx.write_gexf(g, "graph.gexf")
-
-    # export_gexf()
 
     t1 = make_t1_netlist_from_graph(G)
     t2 = make_t2_netlist_from_t1(t1)

@@ -8,7 +8,7 @@ from typing import Any, Dict, Tuple
 
 import networkx as nx
 
-from faebryk.library.core import Footprint, FootprintTrait, Node, SelfInterface
+from faebryk.library.core import Footprint, FootprintTrait, GraphInterfaceSelf, Node
 from faebryk.library.graph import Graph
 from faebryk.library.kicad import has_kicad_footprint
 from faebryk.library.library.interfaces import Electrical
@@ -103,7 +103,7 @@ class can_represent_kicad_footprint_via_attached_component(
                         i.node
                     ],
                 )
-                for i in self.graph[pin.LLIFs.electrical]
+                for i in self.graph[pin.GIFs.electrical]
                 if i.node is not pin
                 and isinstance(i.node, Electrical)
                 and (fp_tup := i.node.get_parent()) is not None
@@ -132,8 +132,8 @@ def close_electrical_graph(G: nx.Graph):
             if isinstance(t0.node, Electrical)
             and isinstance(t1.node, Electrical)
             and t0.node != t1.node
-            and t0.node.LLIFs.electrical == t0
-            and t1.node.LLIFs.electrical == t1
+            and t0.node.GIFs.electrical == t0
+            and t1.node.GIFs.electrical == t1
             and isinstance(d.get("link"), LinkDirect)
             # TODO this does not characterize an electrical link very well
         ]
@@ -157,10 +157,10 @@ def make_t1_netlist_from_graph(g: Graph):
     # group comps & fps
     node_fps = {
         n: n.get_trait(has_footprint).get_footprint()
-        for llif in Gclosed.nodes
+        for GIF in Gclosed.nodes
         # TODO maybe nicer to just look for footprints and get their respective components instead
-        if isinstance(llif, SelfInterface)
-        and (n := llif.node) is not None
+        if isinstance(GIF, GraphInterfaceSelf)
+        and (n := GIF.node) is not None
         and n.has_trait(has_footprint)
     }
 

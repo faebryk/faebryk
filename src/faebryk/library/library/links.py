@@ -4,12 +4,12 @@
 
 from typing import List
 
-from faebryk.library.core import Interface, Link
+from faebryk.library.core import GraphInterface, Link
 from faebryk.library.traits.link import can_determine_partner_by_single_end
 
 
 class LinkDirect(Link):
-    def __init__(self, interfaces: List[Interface]) -> None:
+    def __init__(self, interfaces: List[GraphInterface]) -> None:
         super().__init__()
         assert len(set(map(type, interfaces))) == 1
         self.interfaces = interfaces
@@ -17,10 +17,10 @@ class LinkDirect(Link):
         if len(interfaces) == 2:
 
             class _(can_determine_partner_by_single_end.impl()):
-                def get_partner(_self, other: Interface):
+                def get_partner(_self, other: GraphInterface):
                     return [i for i in self.interfaces if i is not other][0]
 
             self.add_trait(_())
 
-    def get_connections(self) -> List[Interface]:
+    def get_connections(self) -> List[GraphInterface]:
         return self.interfaces

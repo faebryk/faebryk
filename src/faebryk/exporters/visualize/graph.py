@@ -4,14 +4,14 @@ from typing import Any, List, Set, Tuple
 
 import networkx as nx
 
-from faebryk.library.core import Interface, LinkSibling, Node, SelfInterface
+from faebryk.library.core import GraphInterface, GraphInterfaceSelf, LinkSibling, Node
 from faebryk.library.library.interfaces import Electrical
 from faebryk.library.library.links import LinkDirect
 
 logger = logging.getLogger(__name__)
 
 
-def merge(G: nx.Graph, root: Interface, group: List[Interface]) -> nx.Graph:
+def merge(G: nx.Graph, root: GraphInterface, group: List[GraphInterface]) -> nx.Graph:
     Gout = nx.Graph(G.subgraph([n for n in G.nodes if n not in group]))
     assert root not in group
     assert root in G.nodes, f"{root} not in {G.nodes}"
@@ -32,19 +32,19 @@ def merge(G: nx.Graph, root: Interface, group: List[Interface]) -> nx.Graph:
     return Gout
 
 
-def get_all_llifs(node: Node) -> List[Interface]:
-    out = node.LLIFs.get_all()
-    for c in node.LLIFs.children.connections:
+def get_all_GIFs(node: Node) -> List[GraphInterface]:
+    out = node.GIFs.get_all()
+    for c in node.GIFs.children.connections:
         for i in c.get_connections():
             if i.node == node:
                 continue
             if i.node is None:
                 continue
-            out.extend(get_all_llifs(i.node))
+            out.extend(get_all_GIFs(i.node))
     return out
 
 
-def get_connections(root_if: Interface) -> List[Interface]:
+def get_connections(root_if: GraphInterface) -> List[GraphInterface]:
     return [i for c in root_if.connections for i in c.get_connections() if i != root_if]
 
 
@@ -52,19 +52,19 @@ def node_graph(G: nx.Graph, level: int, disc: type) -> nx.Graph:
     top_nodes: Set[Node] = set()
     # find top
     for i in G.nodes:
-        assert isinstance(i, Interface)
+        assert isinstance(i, GraphInterface)
         n = i.node
         if n is None:
             continue
         # find top-level nodes
-        if len(G[n.LLIFs.parent]) != 1:
+        if len(G[n.GIFs.parent]) != 1:
             continue
         targets = [n]
         for i in range(level):
             targets = [
                 i.node
                 for _n in targets
-                for i in get_connections(_n.LLIFs.children)
+                for i in get_connections(_n.GIFs.children)
                 if i.node is not None and i.node != _n
             ]
         for t in targets:
@@ -74,7 +74,7 @@ def node_graph(G: nx.Graph, level: int, disc: type) -> nx.Graph:
     Gout = G
     for r in top_nodes:
         Gout = merge(
-            Gout, r.LLIFs.self, [i for i in get_all_llifs(r) if i != r.LLIFs.self]
+            Gout, r.GIFs.self, [i for i in get_all_GIFs(r) if i != r.GIFs.self]
         )
     return Gout
 
@@ -119,12 +119,12 @@ def render_graph(G: nx.Graph, ax=None):
     #    G, pos=layout, edgelist=intra_comp_edges, edge_color="#0000FF"
     # )
 
-    nodes: List[Interface] = G.nodes
+    nodes: List[GraphInterface] = G.nodes
     vertex_names = {
         vertex: f"{type(vertex.node).__name__}.{vertex.name}"
         + (
             f"|{vertex.node.get_full_name()}"
-            if isinstance(vertex, SelfInterface) and vertex.node is not None
+            if isinstance(vertex, GraphInterfaceSelf) and vertex.node is not None
             else ""
         )
         for vertex in nodes

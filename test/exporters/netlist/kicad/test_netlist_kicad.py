@@ -39,7 +39,7 @@ def test_netlist_graph():
     resistor1.add_trait(has_overriden_name_defined("R1"))
     resistor2.add_trait(has_overriden_name_defined("R2"))
 
-    class _RIFs(Node.InterfacesCls()):
+    class _RIFs(Node.GraphInterfacesCls()):
         unnamed = times(2, Electrical)
 
     for r in [resistor1, resistor2]:

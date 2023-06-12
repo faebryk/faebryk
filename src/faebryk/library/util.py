@@ -4,13 +4,13 @@
 import logging
 from typing import Callable, Dict, Iterable, List, TypeVar
 
-from faebryk.library.library.interfaces import InterfaceNode
+from faebryk.library.library.interfaces import ModuleInterface
 
 logger = logging.getLogger(__name__)
 
 # TODO this file should not exist
 
-from faebryk.library.core import Interface, Module, Node
+from faebryk.library.core import GraphInterface, Module, Node
 
 T = TypeVar("T")
 
@@ -75,7 +75,7 @@ def find(haystack: Iterable[T], needle: Callable) -> T:
 
 
 # TODO maybe not needed for Interface
-IF = TypeVar("IF", Interface, InterfaceNode)
+IF = TypeVar("IF", GraphInterface, ModuleInterface)
 
 
 def connect_interfaces_via_chain(start: IF, bridges: Iterable[Node], end: IF):
@@ -102,6 +102,6 @@ def connect_to_all_interfaces(source: IF, targets: Iterable[IF]):
 def zip_connect_modules(src: Iterable[Module], dst: Iterable[Module]):
     for src_m, dst_m in zip(src, dst):
         for src_i, dst_i in zip(src_m.IFs.get_all(), dst_m.IFs.get_all()):
-            assert isinstance(src_i, InterfaceNode)
-            assert isinstance(dst_i, InterfaceNode)
+            assert isinstance(src_i, ModuleInterface)
+            assert isinstance(dst_i, ModuleInterface)
             src_i.connect(dst_i)

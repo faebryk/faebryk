@@ -5,7 +5,7 @@ import logging
 from abc import abstractmethod
 from typing import Dict
 
-from faebryk.library.core import Footprint, FootprintTrait, InterfaceNode, ModuleTrait
+from faebryk.library.core import Footprint, FootprintTrait, ModuleInterface, ModuleTrait
 from faebryk.library.library.interfaces import Electrical
 from faebryk.library.trait_impl.component import has_defined_footprint
 from faebryk.library.util import times
@@ -58,8 +58,8 @@ class can_attach_to_footprint_symmetrically(can_attach_to_footprint.impl()):
             self.get_obj().IFs.get_all(),
         ):
             # TODO should be already encoded into IFS
-            assert isinstance(i, InterfaceNode)
-            assert isinstance(j, InterfaceNode)
+            assert isinstance(i, ModuleInterface)
+            assert isinstance(j, ModuleInterface)
             assert type(i) == type(j)
             i.connect(j)
 

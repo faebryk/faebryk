@@ -223,34 +223,34 @@ class Link(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
-    def get_connections(self) -> List[Interface]:
+    def get_connections(self) -> List[GraphInterface]:
         raise NotImplementedError
 
 
 class LinkSibling(Link):
-    def __init__(self, interfaces: List[Interface]) -> None:
+    def __init__(self, interfaces: List[GraphInterface]) -> None:
         super().__init__()
         self.interfaces = interfaces
 
-    def get_connections(self) -> List[Interface]:
+    def get_connections(self) -> List[GraphInterface]:
         return self.interfaces
 
 
 class LinkParent(Link):
-    def __init__(self, name: str, interfaces: List[Interface]) -> None:
+    def __init__(self, name: str, interfaces: List[GraphInterface]) -> None:
         super().__init__()
         self.name = name
 
-        assert all([isinstance(i, HierarchicalInterface) for i in interfaces])
+        assert all([isinstance(i, GraphInterfaceHierarchical) for i in interfaces])
         # TODO rethink invariant
         assert len(interfaces) == 2
         assert len([i for i in interfaces if i.is_parent]) == 1  # type: ignore
 
-        self.interfaces: List[HierarchicalInterface] = interfaces  # type: ignore
+        self.interfaces: List[GraphInterfaceHierarchical] = interfaces  # type: ignore
 
     @classmethod
     def curry(cls, name: str):
-        def curried(interfaces: List[Interface]):
+        def curried(interfaces: List[GraphInterface]):
             return LinkParent(name, interfaces)
 
         return curried
@@ -265,7 +265,7 @@ class LinkParent(Link):
         return [i for i in self.interfaces if not i.is_parent][0]
 
 
-class Interface(FaebrykLibObject):
+class GraphInterface(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
         self.connections: List[Link] = []
@@ -292,7 +292,7 @@ class Interface(FaebrykLibObject):
         return self
 
 
-class HierarchicalInterface(Interface):
+class GraphInterfaceHierarchical(GraphInterface):
     def __init__(self, is_parent: bool) -> None:
         super().__init__()
         self.is_parent = is_parent
@@ -325,23 +325,23 @@ class HierarchicalInterface(Interface):
         return parent.node, conn.name
 
 
-class SelfInterface(Interface):
+class GraphInterfaceSelf(GraphInterface):
     ...
 
 
 class Node(FaebrykLibObject):
     @classmethod
-    def InterfacesCls(cls):
-        class InterfaceHolder(Holder(Interface, Node)):
-            def handle_add(self, name: str, obj: Interface) -> None:
-                assert isinstance(obj, Interface)
+    def GraphInterfacesCls(cls):
+        class InterfaceHolder(Holder(GraphInterface, Node)):
+            def handle_add(self, name: str, obj: GraphInterface) -> None:
+                assert isinstance(obj, GraphInterface)
                 parent: Node = self.get_parent()
                 obj.node = parent
                 obj.name = name
-                if not isinstance(obj, SelfInterface):
+                if not isinstance(obj, GraphInterfaceSelf):
                     if hasattr(self, "self"):
                         obj.connect(self.self, linkcls=LinkSibling)
-                if isinstance(obj, SelfInterface):
+                if isinstance(obj, GraphInterfaceSelf):
                     assert obj is self.self
                     for target in self.get_all():
                         if target is self.self:
@@ -353,9 +353,9 @@ class Node(FaebrykLibObject):
                 super().__init__(parent)
 
                 # Default Component Interfaces
-                self.self = SelfInterface()
-                self.children = HierarchicalInterface(is_parent=True)
-                self.parent = HierarchicalInterface(is_parent=False)
+                self.self = GraphInterfaceSelf()
+                self.children = GraphInterfaceHierarchical(is_parent=True)
+                self.parent = GraphInterfaceHierarchical(is_parent=False)
 
         return InterfaceHolder
 
@@ -365,7 +365,7 @@ class Node(FaebrykLibObject):
             def handle_add(self, name: str, obj: Node) -> None:
                 assert isinstance(obj, Node)
                 parent: Node = self.get_parent()
-                obj.LLIFs.parent.connect(parent.LLIFs.children, LinkParent.curry(name))
+                obj.GIFs.parent.connect(parent.GIFs.children, LinkParent.curry(name))
                 return super().handle_add(name, obj)
 
             def __init__(self, parent: Node) -> None:
@@ -374,23 +374,17 @@ class Node(FaebrykLibObject):
         return NodeHolder
 
     @classmethod
-    def LLIFS(cls):
-        return cls.InterfacesCls()
+    def GIFS(cls):
+        return cls.GraphInterfacesCls()
 
     @classmethod
     def NODES(cls):
         return cls.NodesCls()
 
-    # class LLIFS(InterfacesCls()):
-    #    ...
-
-    # class NODES(NodesCls()):
-    #    ...
-
     def __init__(self) -> None:
         super().__init__()
 
-        self.LLIFs = Node.LLIFS()(self)
+        self.GIFs = Node.GIFS()(self)
         self.NODEs = Node.NODES()(self)
 
     def get_graph(self):
@@ -399,7 +393,7 @@ class Node(FaebrykLibObject):
         return Graph([self])
 
     def get_parent(self):
-        return self.LLIFs.parent.get_parent()
+        return self.GIFs.parent.get_parent()
 
     def get_hierarchy(self) -> List[Tuple[FaebrykLibObject, str]]:
         parent = self.get_parent()
@@ -422,7 +416,7 @@ class Parameter(FaebrykLibObject):
 # TODO: move file--------------------------------------------------------------
 
 
-class InterfaceNode(Node):
+class ModuleInterface(Node):
     @classmethod
     def NODES(cls):
         class NODES(Node.NODES()):
@@ -431,15 +425,15 @@ class InterfaceNode(Node):
         return NODES
 
     @classmethod
-    def LLIFS(cls):
-        class LLIFS(Node.LLIFS()):
+    def GIFS(cls):
+        class GIFS(Node.GIFS()):
             ...
 
-        return LLIFS
+        return GIFS
 
     def __init__(self) -> None:
         super().__init__()
-        self.LLIFs = InterfaceNode.LLIFS()(self)
+        self.GIFs = ModuleInterface.GIFS()(self)
 
     def connect(self, other: Self) -> Self:
         assert type(other) is type(self), "can't connect to non-compatible type"
@@ -466,8 +460,8 @@ class Module(Node):
     @classmethod
     def IFS(cls):
         class IFS(Node.NODES()):
-            def handle_add(self, name: str, obj: InterfaceNode):
-                assert isinstance(obj, InterfaceNode)
+            def handle_add(self, name: str, obj: ModuleInterface):
+                assert isinstance(obj, ModuleInterface)
                 return super().handle_add(name, obj)
 
         return IFS

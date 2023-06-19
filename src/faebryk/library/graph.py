@@ -29,7 +29,7 @@ def bfs_visit(neighbours: Callable[[T], list[T]], nodes: Iterable[T]) -> set[T]:
     return visited
 
 
-def _get_connected_GIFs(nodes: Iterable[Node]) -> Iterable[GraphInterface]:
+def _get_connected_GIFs(nodes: list[Node]) -> Iterable[GraphInterface]:
     """
     Gets GIFs from supplied Nodes.
     Then traces all connected GIFs from them to find the rest.
@@ -45,7 +45,7 @@ def _get_connected_GIFs(nodes: Iterable[Node]) -> Iterable[GraphInterface]:
 
 
 class Graph:
-    def __init__(self, nodes: Iterable[Node]):
+    def __init__(self, nodes: list[Node]):
         G = nx.Graph()
         GIFs = _get_connected_GIFs(nodes)
         links = {l for i in GIFs for l in i.connections}
@@ -59,16 +59,7 @@ class Graph:
         self.G = G
 
 
-# TODO:
-# fix get_GIFs (current not return hierarchical interfaces I think)
-
-
-# TODO next time:
-# - just finished rendering working graph
-#   - made node graph consist of GIF representative
-# - Replace in render the names with node name maybe
-# - after that build netlist exporter from graph
-# ----
+# TODO
 # - build graph while connecting components instead of afterwards
 # - rethink extending NODES/IFS/.. for intellisense
 # - repair samples & tests

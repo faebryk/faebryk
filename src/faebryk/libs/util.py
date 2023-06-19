@@ -55,10 +55,12 @@ def get_dict(obj, key, default):
     return obj[key]
 
 
-def flatten(obj: List, depth=1) -> List:
+def flatten(obj: Iterable, depth=1) -> List:
     if depth == 0:
-        return obj
-    return [flatten(nested, depth=depth - 1) for top in obj for nested in top]
+        return list(obj)
+    if not isinstance(obj, Iterable):
+        return [obj]
+    return [nested for top in obj for nested in flatten(top, depth=depth - 1)]
 
 
 def groupby(it, key):
@@ -68,20 +70,32 @@ def groupby(it, key):
     return out
 
 
+def nested_enumerate(it: Iterable) -> list[tuple[list[int], Any]]:
+    out: list[tuple[list[int], Any]] = []
+    for i, obj in enumerate(it):
+        if not isinstance(obj, Iterable):
+            out.append(([i], obj))
+            continue
+        for j, _obj in nested_enumerate(obj):
+            out.append(([i] + j, _obj))
+
+    return out
+
+
 class NotifiesOnPropertyChange(object):
     def __init__(self, callback) -> None:
-        self.callback = callback
+        self._callback = callback
 
         # TODO dir -> vars?
         for name in dir(self):
-            self.callback(name, getattr(self, name))
+            self._callback(name, getattr(self, name))
 
     def __setattr__(self, __name, __value) -> None:
         super().__setattr__(__name, __value)
 
         # before init
-        if hasattr(self, "callback"):
-            self.callback(__name, __value)
+        if hasattr(self, "_callback"):
+            self._callback(__name, __value)
 
 
 T = TypeVar("T")
@@ -113,7 +127,7 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
     class __wrapper(_wrapper[_T, _P]):
         def __init__(self, parent: P) -> None:
             self._list: List[T] = []
-            self.type = _type
+            self._type = _type
             self._parent: P = parent
 
             NotifiesOnPropertyChange.__init__(self, self._callback)
@@ -121,41 +135,43 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
         def _callback(self, name: str, value: Any):
             if name.startswith("_"):
                 return
-            if isinstance(value, self.type):
+
+            if callable(value):
+                return
+
+            if isinstance(value, self._type):
                 self._list.append(value)
                 self.handle_add(name, value)
                 return
 
             if isinstance(value, Iterable):
-                if not all(map(lambda x: isinstance(x, self.type), value)):
-                    # TODO maybe warning on any?
-                    return
+                e_objs = nested_enumerate(value)
+                objs = [x[1] for x in e_objs]
+                assert all(map(lambda x: isinstance(x, self._type), objs))
 
-                self._list += value
-                for i, instance in enumerate(value):
-                    self.handle_add(f"{name}[{i}]", instance)
+                self._list += objs
+                for i_list, instance in e_objs:
+                    i_acc = "".join(f"[{i}]" for i in i_list)
+                    self.handle_add(f"{name}{i_acc}", instance)
                 return
 
+            raise Exception("Invalid property added")
+
         def get_all(self) -> List[T]:
-            # TODO fix list stuff to use this
-            # return self._list
-
-            out: List[T] = []
-
+            # check for illegal list modifications
             for name in dir(self):
                 value = getattr(self, name)
                 if name.startswith("_"):
                     continue
-                if isinstance(value, self.type):
-                    out.append(value)
+                if callable(value):
+                    continue
+                if isinstance(value, self._type):
                     continue
                 if isinstance(value, Iterable):
-                    if not all(map(lambda x: isinstance(x, self.type), value)):
-                        continue
-                    out += list(value)
+                    assert set(flatten(value, -1)).issubset(set(self._list))
                     continue
 
-            return out
+            return self._list
 
         def handle_add(self, name: str, obj: T) -> None:
             ...

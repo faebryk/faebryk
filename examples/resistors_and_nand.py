@@ -20,7 +20,7 @@ from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
 
 # library imports
 from faebryk.library.core import Module
-from faebryk.library.library.components import TI_CD4011BE, Resistor
+from faebryk.library.library.components import Resistor
 from faebryk.library.library.footprints import SMDTwoPin, can_attach_to_footprint
 from faebryk.library.library.interfaces import Electrical, ElectricPower
 from faebryk.library.library.parameters import Constant
@@ -44,7 +44,7 @@ def main():
     # functional components
     resistor1 = Resistor(Constant(100))
     resistor2 = Resistor(Constant(100))
-    cd4011 = TI_CD4011BE()
+    # cd4011 = TI_CD4011BE()
 
     # aliases
     vcc = Electrical()
@@ -61,9 +61,9 @@ def main():
     ]:
         next(it).connect(vcc)
         next(it).connect(gnd)
-    cd4011.NODEs.nands[0].IFs.inputs[0].connect(high)
-    cd4011.NODEs.nands[0].IFs.inputs[1].connect(low)
-    cd4011.IFs.power.connect(battery.IFs.power)
+    # cd4011.NODEs.nands[0].IFs.inputs[0].connect(high)
+    # cd4011.NODEs.nands[0].IFs.inputs[1].connect(low)
+    # cd4011.IFs.power.connect(battery.IFs.power)
 
     vcc.connect(battery.IFs.power.NODEs.hv)
     gnd.connect(battery.IFs.power.NODEs.lv)
@@ -77,7 +77,12 @@ def main():
 
     # Export
     app = Module()
-    app.NODEs.components = [battery, resistor1, resistor2, cd4011]
+    app.NODEs.components = [
+        battery,
+        resistor1,
+        resistor2,
+        # cd4011,
+    ]
     G = app.get_graph()
 
     t1 = make_t1_netlist_from_graph(G)

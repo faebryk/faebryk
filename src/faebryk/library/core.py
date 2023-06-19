@@ -9,7 +9,7 @@ from typing import Generic, List, Optional, Tuple, Type, TypeVar
 
 from typing_extensions import Self
 
-from faebryk.libs.util import Holder, cast_assert
+from faebryk.libs.util import Holder, NotNone, cast_assert
 
 logger = logging.getLogger(__name__)
 
@@ -271,8 +271,16 @@ class GraphInterface(FaebrykLibObject):
         self.connections: List[Link] = []
         # can't put it into constructor
         # else it needs a reference when defining IFs
-        self.node: Optional[Node] = None
+        self._node: Optional[Node] = None
         self.name: str = type(self).__name__
+
+    @property
+    def node(self):
+        return NotNone(self._node)
+
+    @node.setter
+    def node(self, value: Node):
+        self._node = value
 
     # TODO make link trait to initialize from list
     def connect(self, other: Self, linkcls=None) -> Self:
@@ -291,13 +299,27 @@ class GraphInterface(FaebrykLibObject):
 
         return self
 
+    def get_full_name(self):
+        return f"{self.node.get_full_name()}.{self.name}"
+
+    def __str__(self) -> str:
+        return self.get_full_name()
+
+    def __repr__(self) -> str:
+        return (
+            super().__repr__() + f"| {self.get_full_name()}"
+            if self._node is not None
+            else "| <No None>"
+        )
+
 
 class GraphInterfaceHierarchical(GraphInterface):
     def __init__(self, is_parent: bool) -> None:
         super().__init__()
         self.is_parent = is_parent
 
-    def get_children(self):
+    # TODO make consistent api with get_parent
+    def get_children(self) -> list[tuple[str, Node]]:
         assert self.is_parent
 
         hier_conns = [c for c in self.connections if isinstance(c, LinkParent)]
@@ -318,9 +340,6 @@ class GraphInterfaceHierarchical(GraphInterface):
         conn = hier_conns[0]
         assert isinstance(conn, LinkParent)
         parent = conn.get_parent()
-        # TODO does this make sense?
-        if parent.node is None:
-            return None
 
         return parent.node, conn.name
 
@@ -397,7 +416,7 @@ class Node(FaebrykLibObject):
     def get_parent(self):
         return self.GIFs.parent.get_parent()
 
-    def get_hierarchy(self) -> List[Tuple[FaebrykLibObject, str]]:
+    def get_hierarchy(self) -> List[Tuple[Node, str]]:
         parent = self.get_parent()
         if not parent:
             return []

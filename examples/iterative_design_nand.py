@@ -19,16 +19,10 @@ import typer
 from faebryk.exporters.netlist.graph import make_t1_netlist_from_graph
 from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
 from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
-from faebryk.library.core import Module, Node, Parameter
+from faebryk.exporters.visualize.graph import render_matrix
+from faebryk.library.core import Module, Parameter
 from faebryk.library.kicad import KicadFootprint
-from faebryk.library.library.components import (
-    LED,
-    NAND,
-    TI_CD4011BE,
-    ElectricNAND,
-    Resistor,
-    Switch,
-)
+from faebryk.library.library.components import LED, NAND, TI_CD4011BE, Resistor, Switch
 from faebryk.library.library.footprints import (
     SMDTwoPin,
     can_attach_to_footprint,
@@ -42,42 +36,103 @@ from faebryk.library.library.interfaces import (
 )
 from faebryk.library.library.parameters import TBD, Constant
 from faebryk.library.trait_impl.component import has_defined_type_description
-from faebryk.library.util import get_all_nodes, specialize_interface, specialize_module
+from faebryk.library.util import (
+    get_all_nodes,
+    specialize_interface,
+    specialize_module,
+    times,
+)
 from faebryk.libs.experiments.buildutil import export_netlist
 
 logger = logging.getLogger(__name__)
 
 
+class Battery(Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+        class IFS(Module.IFS()):
+            power = ElectricPower()
+
+        self.IFs = IFS(self)
+        self.voltage: Parameter = TBD()
+
+
+class PowerSource(Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+        class IFS(Module.IFS()):
+            power_out = ElectricPower()
+
+        self.IFs = IFS(self)
+
+
+class XOR(Module):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+        class IFS(Module.IFS()):
+            inputs = times(2, Logic)
+            output = Logic()
+
+        self.IFs = IFS(self)
+
+    def xor(self, in1: Logic, in2: Logic):
+        self.IFs.inputs[0].connect(in1)
+        self.IFs.inputs[1].connect(in2)
+        return self.IFs.output
+
+
+class XOR_with_NANDS(XOR):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+
+        class NODES(Module.NODES()):
+            nands = times(4, lambda: NAND(2))
+
+        self.NODEs = NODES(self)
+
+        A = self.IFs.inputs[0]
+        B = self.IFs.inputs[1]
+
+        G = self.NODEs.nands
+        Q = self.IFs.output
+
+        # ~(a&b)
+        q0 = G[0].nand(A, B)
+        # ~(a&~b)
+        q1 = G[1].nand(A, q0)
+        # ~(~a&b)
+        q2 = G[2].nand(B, q0)
+        # (a&~b) o| (~a&b)
+        q3 = G[3].nand(q1, q2)
+
+        Q.connect(q3)
+
+
 def main():
     # levels
-    high = Logic()
-    low = Logic()
+    on = Logic()
+    off = Logic()
 
     # power
-    # TODO replace with powersource in the beginning and specialize later
-    class Battery(Node):
-        def __init__(self) -> None:
-            super().__init__()
-
-            class _IFs(Node.GraphInterfacesCls()):
-                power = ElectricPower()
-
-            self.IFs = _IFs(self)
-            self.voltage: Parameter = TBD()
-
-    battery = Battery()
+    power_source = PowerSource()
 
     # alias
-    gnd = battery.IFs.power.NODEs.lv
-    power = battery.IFs.power
+    power = power_source.IFs.power_out
+    gnd = Electrical().connect(power.NODEs.lv)
 
     # logic
-    nands = [NAND(2) for _ in range(2)]
-    nands[0].IFs.inputs[1].connect(low)
-    nands[1].IFs.inputs[0].connect(nands[0].IFs.output)
-    nands[1].IFs.inputs[1].connect(low)
-    logic_in = nands[0].IFs.inputs[0]
-    logic_out = nands[1].IFs.output
+    logic_in = Logic()
+    logic_out = Logic()
+
+    xor = XOR()
+    logic_out.connect(xor.xor(logic_in, on))
 
     # led
     current_limiting_resistor = Resistor(resistance=TBD())
@@ -87,7 +142,7 @@ def main():
     # application
     switch = Switch(Logic)()
 
-    logic_in.connect_via(switch, high)
+    logic_in.connect_via(switch, on)
 
     e_in = specialize_interface(logic_in, ElectricLogic())
     pull_down_resistor = Resistor(TBD())
@@ -96,14 +151,16 @@ def main():
     e_out = specialize_interface(logic_out, ElectricLogic())
     e_out.NODEs.signal.connect(led.IFs.anode)
 
-    e_high = specialize_interface(high, ElectricLogic()).connect_to_electric(
+    e_high = specialize_interface(on, ElectricLogic()).connect_to_electric(
         power.NODEs.hv, power
     )
-    e_low = specialize_interface(low, ElectricLogic()).connect_to_electric(
+    e_low = specialize_interface(off, ElectricLogic()).connect_to_electric(
         power.NODEs.lv, power
     )
 
-    e_nands = [specialize_module(n, ElectricNAND(n.input_cnt)) for n in nands]
+    nxor = specialize_module(xor, XOR_with_NANDS())
+
+    battery = specialize_module(power_source, Battery())
 
     el_switch = specialize_module(switch, Switch(ElectricLogic)())
     e_switch = Switch(Electrical)()
@@ -123,8 +180,6 @@ def main():
         battery,
         e_switch,
     ]
-    app.NODEs.nands = nands
-    app.NODEs.e_nands = e_nands
 
     # parametrizing
     pull_down_resistor.set_resistance(Constant(100_000))
@@ -176,8 +231,8 @@ def main():
 
     # packages single nands as explicit IC
     nand_ic = TI_CD4011BE()
-    for s, d in zip(nand_ic.NODEs.nands, e_nands):
-        specialize_module(s, d)
+    for ic_nand, xor_nand in zip(nand_ic.NODEs.nands, nxor.NODEs.nands):
+        specialize_module(xor_nand, ic_nand)
 
     app.NODEs.nand_ic = nand_ic
 
@@ -188,7 +243,20 @@ def main():
     t2 = make_t2_netlist_from_t1(t1)
     netlist = from_faebryk_t2_netlist(t2)
 
-    # export_graph(G.G, True)
+    # render_sidebyside(G.G, depth=2).show(block=False)
+    render_matrix(
+        G.G,
+        nodes_rows=[
+            [nand_ic, led],
+            [current_limiting_resistor, led, battery, power_source],
+            [nand_ic],
+            [app],
+        ],
+        depth=2,
+        show_full=False,
+        show_non_sum=False,
+    ).show()
+    # export_graph(G.G, False)
     export_netlist(netlist)
 
 

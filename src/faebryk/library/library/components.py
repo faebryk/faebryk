@@ -309,6 +309,11 @@ class NAND(Module):
 
         self.IFs = IFS(self)
 
+    def nand(self, in1: Logic, in2: Logic):
+        self.IFs.inputs[0].connect(in1)
+        self.IFs.inputs[1].connect(in2)
+        return self.IFs.output
+
 
 class ElectricNAND(Module):
     def __init__(self, input_cnt: int) -> None:

@@ -247,12 +247,11 @@ def main():
     render_matrix(
         G.G,
         nodes_rows=[
-            [nand_ic, led],
-            [current_limiting_resistor, led, battery, power_source],
-            [nand_ic],
-            [app],
+            [nand_ic, led, nxor, xor, e_out],
+            # [current_limiting_resistor, led, battery, power_source],
+            # [n for n in {i.node for i in G.G.nodes} if n.has_trait(has_footprint)],
         ],
-        depth=2,
+        depth=1,
         show_full=False,
         show_non_sum=False,
     ).show()

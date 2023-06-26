@@ -7,6 +7,8 @@ import networkx as nx
 from faebryk.library.core import (
     GraphInterface,
     GraphInterfaceHierarchical,
+    GraphInterfaceModuleConnection,
+    GraphInterfaceModuleSibling,
     GraphInterfaceSelf,
     Link,
     LinkParent,
@@ -26,28 +28,28 @@ def _direction_to_str(direction: tuple[GraphInterface, GraphInterface] | None):
     return [str(x) for x in direction]
 
 
-def merge(G: nx.Graph, root: GraphInterface, group: List[GraphInterface]) -> nx.Graph:
+def merge(G: nx.Graph, root: GraphInterface, group: set[GraphInterface]) -> nx.Graph:
     if len(group) == 0:
         return G
 
-    Gout = nx.Graph(G.subgraph([n for n in G.nodes if n not in group or n is root]))
-    assert all(map(lambda n: n in G.nodes, group + [root]))
+    nodes = set(G.nodes)
+    to_merge = group - {root}
+    assert root in group
 
+    Gout = nx.Graph(G.subgraph(nodes - to_merge))
+    assert group.issubset(nodes)
+
+    # find connections to the outside (of group) to move to root node
     edges: dict[GraphInterface, dict] = {}
-    # edges: List[Tuple[GraphInterface, dict]] = []
-    for n in group:
-        if n is root:
-            continue
-        for e in G[n]:
+    for n in to_merge:
+        for d in set(G[n]) - group:
             # TODO also merge links
-            data = dict(G.get_edge_data(n, e))
-            # only to the outside
-            if e in group or e == root:
-                continue
+            data = dict(G.get_edge_data(n, d))
 
             # connection to representative
-            if e not in edges:
-                edges[e] = {"merged": []}
+            if d not in edges:
+                edges[d] = {"merged": []}
+            e = edges[d]
 
             # Direction
             direction = data["direction"]
@@ -57,14 +59,14 @@ def merge(G: nx.Graph, root: GraphInterface, group: List[GraphInterface]) -> nx.
                     intf if intf is not n else root for intf in direction
                 )
 
-            edges[e]["merged"].extend(data["merged"])
+            e["merged"].extend(data["merged"])
 
-            if "direction" not in edges[e]:
-                edges[e]["direction"] = direction_new
-            if direction_new is not None and edges[e]["direction"] != direction_new:
-                edges[e]["direction"] = None
+            if "direction" not in e:
+                e["direction"] = direction_new
+            if direction_new is not None and e["direction"] != direction_new:
+                e["direction"] = None
 
-    Gout.add_edges_from([(root, e, d) for e, d in edges.items()])
+    Gout.add_edges_from([(root, d, data) for d, data in edges.items()])
     # print("Merge:", len(G.nodes), root, len(group), "->", len(Gout.nodes))
     return Gout
 
@@ -120,7 +122,7 @@ def make_abstract(G: nx.Graph, root: Node) -> nx.Graph:
 
 
 def merge_sub(G: nx.Graph, node: Node):
-    return merge(G, node.GIFs.self, _get_all_sub_GIFs(G, node))
+    return merge(G, node.GIFs.self, set(_get_all_sub_GIFs(G, node)))
 
 
 def _get_neighbor_gifs(G: nx.Graph, gif: GraphInterface) -> list[GraphInterface]:
@@ -204,6 +206,7 @@ def _get_children(G: nx.Graph, node: Node, recursive=True) -> list[Node]:
 
 
 def _get_top_level_nodes(G: nx.Graph, level: int):
+    # print(level, "-" * 40)
     top_nodes: Set[Node] = set()
 
     for i in G.nodes:
@@ -229,32 +232,42 @@ def _get_top_level_nodes(G: nx.Graph, level: int):
     return top_nodes
 
 
-# TODO use graph
+def _add_node(G: nx.Graph, node: Node):
+    G_ = node.get_graph().G
+    tag_with_info(G_)
+    G.add_nodes_from(G_.nodes)
+    G.add_edges_from(G_.edges(data=True))
+
+
 def sub_graph(G: nx.Graph, nodes: list[Node]):
     """
-    Merge all GIFs that are not part of the specified nodes into the highest level representantive that is not a parent of nodes.
+    Merge all GIFs that are not part of the specified nodes into the highest level
+    representantive that is not a parent of nodes.
     """
 
     # no duplicate
     assert len(set(nodes)) == len(nodes)
 
-    parents = [parent for node in nodes for parent in _get_parents(G, node)]
-    gifs = [gif for node in nodes for gif in _get_all_sub_GIFs(G, node)]
-    p_gifs = [gif for node in parents for gif in _get_all_sub_GIFs(G, node)]
-    other_gifs = [n for n in G.nodes if n not in gifs and n not in p_gifs]
+    gifs = {gif for node in nodes for gif in _get_all_sub_GIFs(G, node)}
+    other_gifs: set[GraphInterface] = set(G.nodes) - gifs
 
-    # Remove nodes & their hierarchies
-    # G_ = G.copy()
-    # G_.remove_nodes_from(p_gifs)
+    G_ = G.copy()
 
-    Gout = merge(G, other_gifs[0], other_gifs)
-    print(G, Gout)
-    # Gout = G
-    ## Merge all other to highest repr
-    # for n in _get_top_level_nodes(G_, 0):
-    #    Gout = merge_sub(Gout, n)
+    # Detach from parents
+    for n in nodes:
+        ps = _get_parents(G, n, recursive=False)
+        for p in ps:
+            G_.remove_edge(n.GIFs.parent, p.GIFs.children)
 
-    # TODO parents
+    # Make representing node for rest of graph
+    repr_node = Node()
+    repr_gif = GraphInterface()
+    repr_node.GIFs.sub_conns = repr_gif
+    _add_node(G_, repr_node)
+    root = repr_gif
+    other_gifs.add(root)
+
+    Gout = merge(G_, root, other_gifs)
 
     return Gout
 
@@ -296,7 +309,9 @@ def tag_with_info(G: nx.Graph):
 def render_graph(G: nx.Graph, ax=None):
     import matplotlib.pyplot as plt
 
-    DIRECTIONAL = True
+    DIRECTIONAL = False
+    MULTI = True
+    assert not DIRECTIONAL or not MULTI
 
     if DIRECTIONAL:
         G_ = nx.DiGraph()
@@ -316,6 +331,19 @@ def render_graph(G: nx.Graph, ax=None):
 
         G = G_
 
+    if MULTI:
+        G_ = nx.MultiDiGraph()
+        G_.add_nodes_from(G)
+        for t0, t1, d in G.edges(data=True):
+            assert isinstance(t0, GraphInterface)
+            assert isinstance(t1, GraphInterface)
+            assert isinstance(d, dict)
+
+            for d_ in d["merged"]:
+                G_.add_edge(t0, t1, **d_, root=d)
+
+        G = G_
+
     for t0, t1, d in G.edges(data=True):
         assert isinstance(d, dict)
 
@@ -326,18 +354,30 @@ def render_graph(G: nx.Graph, ax=None):
             weight = 1
 
             if isinstance(link, LinkSibling):
-                color = "#000000"
+                color = "#000000"  # black
                 weight = 100
             elif isinstance(link, LinkParent):
-                color = "#FF0000"
+                color = "#FF0000"  # red
                 weight = 40
             elif isinstance(link, LinkDirect) and all(
                 isinstance(c.node, Electrical) for c in link.get_connections()
             ):
-                color = "#00FF00"
+                color = "#00FF00"  # green
+                weight = 1
+            elif isinstance(link, LinkDirect) and all(
+                isinstance(c, GraphInterfaceModuleSibling)
+                for c in link.get_connections()
+            ):
+                color = "#AD139D"  # purple-like
+                weight = 40
+            elif isinstance(link, LinkDirect) and all(
+                isinstance(c, GraphInterfaceModuleConnection)
+                for c in link.get_connections()
+            ):
+                color = "#C1BE0F"  # yellow-like
                 weight = 1
             else:
-                color = "#1BD0D3"
+                color = "#1BD0D3"  # turqoise-like
                 weight = 10
 
             return color, weight
@@ -348,16 +388,42 @@ def render_graph(G: nx.Graph, ax=None):
         d["color"], d["weight"] = param
 
     # Draw
-    layout = nx.spring_layout(G)
+    layout = nx.spring_layout(G.to_undirected(as_view=True))
     nx.draw_networkx_nodes(G, ax=ax, pos=layout, node_size=150)
-    nx.draw_networkx_edges(
-        G,
-        ax=ax,
-        pos=layout,
-        # edgelist=G.edges,
-        edge_color=[c for _, __, c in G.edges.data("color")]  # type: ignore
-        # edge_color=color_edges_by_type(G.edges(data=True)),
-    )
+    # nx.draw_networkx_edges(
+    #    G,
+    #    ax=ax,
+    #    pos=layout,
+    #    # edgelist=G.edges,
+    #    edge_color=[c for _, __, c in G.edges.data("color")]  # type: ignore
+    #    # edge_color=color_edges_by_type(G.edges(data=True)),
+    # )
+
+    def dir_to_arrow(t0, t1, data):
+        direction = d["root"].get("direction")
+        if direction is None:
+            return "-"
+        assert t0 in direction and t1 in direction
+        return "<-" if direction == (t0, t1) else "->"
+
+    pos = layout
+    for t0, t1, k, d in G.edges(data=True, keys=True):
+        ax.annotate(
+            "",
+            xy=pos[t0],
+            xycoords="data",
+            xytext=pos[t1],
+            textcoords="data",
+            arrowprops=dict(
+                arrowstyle=dir_to_arrow(t0, t1, d),
+                color=d["color"],
+                shrinkA=5,
+                shrinkB=5,
+                patchA=None,
+                patchB=None,
+                connectionstyle=f"arc3,rad={0.1 * k}",
+            ),
+        )
 
     # nx.draw_networkx_edges(
     #    G, pos=layout, edgelist=intra_comp_edges, edge_color="#0000FF"
@@ -443,8 +509,8 @@ def render_matrix(
     for j, nodes in enumerate(_nodes_rows):
         Gn = G
         if nodes is not None:
-            Gn = sub_tree(G, nodes)
-            # Gn = sub_graph(Gn, nodes)
+            # Gn = sub_tree(G, nodes)
+            Gn = sub_graph(Gn, nodes)
 
         for i, level in enumerate(depths):
             ax = axs(j, i)

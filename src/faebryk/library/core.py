@@ -348,6 +348,14 @@ class GraphInterfaceSelf(GraphInterface):
     ...
 
 
+class GraphInterfaceModuleSibling(GraphInterface):
+    ...
+
+
+class GraphInterfaceModuleConnection(GraphInterface):
+    ...
+
+
 class Node(FaebrykLibObject):
     @classmethod
     def GraphInterfacesCls(cls):
@@ -448,8 +456,8 @@ class ModuleInterface(Node):
     @classmethod
     def GIFS(cls):
         class GIFS(Node.GIFS()):
-            sibling = GraphInterface()
-            connected = GraphInterface()
+            sibling = GraphInterfaceModuleSibling()
+            connected = GraphInterfaceModuleConnection()
 
         return GIFS
 
@@ -498,6 +506,13 @@ class ModuleTrait(_ModuleTrait["Module"]):
 
 class Module(Node):
     @classmethod
+    def GIFS(cls):
+        class GIFS(Node.GIFS()):
+            sibling = GraphInterfaceModuleSibling()
+
+        return GIFS
+
+    @classmethod
     def IFS(cls):
         class IFS(Module.NodesCls(ModuleInterface)):
             # workaround to help pylance
@@ -509,6 +524,7 @@ class Module(Node):
     def __init__(self) -> None:
         super().__init__()
 
+        self.GIFs = Module.GIFS()(self)
         self.IFs = Module.IFS()(self)
 
 

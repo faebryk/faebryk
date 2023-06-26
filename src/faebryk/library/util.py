@@ -183,4 +183,6 @@ def specialize_module(
             continue
         special.add_trait(t)
 
+    general.GIFs.sibling.connect(special.GIFs.sibling)
+
     return special

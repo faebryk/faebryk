@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-from typing import Iterable, List, TypeVar
+from typing import Iterable, TypeVar
 
 from faebryk.library.library.interfaces import ModuleInterface
 from faebryk.libs.util import NotNone, cast_assert
@@ -43,7 +43,7 @@ def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     if order_types is None:
         order_types = []
 
-    out: List[Node] = list(node.NODEs.get_all())
+    out: list[Node] = list(node.NODEs.get_all())
     out.extend([i for nested in out for i in get_all_nodes(nested)])
 
     out = sorted(
@@ -86,7 +86,7 @@ def connect_interfaces_via_chain(
     last.connect(end)
 
 
-def connect_all_interfaces(interfaces: List[ModuleInterface]):
+def connect_all_interfaces(interfaces: list[ModuleInterface]):
     for i in interfaces:
         for j in interfaces:
             i.connect(j)

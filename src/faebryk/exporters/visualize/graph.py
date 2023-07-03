@@ -1,6 +1,5 @@
 import logging
 from copy import copy
-from typing import List, Set, Tuple
 
 import networkx as nx
 
@@ -81,7 +80,7 @@ def make_abstract(G: nx.Graph, root: Node) -> nx.Graph:
     Gout.remove_nodes_from(merged_ifs)
 
     node = Node()
-    edges: List[Tuple[GraphInterface, GraphInterface, dict]] = []
+    edges: list[tuple[GraphInterface, GraphInterface, dict]] = []
 
     for child in [root] + _get_children(G, root):
         gifs = _get_neighbor_gifs(G, child.GIFs.self)
@@ -141,7 +140,7 @@ def _get_neighbor_nodes(G: nx.Graph, gif: GraphInterface) -> list[Node]:
     ]
 
 
-def _get_all_sub_GIFs(G: nx.Graph, node: Node) -> List[GraphInterface]:
+def _get_all_sub_GIFs(G: nx.Graph, node: Node) -> list[GraphInterface]:
     node_if = node.GIFs.self
 
     if node_if not in G:
@@ -207,7 +206,7 @@ def _get_children(G: nx.Graph, node: Node, recursive=True) -> list[Node]:
 
 def _get_top_level_nodes(G: nx.Graph, level: int):
     # print(level, "-" * 40)
-    top_nodes: Set[Node] = set()
+    top_nodes: set[Node] = set()
 
     for i in G.nodes:
         assert isinstance(i, GraphInterface)
@@ -429,7 +428,7 @@ def render_graph(G: nx.Graph, ax=None):
     #    G, pos=layout, edgelist=intra_comp_edges, edge_color="#0000FF"
     # )
 
-    nodes: List[GraphInterface] = list(G.nodes)
+    nodes: list[GraphInterface] = list(G.nodes)
     vertex_names = {
         vertex: f"{type(vertex.node).__name__}.{vertex.name}"
         + (

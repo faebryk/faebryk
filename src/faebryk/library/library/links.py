@@ -2,14 +2,12 @@
 # SPDX-License-Identifier: MIT
 
 
-from typing import List
-
 from faebryk.library.core import GraphInterface, Link
 from faebryk.library.traits.link import can_determine_partner_by_single_end
 
 
 class LinkDirect(Link):
-    def __init__(self, interfaces: List[GraphInterface]) -> None:
+    def __init__(self, interfaces: list[GraphInterface]) -> None:
         super().__init__()
         assert len(set(map(type, interfaces))) == 1
         self.interfaces = interfaces
@@ -22,5 +20,5 @@ class LinkDirect(Link):
 
             self.add_trait(_())
 
-    def get_connections(self) -> List[GraphInterface]:
+    def get_connections(self) -> list[GraphInterface]:
         return self.interfaces

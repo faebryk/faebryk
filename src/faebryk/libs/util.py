@@ -123,7 +123,7 @@ class _wrapper(NotifiesOnPropertyChange, Generic[T, P]):
         raise NotImplementedError
 
     @abstractmethod
-    def get_all(self) -> List[T]:
+    def get_all(self) -> list[T]:
         raise NotImplementedError
 
     @abstractmethod
@@ -141,7 +141,7 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
 
     class __wrapper(_wrapper[_T, _P]):
         def __init__(self, parent: P) -> None:
-            self._list: List[T] = []
+            self._list: list[T] = []
             self._type = _type
             self._parent: P = parent
 
@@ -172,7 +172,7 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
 
             raise Exception("Invalid property added")
 
-        def get_all(self) -> List[T]:
+        def get_all(self) -> list[T]:
             # check for illegal list modifications
             for name in dir(self):
                 value = getattr(self, name)
@@ -218,5 +218,5 @@ def cast_assert(t: type[T], obj) -> T:
     return obj
 
 
-def times(cnt: int, lamb: Callable[[], T]) -> List[T]:
+def times(cnt: int, lamb: Callable[[], T]) -> list[T]:
     return [lamb() for _ in range(cnt)]

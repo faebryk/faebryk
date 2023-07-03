@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC
-from typing import Generic, List, Optional, Tuple, Type, TypeVar
+from typing import Generic, Optional, Type, TypeVar
 
 from typing_extensions import Self
 
@@ -95,7 +95,7 @@ class TraitImpl(Generic[U], ABC):
 
 
 class FaebrykLibObject:
-    traits: List[TraitImpl]
+    traits: list[TraitImpl]
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
@@ -223,7 +223,7 @@ class Link(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
-    def get_connections(self) -> List[GraphInterface]:
+    def get_connections(self) -> list[GraphInterface]:
         raise NotImplementedError
 
     def __eq__(self, __value: Link) -> bool:
@@ -237,16 +237,16 @@ class Link(FaebrykLibObject):
 
 
 class LinkSibling(Link):
-    def __init__(self, interfaces: List[GraphInterface]) -> None:
+    def __init__(self, interfaces: list[GraphInterface]) -> None:
         super().__init__()
         self.interfaces = interfaces
 
-    def get_connections(self) -> List[GraphInterface]:
+    def get_connections(self) -> list[GraphInterface]:
         return self.interfaces
 
 
 class LinkParent(Link):
-    def __init__(self, name: str, interfaces: List[GraphInterface]) -> None:
+    def __init__(self, name: str, interfaces: list[GraphInterface]) -> None:
         super().__init__()
         self.name = name
 
@@ -255,11 +255,11 @@ class LinkParent(Link):
         assert len(interfaces) == 2
         assert len([i for i in interfaces if i.is_parent]) == 1  # type: ignore
 
-        self.interfaces: List[GraphInterfaceHierarchical] = interfaces  # type: ignore
+        self.interfaces: list[GraphInterfaceHierarchical] = interfaces  # type: ignore
 
     @classmethod
     def curry(cls, name: str):
-        def curried(interfaces: List[GraphInterface]):
+        def curried(interfaces: list[GraphInterface]):
             return LinkParent(name, interfaces)
 
         return curried
@@ -277,7 +277,7 @@ class LinkParent(Link):
 class GraphInterface(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
-        self.connections: List[Link] = []
+        self.connections: list[Link] = []
         # can't put it into constructor
         # else it needs a reference when defining IFs
         self._node: Optional[Node] = None
@@ -342,7 +342,7 @@ class GraphInterfaceHierarchical(GraphInterface):
 
         return [(c.name, c.get_child().node) for c in hier_conns]
 
-    def get_parent(self) -> Tuple[Node, str] | None:
+    def get_parent(self) -> tuple[Node, str] | None:
         assert not self.is_parent
 
         hier_conns = [c for c in self.connections if isinstance(c, LinkParent)]
@@ -438,7 +438,7 @@ class Node(FaebrykLibObject):
     def get_parent(self):
         return self.GIFs.parent.get_parent()
 
-    def get_hierarchy(self) -> List[Tuple[Node, str]]:
+    def get_hierarchy(self) -> list[tuple[Node, str]]:
         parent = self.get_parent()
         if not parent:
             return [(self, "*")]
@@ -557,7 +557,7 @@ class Module(Node):
     def IFS(cls):
         class IFS(Module.NodesCls(ModuleInterface)):
             # workaround to help pylance
-            def get_all(self) -> List[ModuleInterface]:
+            def get_all(self) -> list[ModuleInterface]:
                 return [cast_assert(ModuleInterface, i) for i in super().get_all()]
 
         return IFS

@@ -3,7 +3,6 @@
 
 
 from abc import abstractmethod
-from typing import Dict
 
 from faebryk.library.core import Footprint, FootprintTrait, NodeTrait
 from faebryk.library.library.footprints import can_attach_via_pinmap_pinlist
@@ -67,12 +66,12 @@ class has_kicad_footprint(FootprintTrait):
         ...
 
     @abstractmethod
-    def get_pin_names(self) -> Dict[Electrical, str]:
+    def get_pin_names(self) -> dict[Electrical, str]:
         ...
 
 
 class has_kicad_manual_footprint(has_kicad_footprint.impl()):
-    def __init__(self, str, pinmap: Dict[Electrical, str]) -> None:
+    def __init__(self, str, pinmap: dict[Electrical, str]) -> None:
         super().__init__()
         self.str = str
         self.pinmap = pinmap

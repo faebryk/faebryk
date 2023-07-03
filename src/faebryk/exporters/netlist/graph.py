@@ -4,7 +4,7 @@
 import logging
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import networkx as nx
 
@@ -32,12 +32,12 @@ class can_represent_kicad_footprint(FootprintTrait):
             pin: str
 
         name: str
-        properties: Dict[str, Any]
-        neighbors: Dict[str, list[neighbor]]
+        properties: dict[str, Any]
+        neighbors: dict[str, list[neighbor]]
         value: str
 
     @abstractmethod
-    def get_name_and_value(self) -> Tuple[str, str]:
+    def get_name_and_value(self) -> tuple[str, str]:
         ...
 
     @abstractmethod

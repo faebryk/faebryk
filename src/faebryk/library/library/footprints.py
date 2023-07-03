@@ -3,7 +3,6 @@
 
 import logging
 from abc import abstractmethod
-from typing import Dict
 
 from faebryk.library.core import Footprint, FootprintTrait, ModuleInterface, ModuleTrait
 from faebryk.library.library.interfaces import Electrical
@@ -18,22 +17,22 @@ from enum import Enum
 # TODO move file --------------------------------------------------------------
 class can_attach_via_pinmap(FootprintTrait):
     @abstractmethod
-    def attach(self, pinmap: Dict[str, Electrical]):
+    def attach(self, pinmap: dict[str, Electrical]):
         ...
 
 
 class can_attach_via_pinmap_pinlist(can_attach_via_pinmap.impl()):
-    def __init__(self, pin_list: Dict[str, Electrical]) -> None:
+    def __init__(self, pin_list: dict[str, Electrical]) -> None:
         super().__init__()
         self.pin_list = pin_list
 
-    def attach(self, pinmap: Dict[str, Electrical]):
+    def attach(self, pinmap: dict[str, Electrical]):
         for no, intf in pinmap.items():
             self.pin_list[no].connect(intf)
 
 
 class can_attach_via_pinmap_equal(can_attach_via_pinmap.impl()):
-    def attach(self, pinmap: Dict[str, Electrical]):
+    def attach(self, pinmap: dict[str, Electrical]):
         pin_list = {
             v: k
             for k, v in self.get_obj().get_trait(has_equal_pins).get_pin_map().items()
@@ -65,7 +64,7 @@ class can_attach_to_footprint_symmetrically(can_attach_to_footprint.impl()):
 
 
 class can_attach_to_footprint_via_pinmap(can_attach_to_footprint.impl()):
-    def __init__(self, pinmap: Dict[str, Electrical]) -> None:
+    def __init__(self, pinmap: dict[str, Electrical]) -> None:
         super().__init__()
         self.pinmap = pinmap
 

@@ -1,5 +1,5 @@
-from enum import Enum
 import logging
+from enum import Enum
 
 from faebryk.library.core import Component
 from faebryk.library.library.interfaces import Electrical

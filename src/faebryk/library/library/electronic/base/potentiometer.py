@@ -3,8 +3,6 @@ import logging
 from faebryk.library.core import Component, Parameter
 from faebryk.library.library.electronic.base.resisistor import Resistor
 from faebryk.library.library.interfaces import Electrical
-from faebryk.library.library.parameters import Constant
-from faebryk.library.trait_impl.component import has_defined_resistance
 from faebryk.library.util import times
 
 logger = logging.getLogger(__name__)

@@ -43,6 +43,7 @@ theme = Theme(
 
 def setup_basic_logging(rich: bool = True):
     logging.basicConfig(
+        format="" if not rich else "%(message)s",
         level=logging.INFO,
         handlers=[
             RichHandler(

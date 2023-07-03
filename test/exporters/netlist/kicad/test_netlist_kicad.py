@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 
 # Netlists --------------------------------------------------------------------
 def test_netlist_graph():
+    from faebryk.core.core import Footprint, Node
     from faebryk.exporters.netlist.graph import (
         make_graph_from_components,
         make_t1_netlist_from_graph,
     )
     from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
     from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
-    from faebryk.library.core import Footprint, Node
     from faebryk.library.kicad import has_defined_kicad_ref, has_kicad_manual_footprint
     from faebryk.library.library.interfaces import Electrical
     from faebryk.library.trait_impl.module import (

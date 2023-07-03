@@ -4,8 +4,8 @@
 """
 This file contains a faebryk sample.
 Faebryk samples demonstrate the usage by building example systems.
-This particular sample creates a netlist with an led and a nand ic 
-    that creates some logic. 
+This particular sample creates a netlist with an led and a nand ic
+    that creates some logic.
 The goal of this sample is to show how to structurize your system design in modules.
 Thus this is a netlist sample.
 Netlist samples can be run directly.
@@ -13,22 +13,26 @@ Netlist samples can be run directly.
 import logging
 
 import typer
-
+from faebryk.core.core import Module, Parameter
+from faebryk.core.util import get_all_nodes
 from faebryk.exporters.netlist.graph import make_t1_netlist_from_graph
 from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
 from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
-from faebryk.library.core import Module, Parameter
-from faebryk.library.kicad import KicadFootprint
-from faebryk.library.library.footprints import (
-    SMDTwoPin,
-    can_attach_to_footprint,
+from faebryk.library.can_attach_to_footprint import can_attach_to_footprint
+from faebryk.library.can_attach_to_footprint_via_pinmap import (
     can_attach_to_footprint_via_pinmap,
 )
-from faebryk.library.library.interfaces import Electrical, ElectricPower
-from faebryk.library.library.modules import LED, MOSFET, Resistor, Switch
-from faebryk.library.library.parameters import TBD, Constant
-from faebryk.library.trait_impl.module import has_defined_type_description
-from faebryk.library.util import get_all_nodes
+from faebryk.library.Constant import Constant
+from faebryk.library.Electrical import Electrical
+from faebryk.library.ElectricPower import ElectricPower
+from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.KicadFootprint import KicadFootprint
+from faebryk.library.LED import LED
+from faebryk.library.MOSFET import MOSFET
+from faebryk.library.Resistor import Resistor
+from faebryk.library.SMDTwoPin import SMDTwoPin
+from faebryk.library.Switch import Switch
+from faebryk.library.TBD import TBD
 from faebryk.libs.experiments.buildutil import export_graph, export_netlist
 from faebryk.libs.logging import setup_basic_logging
 
@@ -57,7 +61,9 @@ def main(make_graph: bool = True):
             class _NODES(Module.NODES()):
                 led = LED()
                 current_limiting_resistor = Resistor(TBD())
-                switch = MOSFET()
+                switch = MOSFET(
+                    MOSFET.ChannelType.N_CHANNEL, MOSFET.SaturationType.ENHANCEMENT
+                )
 
             self.IFs = _IFS(self)
             self.NODEs = _NODES(self)

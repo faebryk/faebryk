@@ -4,7 +4,7 @@
 """
 This file contains a faebryk sample.
 Faebryk samples demonstrate the usage by building example systems.
-This particular sample creates a netlist with some resistors and a nand ic 
+This particular sample creates a netlist with some resistors and a nand ic
     with no specific further purpose or function.
 It shall primarily demonstrate some simple faebryk concepts.
 Thus this is a netlist sample.
@@ -14,23 +14,25 @@ import logging
 
 import typer
 
+# library imports
+from faebryk.core.core import Module
+from faebryk.core.util import connect_interfaces_via_chain
 from faebryk.exporters.netlist.graph import make_t1_netlist_from_graph
 from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
 from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
-
-# library imports
-from faebryk.library.core import Module
-from faebryk.library.kicad import KicadFootprint
-from faebryk.library.library.footprints import (
-    SMDTwoPin,
-    can_attach_to_footprint,
+from faebryk.library.can_attach_to_footprint import can_attach_to_footprint
+from faebryk.library.can_attach_to_footprint_via_pinmap import (
     can_attach_to_footprint_via_pinmap,
 )
-from faebryk.library.library.interfaces import Electrical, ElectricLogic, ElectricPower
-from faebryk.library.library.modules import TI_CD4011BE, Resistor
-from faebryk.library.library.parameters import Constant
-from faebryk.library.trait_impl.module import has_defined_type_description
-from faebryk.library.util import connect_interfaces_via_chain
+from faebryk.library.Constant import Constant
+from faebryk.library.Electrical import Electrical
+from faebryk.library.ElectricLogic import ElectricLogic
+from faebryk.library.ElectricPower import ElectricPower
+from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.KicadFootprint import KicadFootprint
+from faebryk.library.Resistor import Resistor
+from faebryk.library.SMDTwoPin import SMDTwoPin
+from faebryk.library.TI_CD4011BE import TI_CD4011BE
 from faebryk.libs.experiments.buildutil import export_graph, export_netlist
 from faebryk.libs.logging import setup_basic_logging
 

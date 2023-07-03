@@ -4,8 +4,8 @@
 """
 This file contains a faebryk sample.
 Faebryk samples demonstrate the usage by building example systems.
-This particular sample creates a netlist with an led and a nand ic 
-    that creates some logic. 
+This particular sample creates a netlist with an led and a nand ic
+    that creates some logic.
 The goal of this sample is to show how faebryk can be used to iteratively
     expand the specifics of a design in multiple steps.
 Thus this is a netlist sample.
@@ -14,28 +14,30 @@ Netlist samples can be run directly.
 import logging
 
 import typer
-
+from faebryk.core.core import Module, Parameter
+from faebryk.core.util import get_all_nodes, specialize_interface, specialize_module
 from faebryk.exporters.netlist.graph import make_t1_netlist_from_graph
 from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
 from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
 from faebryk.exporters.visualize.graph import render_matrix
-from faebryk.library.core import Module, Parameter
-from faebryk.library.kicad import KicadFootprint
-from faebryk.library.library.footprints import (
-    SMDTwoPin,
-    can_attach_to_footprint,
+from faebryk.library.can_attach_to_footprint import can_attach_to_footprint
+from faebryk.library.can_attach_to_footprint_via_pinmap import (
     can_attach_to_footprint_via_pinmap,
 )
-from faebryk.library.library.interfaces import (
-    Electrical,
-    ElectricLogic,
-    ElectricPower,
-    Logic,
-)
-from faebryk.library.library.modules import LED, NAND, TI_CD4011BE, Resistor, Switch
-from faebryk.library.library.parameters import TBD, Constant
-from faebryk.library.trait_impl.module import has_defined_type_description
-from faebryk.library.util import get_all_nodes, specialize_interface, specialize_module
+from faebryk.library.Constant import Constant
+from faebryk.library.Electrical import Electrical
+from faebryk.library.ElectricLogic import ElectricLogic
+from faebryk.library.ElectricPower import ElectricPower
+from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.KicadFootprint import KicadFootprint
+from faebryk.library.LED import LED
+from faebryk.library.Logic import Logic
+from faebryk.library.NAND import NAND
+from faebryk.library.Resistor import Resistor
+from faebryk.library.SMDTwoPin import SMDTwoPin
+from faebryk.library.Switch import Switch
+from faebryk.library.TBD import TBD
+from faebryk.library.TI_CD4011BE import TI_CD4011BE
 from faebryk.libs.experiments.buildutil import export_netlist
 from faebryk.libs.logging import setup_basic_logging
 from faebryk.libs.util import times
@@ -147,10 +149,8 @@ def main(make_graph: bool = True):
     e_out = specialize_interface(logic_out, ElectricLogic())
     e_out.NODEs.signal.connect(led.IFs.anode)
 
-    e_high = specialize_interface(on, ElectricLogic()).connect_to_electric(
-        power.NODEs.hv, power
-    )
-    e_low = specialize_interface(off, ElectricLogic()).connect_to_electric(
+    specialize_interface(on, ElectricLogic()).connect_to_electric(power.NODEs.hv, power)
+    specialize_interface(off, ElectricLogic()).connect_to_electric(
         power.NODEs.lv, power
     )
 
@@ -161,10 +161,10 @@ def main(make_graph: bool = True):
     el_switch = specialize_module(switch, Switch(ElectricLogic)())
     e_switch = Switch(Electrical)()
     # TODO make switch generic to remove the asserts
-    for e, l in zip(e_switch.IFs.unnamed, el_switch.IFs.unnamed):
-        assert isinstance(l, ElectricLogic)
+    for e, el in zip(e_switch.IFs.unnamed, el_switch.IFs.unnamed):
+        assert isinstance(el, ElectricLogic)
         assert isinstance(e, Electrical)
-        l.connect_to_electric(e, battery.IFs.power)
+        el.connect_to_electric(e, battery.IFs.power)
 
     # build graph
     app = Module()

@@ -10,7 +10,7 @@ from faebryk.library.kicad import has_kicad_footprint
 class TestFootprints(unittest.TestCase):
     def test_qfn_kicad(self):
         test_cases = {
-            "Package_DFN_QFN:QFN-16-1EP_4x4mm_P0.5mm_EP2.45x2.45mm_ThermalVias": footprints.QFN(
+            "Package_DFN_QFN:QFN-16-1EP_4x4mm_P0.5mm_EP2.45x2.45mm_ThermalVias": footprints.QFN(  # noqa: E501
                 pin_cnt=16,
                 exposed_thermal_pad_cnt=1,
                 size_xy_mm=(4, 4),

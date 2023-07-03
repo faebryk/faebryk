@@ -5,12 +5,12 @@ import unittest
 from abc import abstractmethod
 from typing import cast
 
-from faebryk.library.core import TraitImpl
+from faebryk.core.core import TraitImpl
 
 
 class TestTraits(unittest.TestCase):
     def test_equality(self):
-        from faebryk.library.core import Trait
+        from faebryk.core.core import Trait
 
         class _trait1(Trait):
             pass
@@ -82,7 +82,7 @@ class TestTraits(unittest.TestCase):
         assertCmpTrue(impl_1_1(), impl1())
 
     def test_obj_traits(self):
-        from faebryk.library.core import FaebrykLibObject, Trait
+        from faebryk.core.core import FaebrykLibObject, Trait
 
         obj = FaebrykLibObject()
 

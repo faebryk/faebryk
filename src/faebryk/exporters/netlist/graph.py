@@ -7,17 +7,20 @@ from dataclasses import dataclass
 from typing import Any
 
 import networkx as nx
-from faebryk.library.core import Footprint, FootprintTrait, GraphInterfaceSelf, Node
-from faebryk.library.graph import Graph
-from faebryk.library.kicad import has_kicad_footprint
-from faebryk.library.library.interfaces import Electrical
-from faebryk.library.library.links import LinkDirect
-from faebryk.library.trait_impl.module import has_overriden_name_defined
-from faebryk.library.traits.module import (
-    has_footprint,
-    has_overriden_name,
-    has_type_description,
+from faebryk.core.core import (
+    Footprint,
+    FootprintTrait,
+    GraphInterfaceSelf,
+    LinkDirect,
+    Node,
 )
+from faebryk.core.graph import Graph
+from faebryk.library.Electrical import Electrical
+from faebryk.library.has_footprint import has_footprint
+from faebryk.library.has_kicad_footprint import has_kicad_footprint
+from faebryk.library.has_overriden_name import has_overriden_name
+from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
+from faebryk.library.has_type_description import has_type_description
 
 logger = logging.getLogger(__name__)
 

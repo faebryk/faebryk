@@ -2,19 +2,19 @@ import logging
 from copy import copy
 
 import networkx as nx
-from faebryk.library.core import (
+from faebryk.core.core import (
     GraphInterface,
     GraphInterfaceHierarchical,
     GraphInterfaceModuleConnection,
     GraphInterfaceModuleSibling,
     GraphInterfaceSelf,
     Link,
+    LinkDirect,
     LinkParent,
     LinkSibling,
     Node,
 )
-from faebryk.library.library.interfaces import Electrical
-from faebryk.library.library.links import LinkDirect
+from faebryk.library.Electrical import Electrical
 from faebryk.libs.util import cast_assert
 
 logger = logging.getLogger(__name__)

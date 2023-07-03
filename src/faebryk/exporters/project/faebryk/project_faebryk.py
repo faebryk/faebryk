@@ -4,6 +4,8 @@
 """
 """
 
+# TODO BROKEN
+
 import logging
 import re
 
@@ -36,18 +38,7 @@ from faebryk.exporters.netlist.graph import (
 {function_imports}
 
 # library imports
-from faebryk.library.core import Component
-from faebryk.library.library.parameters import Constant
-from faebryk.library.library.interfaces import Electrical
-from faebryk.library.trait_impl.component import (
-    has_defined_footprint,
-    has_defined_footprint_pinmap,
-    has_defined_type_description,
-)
-from faebryk.library.kicad import (
-    has_defined_kicad_ref,
-    KicadFootprint,
-)
+#TODO
 {library_imports}
 
 from faebryk.libs.experiments.buildutil import export_graph, export_netlist

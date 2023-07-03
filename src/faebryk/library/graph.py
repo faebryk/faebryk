@@ -2,7 +2,6 @@ import logging
 from typing import Callable, Iterable, TypeVar
 
 import networkx as nx
-
 from faebryk.library.core import GraphInterface, Node
 
 logger = logging.getLogger(__name__)
@@ -34,10 +33,12 @@ def _get_connected_GIFs(nodes: list[Node]) -> Iterable[GraphInterface]:
     Gets GIFs from supplied Nodes.
     Then traces all connected GIFs from them to find the rest.
     """
-    GIFs = {l for n in nodes for l in n.GIFs.get_all()}
+    GIFs = {gif for n in nodes for gif in n.GIFs.get_all()}
 
     out = bfs_visit(
-        lambda i: [j for l in i.connections for j in l.get_connections() if j != i],
+        lambda i: [
+            j for link in i.connections for j in link.get_connections() if j != i
+        ],
         GIFs,
     )
 
@@ -48,10 +49,10 @@ class Graph:
     def __init__(self, nodes: list[Node]):
         G = nx.Graph()
         GIFs = _get_connected_GIFs(nodes)
-        links = {l for i in GIFs for l in i.connections}
+        links = {gif_link for i in GIFs for gif_link in i.connections}
 
-        assert all(map(lambda l: len(l.get_connections()) == 2, links))
-        edges = [tuple(l.get_connections() + [{"link": l}]) for l in links]
+        assert all(map(lambda link: len(link.get_connections()) == 2, links))
+        edges = [tuple(link.get_connections() + [{"link": link}]) for link in links]
 
         G.add_edges_from(edges)
         G.add_nodes_from(GIFs)

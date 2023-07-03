@@ -2,16 +2,14 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-
-logger = logging.getLogger(__name__)
-
 import typing
 from dataclasses import dataclass
 
 import networkx as nx
-
 from faebryk.libs.exceptions import FaebrykException
 from faebryk.libs.util import NotNone, hashable_dict, unique
+
+logger = logging.getLogger(__name__)
 
 # 0. netlist = graph
 
@@ -168,8 +166,6 @@ def render_graph(t1_netlist):
     vertex_names = {vertex: vertex_name(vertex) for vertex in G.nodes}
 
     import re
-
-    # (match.group() if (match:=re.search(r"\[.*\]", edge[0].node["name"])) is not None else None)
 
     intra_edge_dict = dict(
         unique(

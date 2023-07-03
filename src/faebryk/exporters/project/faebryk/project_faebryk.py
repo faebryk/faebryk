@@ -8,7 +8,6 @@ import logging
 import re
 
 import black
-
 from faebryk.libs.pycodegen import sanitize_name
 from faebryk.libs.util import NotNone
 
@@ -131,7 +130,6 @@ def from_t1_netlist(t1_netlist):
     project = template
 
     comp_names = {}
-    if_names = {}
 
     def comp_to_faebryk(component):
         def get_comp_name(component):
@@ -221,9 +219,10 @@ def from_t1_netlist(t1_netlist):
                 if ((neighborcname, npin), (cname, pin)) in connections:
                     # don't add connection if symmetric connection already exists
                     continue
-                connections[
-                    ((cname, pin), (neighborcname, npin))
-                ] = f"{pinmap[pin][0].format(name=cname)}.connect({named_comps[neighborcname][1][npin][0].format(name=neighborcname)})"
+                connections[((cname, pin), (neighborcname, npin))] = (
+                    f"{pinmap[pin][0].format(name=cname)}.connect("
+                    f"{named_comps[neighborcname][1][npin][0].format(name=neighborcname)})"
+                )
 
     project = project.format(
         header="",

@@ -7,9 +7,8 @@ import logging
 from abc import ABC
 from typing import Generic, Optional, Type, TypeVar
 
-from typing_extensions import Self
-
 from faebryk.libs.util import Holder, NotNone, cast_assert
+from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +232,10 @@ class Link(FaebrykLibObject):
         return super().__hash__()
 
     def __str__(self) -> str:
-        return f"{type(self).__name__}([{', '.join(str(i) for i in self.get_connections())}])"
+        return (
+            f"{type(self).__name__}"
+            f"([{', '.join(str(i) for i in self.get_connections())}])"
+        )
 
 
 class LinkSibling(Link):
@@ -308,7 +310,7 @@ class GraphInterface(FaebrykLibObject):
         try:
             logger.debug(f"GIF connection: {link}")
         # TODO
-        except:
+        except Exception:
             ...
 
         return self

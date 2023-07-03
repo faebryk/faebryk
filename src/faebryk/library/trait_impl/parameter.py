@@ -2,12 +2,11 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-
-logger = logging.getLogger(__name__)
-
 import typing
 
 from faebryk.library.traits.parameter import is_representable_by_single_value
+
+logger = logging.getLogger(__name__)
 
 
 class is_representable_by_single_value_defined(is_representable_by_single_value.impl()):

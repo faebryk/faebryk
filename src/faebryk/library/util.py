@@ -4,15 +4,12 @@
 import logging
 from typing import Iterable, TypeVar
 
+# TODO this file should not exist
+from faebryk.library.core import GraphInterface, Module, Node
 from faebryk.library.library.interfaces import ModuleInterface
 from faebryk.libs.util import NotNone, cast_assert
 
 logger = logging.getLogger(__name__)
-
-# TODO this file should not exist
-
-from faebryk.library.core import GraphInterface, Module, Node
-
 T = TypeVar("T")
 
 
@@ -59,8 +56,8 @@ def get_all_nodes(node: Node, order_types=None) -> list[Node]:
 def get_all_connected(gif: GraphInterface) -> list[GraphInterface]:
     return [
         other
-        for l in gif.connections
-        for other in l.get_connections()
+        for link in gif.connections
+        for other in link.get_connections()
         if other is not gif
     ]
 

@@ -5,9 +5,9 @@ import logging
 from abc import abstractmethod
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from faebryk.library.core import Footprint, ModuleTrait
+
+logger = logging.getLogger(__name__)
 
 
 class has_type_description(ModuleTrait):

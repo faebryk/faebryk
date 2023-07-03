@@ -3,10 +3,9 @@
 
 import logging
 
-logger = logging.getLogger(__name__)
-
 from faebryk.library.core import ModuleInterface
 
+logger = logging.getLogger(__name__)
 # TODO: move file (interface component)----------------------------------------
 
 

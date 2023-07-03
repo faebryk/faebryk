@@ -2,7 +2,6 @@ import logging
 from copy import copy
 
 import networkx as nx
-
 from faebryk.library.core import (
     GraphInterface,
     GraphInterfaceHierarchical,
@@ -523,7 +522,8 @@ def render_matrix(
             render_graph(nG, ax=ax)
 
             # ax.set_title(
-            #    f"row={j if nodes is not None else 'full'} depth={i if level is not None else 'full'}",
+            #    f"row={j if nodes is not None else 'full'}"
+            #    f"depth={i if level is not None else 'full'}",
             #    fontsize=8,
             # )
 

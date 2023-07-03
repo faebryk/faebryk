@@ -4,8 +4,6 @@
 import logging
 from abc import abstractmethod
 
-logger = logging.getLogger(__name__)
-
 from faebryk.library.core import Footprint, LinkParent
 from faebryk.library.library.interfaces import ModuleInterface
 from faebryk.library.traits.module import (
@@ -14,6 +12,8 @@ from faebryk.library.traits.module import (
     has_overriden_name,
     has_type_description,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class has_defined_type_description(has_type_description.impl()):

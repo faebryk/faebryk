@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-
-logger = logging.getLogger(__name__)
-
 import typing
 
 from faebryk.library.core import Parameter
@@ -12,6 +9,8 @@ from faebryk.library.trait_impl.parameter import (
     is_representable_by_single_value_defined,
 )
 from faebryk.libs.exceptions import FaebrykException
+
+logger = logging.getLogger(__name__)
 
 
 class Constant(Parameter):

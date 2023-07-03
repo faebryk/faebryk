@@ -4,22 +4,12 @@
 import logging
 from typing import TypeVar
 
+from faebryk.library.core import Module, ModuleInterface, NodeTrait, Parameter
 from faebryk.library.library.footprints import (
     DIP,
     can_attach_to_footprint_symmetrically,
     can_attach_via_pinmap,
 )
-from faebryk.library.trait_impl.module import (
-    can_bridge_defined,
-    has_defined_footprint,
-    has_defined_type_description,
-)
-from faebryk.library.traits.module import has_type_description
-from faebryk.libs.util import times
-
-logger = logging.getLogger(__name__)
-
-from faebryk.library.core import Module, ModuleInterface, NodeTrait, Parameter
 from faebryk.library.library.interfaces import (
     Electrical,
     ElectricLogic,
@@ -27,7 +17,16 @@ from faebryk.library.library.interfaces import (
     Logic,
 )
 from faebryk.library.library.parameters import TBD, Constant
+from faebryk.library.trait_impl.module import (
+    can_bridge_defined,
+    has_defined_footprint,
+    has_defined_type_description,
+)
+from faebryk.library.traits.module import has_type_description
 from faebryk.library.util import connect_to_all_interfaces, unit_map
+from faebryk.libs.util import times
+
+logger = logging.getLogger(__name__)
 
 
 class Resistor(Module):
@@ -161,7 +160,7 @@ class LED(Module):
     class has_calculatable_needed_series_resistance(NodeTrait):
         @staticmethod
         def get_needed_series_resistance_ohm(input_voltage_V: float) -> Constant:
-            raise NotImplemented
+            raise NotImplementedError
 
     def _setup_traits(self):
         self.add_trait(has_defined_type_description("LED"))

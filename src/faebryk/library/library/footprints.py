@@ -3,6 +3,7 @@
 
 import logging
 from abc import abstractmethod
+from enum import Enum
 
 from faebryk.library.core import Footprint, FootprintTrait, ModuleInterface, ModuleTrait
 from faebryk.library.library.interfaces import Electrical
@@ -10,8 +11,6 @@ from faebryk.library.trait_impl.module import has_defined_footprint
 from faebryk.libs.util import times
 
 logger = logging.getLogger(__name__)
-
-from enum import Enum
 
 
 # TODO move file --------------------------------------------------------------
@@ -143,15 +142,19 @@ class QFN(Footprint):
             @staticmethod
             def get_kicad_footprint() -> str:
                 # example: QFN-16-1EP_4x4mm_P0.5mm_EP2.45x2.45mm_ThermalVias
-                return "Package_DFN_QFN:QFN-{leads}-{ep}EP_{size_x}x{size_y}mm_P{pitch}mm_EP{ep_x}x{ep_y}mm{vias}".format(
-                    leads=pin_cnt,
-                    ep=exposed_thermal_pad_cnt,
-                    size_x=size_xy_mm[0],
-                    size_y=size_xy_mm[1],
-                    pitch=pitch_mm,
-                    ep_x=exposed_thermal_pad_dimensions_mm[0],
-                    ep_y=exposed_thermal_pad_dimensions_mm[1],
-                    vias="_ThermalVias" if has_thermal_vias else "",
+                return (
+                    "Package_DFN_QFN:QFN-"
+                    "{leads}-{ep}EP_{size_x}x{size_y}mm_"
+                    "P{pitch}mm_EP{ep_x}x{ep_y}mm{vias}".format(
+                        leads=pin_cnt,
+                        ep=exposed_thermal_pad_cnt,
+                        size_x=size_xy_mm[0],
+                        size_y=size_xy_mm[1],
+                        pitch=pitch_mm,
+                        ep_x=exposed_thermal_pad_dimensions_mm[0],
+                        ep_y=exposed_thermal_pad_dimensions_mm[1],
+                        vias="_ThermalVias" if has_thermal_vias else "",
+                    )
                 )
 
         self.add_trait(_has_kicad_footprint())

@@ -1,9 +1,8 @@
 # import sexp_parser
 import logging
 
-from sexpdata import SExpBase, loads
-
 from faebryk.libs.util import get_dict
+from sexpdata import SExpBase, loads
 
 logger = logging.getLogger(__name__)
 
@@ -119,9 +118,10 @@ def parse_symbol(obj):
                 elif i == "hide":
                     pin["hide"] = True
                 else:
-                    assert (
-                        False
-                    ), f"encountered unexpected token [{i}] in pin [{obj}] symbol [{symbol}]"
+                    assert False, (
+                        f"encountered unexpected token"
+                        f"[{i}] in pin [{obj}] symbol [{symbol}]"
+                    )
 
             symbol_2["pins"][key] = pin
 

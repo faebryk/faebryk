@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import networkx as nx
-
 from faebryk.library.core import Footprint, FootprintTrait, GraphInterfaceSelf, Node
 from faebryk.library.graph import Graph
 from faebryk.library.kicad import has_kicad_footprint
@@ -157,7 +156,8 @@ def make_t1_netlist_from_graph(g: Graph):
     node_fps = {
         n: n.get_trait(has_footprint).get_footprint()
         for GIF in Gclosed.nodes
-        # TODO maybe nicer to just look for footprints and get their respective components instead
+        # TODO maybe nicer to just look for footprints
+        # and get their respective components instead
         if isinstance(GIF, GraphInterfaceSelf)
         and (n := GIF.node) is not None
         and n.has_trait(has_footprint)

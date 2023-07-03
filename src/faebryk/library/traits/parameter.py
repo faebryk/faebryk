@@ -4,9 +4,9 @@
 import logging
 from abc import abstractmethod
 
-logger = logging.getLogger(__name__)
-
 from faebryk.library.core import ParameterTrait
+
+logger = logging.getLogger(__name__)
 
 
 class is_representable_by_single_value(ParameterTrait):

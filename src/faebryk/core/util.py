@@ -103,6 +103,18 @@ def zip_connect_modules(src: Iterable[Module], dst: Iterable[Module]):
             src_i.connect(dst_i)
 
 
+def zip_connect_moduleinterfaces(
+    src: Iterable[ModuleInterface], dst: Iterable[ModuleInterface]
+):
+    # TODO check names?
+    # TODO check types?
+    for src_m, dst_m in zip(src, dst):
+        for src_i, dst_i in zip(src_m.NODEs.get_all(), dst_m.NODEs.get_all()):
+            assert isinstance(src_i, ModuleInterface)
+            assert isinstance(dst_i, ModuleInterface)
+            src_i.connect(dst_i)
+
+
 T = TypeVar("T", bound=ModuleInterface)
 
 

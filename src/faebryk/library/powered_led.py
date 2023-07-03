@@ -14,6 +14,8 @@ class PoweredLED(Module):
 
         self.IFs = _IFs(self)
 
+        self.IFs.power.NODEs.hv.connect(self.NODEs.led.IFs.anode)
+
         class _NODEs(Module.NODES()):
             current_limiting_resistor = Resistor(TBD())
             led = LED()

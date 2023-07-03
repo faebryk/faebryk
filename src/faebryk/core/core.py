@@ -514,7 +514,7 @@ class ModuleInterface(Node):
         super().__init__()
         self.GIFs = ModuleInterface.GIFS()(self)
 
-    def _connect(self, other: ModuleInterface) -> ModuleInterface:
+    def __connect(self, other: ModuleInterface) -> ModuleInterface:
         from faebryk.core.util import get_connected_mifs
 
         if other is self:
@@ -546,6 +546,14 @@ class ModuleInterface(Node):
                 s._connect(d)
 
         return self
+
+    def _connect(self, other: ModuleInterface) -> ModuleInterface:
+        from faebryk.core.util import zip_connect_moduleinterfaces
+
+        if isinstance(other, type(self)):
+            zip_connect_moduleinterfaces([self], [other])
+
+        return self.__connect(other)
 
     def connect(self, other: Self) -> Self:
         # TODO consider some type of check at the end within the graph instead

@@ -57,9 +57,3 @@ class Graph:
         G.add_nodes_from(GIFs)
 
         self.G = G
-
-
-# TODO
-# - build graph while connecting components instead of afterwards
-# - rethink extending NODES/IFS/.. for intellisense
-# - repair samples & tests

@@ -4,7 +4,7 @@
 import logging
 import unittest
 
-from faebryk.library.trait_impl.component import has_overriden_name_defined
+from faebryk.library.trait_impl.module import has_overriden_name_defined
 from faebryk.libs.util import times
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def test_netlist_graph():
     from faebryk.library.core import Footprint, Node
     from faebryk.library.kicad import has_defined_kicad_ref, has_kicad_manual_footprint
     from faebryk.library.library.interfaces import Electrical
-    from faebryk.library.trait_impl.component import (
+    from faebryk.library.trait_impl.module import (
         has_defined_footprint,
         has_defined_footprint_pinmap,
         has_defined_type_description,

@@ -21,7 +21,6 @@ from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
 from faebryk.exporters.visualize.graph import render_matrix
 from faebryk.library.core import Module, Parameter
 from faebryk.library.kicad import KicadFootprint
-from faebryk.library.library.components import LED, NAND, TI_CD4011BE, Resistor, Switch
 from faebryk.library.library.footprints import (
     SMDTwoPin,
     can_attach_to_footprint,
@@ -33,8 +32,9 @@ from faebryk.library.library.interfaces import (
     ElectricPower,
     Logic,
 )
+from faebryk.library.library.modules import LED, NAND, TI_CD4011BE, Resistor, Switch
 from faebryk.library.library.parameters import TBD, Constant
-from faebryk.library.trait_impl.component import has_defined_type_description
+from faebryk.library.trait_impl.module import has_defined_type_description
 from faebryk.library.util import get_all_nodes, specialize_interface, specialize_module
 from faebryk.libs.experiments.buildutil import export_netlist
 from faebryk.libs.logging import setup_basic_logging

@@ -13,8 +13,8 @@ from faebryk.library.graph import Graph
 from faebryk.library.kicad import has_kicad_footprint
 from faebryk.library.library.interfaces import Electrical
 from faebryk.library.library.links import LinkDirect
-from faebryk.library.trait_impl.component import has_overriden_name_defined
-from faebryk.library.traits.component import (
+from faebryk.library.trait_impl.module import has_overriden_name_defined
+from faebryk.library.traits.module import (
     has_footprint,
     has_overriden_name,
     has_type_description,

@@ -19,15 +19,15 @@ from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlis
 from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
 from faebryk.library.core import Module, Parameter
 from faebryk.library.kicad import KicadFootprint
-from faebryk.library.library.components import LED, MOSFET, Resistor, Switch
 from faebryk.library.library.footprints import (
     SMDTwoPin,
     can_attach_to_footprint,
     can_attach_to_footprint_via_pinmap,
 )
 from faebryk.library.library.interfaces import Electrical, ElectricPower
+from faebryk.library.library.modules import LED, MOSFET, Resistor, Switch
 from faebryk.library.library.parameters import TBD, Constant
-from faebryk.library.trait_impl.component import has_defined_type_description
+from faebryk.library.trait_impl.module import has_defined_type_description
 from faebryk.library.util import get_all_nodes
 from faebryk.libs.experiments.buildutil import export_graph, export_netlist
 from faebryk.libs.logging import setup_basic_logging

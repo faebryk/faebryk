@@ -529,7 +529,7 @@ class ModuleInterface(Node):
         return self._connect(other)
 
     def connect_via(self, bridge: Node, other: Self):
-        from faebryk.library.traits.component import can_bridge
+        from faebryk.library.traits.module import can_bridge
 
         bridge.get_trait(can_bridge).bridge(self, other)
 

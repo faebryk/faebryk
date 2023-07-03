@@ -77,7 +77,7 @@ def get_connected_mifs(gif: GraphInterface):
 def connect_interfaces_via_chain(
     start: ModuleInterface, bridges: Iterable[Node], end: ModuleInterface
 ):
-    from faebryk.library.traits.component import can_bridge
+    from faebryk.library.traits.module import can_bridge
 
     last = start
     for bridge in bridges:

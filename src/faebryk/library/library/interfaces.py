@@ -63,14 +63,14 @@ class ElectricLogic(Logic):
         return self
 
     def pull_down(self, resistor):
-        from faebryk.library.library.components import Resistor
+        from faebryk.library.library.modules import Resistor
 
         assert isinstance(resistor, Resistor)
 
         self.NODEs.signal.connect_via(resistor, self.NODEs.reference.NODEs.lv)
 
     def pull_up(self, resistor):
-        from faebryk.library.library.components import Resistor
+        from faebryk.library.library.modules import Resistor
 
         assert isinstance(resistor, Resistor)
 

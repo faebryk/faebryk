@@ -8,7 +8,7 @@ from typing import Dict
 from faebryk.library.core import Footprint, FootprintTrait, NodeTrait
 from faebryk.library.library.footprints import can_attach_via_pinmap_pinlist
 from faebryk.library.library.interfaces import Electrical
-from faebryk.library.util import times
+from faebryk.libs.util import times
 
 
 # Footprints ------------------------------------------------------------------

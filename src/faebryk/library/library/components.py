@@ -15,6 +15,7 @@ from faebryk.library.trait_impl.component import (
     has_defined_type_description,
 )
 from faebryk.library.traits.component import has_type_description
+from faebryk.libs.util import times
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ from faebryk.library.library.interfaces import (
     Logic,
 )
 from faebryk.library.library.parameters import TBD, Constant
-from faebryk.library.util import connect_to_all_interfaces, times, unit_map
+from faebryk.library.util import connect_to_all_interfaces, unit_map
 
 
 class Resistor(Module):

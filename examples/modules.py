@@ -37,7 +37,7 @@ from faebryk.libs.logging import setup_basic_logging
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main(make_graph: bool = True):
     class Battery(Module):
         def __init__(self) -> None:
             super().__init__()
@@ -194,7 +194,8 @@ def main():
     assert netlist is not None
 
     export_netlist(netlist)
-    export_graph(G.G, show=True)
+    if make_graph:
+        export_graph(G.G, show=True)
 
 
 # Boilerplate -----------------------------------------------------------------

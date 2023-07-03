@@ -8,7 +8,7 @@ from typing import Dict
 from faebryk.library.core import Footprint, FootprintTrait, ModuleInterface, ModuleTrait
 from faebryk.library.library.interfaces import Electrical
 from faebryk.library.trait_impl.component import has_defined_footprint
-from faebryk.library.util import times
+from faebryk.libs.util import times
 
 logger = logging.getLogger(__name__)
 

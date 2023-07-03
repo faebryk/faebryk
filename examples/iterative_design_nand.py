@@ -36,14 +36,10 @@ from faebryk.library.library.interfaces import (
 )
 from faebryk.library.library.parameters import TBD, Constant
 from faebryk.library.trait_impl.component import has_defined_type_description
-from faebryk.library.util import (
-    get_all_nodes,
-    specialize_interface,
-    specialize_module,
-    times,
-)
+from faebryk.library.util import get_all_nodes, specialize_interface, specialize_module
 from faebryk.libs.experiments.buildutil import export_netlist
 from faebryk.libs.logging import setup_basic_logging
+from faebryk.libs.util import times
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +112,7 @@ class XOR_with_NANDS(XOR):
         Q.connect(q3)
 
 
-def main():
+def main(make_graph: bool = True):
     # levels
     on = Logic()
     off = Logic()
@@ -248,20 +244,18 @@ def main():
 
     export_netlist(netlist)
 
-    logger.info("Make render")
-    # render_sidebyside(G.G, depth=2).show(block=False)
-    render_matrix(
-        G.G,
-        nodes_rows=[
-            [nand_ic, led, nxor, xor, e_out],
-            # [current_limiting_resistor, led, battery, power_source],
-            # [n for n in {i.node for i in G.G.nodes} if n.has_trait(has_footprint)],
-        ],
-        depth=1,
-        show_full=False,
-        show_non_sum=False,
-    ).show()
-    # export_graph(G.G, False)
+    if make_graph:
+        logger.info("Make render")
+        render_matrix(
+            G.G,
+            nodes_rows=[
+                [nand_ic, led, nxor, xor, e_out],
+            ],
+            depth=1,
+            show_full=False,
+            show_non_sum=False,
+        ).show()
+        # export_graph(G.G, False)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-from typing import Callable, Dict, Iterable, List, TypeVar
+from typing import Iterable, List, TypeVar
 
 from faebryk.library.library.interfaces import ModuleInterface
 from faebryk.libs.util import NotNone, cast_assert
@@ -14,10 +14,6 @@ logger = logging.getLogger(__name__)
 from faebryk.library.core import GraphInterface, Module, Node
 
 T = TypeVar("T")
-
-
-def times(cnt: int, lamb: Callable[[], T]) -> List[T]:
-    return [lamb() for _ in range(cnt)]
 
 
 def unit_map(value: int, units, start=None, base=1000):
@@ -78,26 +74,9 @@ def get_connected_mifs(gif: GraphInterface):
     }
 
 
-T = TypeVar("T")
-U = TypeVar("U")
-
-
-def get_key(haystack: Dict[T, U], needle: U) -> T:
-    return find(haystack.items(), lambda x: x[1] == needle)[0]
-
-
-def find(haystack: Iterable[T], needle: Callable) -> T:
-    results = list(filter(needle, haystack))
-    if len(results) != 1:
-        raise ValueError
-    return results[0]
-
-
-# TODO maybe not needed for Interface
-IF = TypeVar("IF", GraphInterface, ModuleInterface)
-
-
-def connect_interfaces_via_chain(start: IF, bridges: Iterable[Node], end: IF):
+def connect_interfaces_via_chain(
+    start: ModuleInterface, bridges: Iterable[Node], end: ModuleInterface
+):
     from faebryk.library.traits.component import can_bridge
 
     last = start
@@ -107,13 +86,15 @@ def connect_interfaces_via_chain(start: IF, bridges: Iterable[Node], end: IF):
     last.connect(end)
 
 
-def connect_all_interfaces(interfaces: List[IF]):
+def connect_all_interfaces(interfaces: List[ModuleInterface]):
     for i in interfaces:
         for j in interfaces:
             i.connect(j)
 
 
-def connect_to_all_interfaces(source: IF, targets: Iterable[IF]):
+def connect_to_all_interfaces(
+    source: ModuleInterface, targets: Iterable[ModuleInterface]
+):
     for i in targets:
         source.connect(i)
 

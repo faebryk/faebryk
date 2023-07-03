@@ -4,7 +4,7 @@
 
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Generic, Iterable, Iterator, List, Type, TypeVar
+from typing import Any, Callable, Generic, Iterable, Iterator, List, Type, TypeVar
 
 
 class lazy:
@@ -61,6 +61,21 @@ def flatten(obj: Iterable, depth=1) -> List:
     if not isinstance(obj, Iterable):
         return [obj]
     return [nested for top in obj for nested in flatten(top, depth=depth - 1)]
+
+
+T = TypeVar("T")
+U = TypeVar("U")
+
+
+def get_key(haystack: dict[T, U], needle: U) -> T:
+    return find(haystack.items(), lambda x: x[1] == needle)[0]
+
+
+def find(haystack: Iterable[T], needle: Callable) -> T:
+    results = list(filter(needle, haystack))
+    if len(results) != 1:
+        raise ValueError
+    return results[0]
 
 
 def groupby(it, key):
@@ -201,3 +216,7 @@ T = TypeVar("T")
 def cast_assert(t: type[T], obj) -> T:
     assert isinstance(obj, t)
     return obj
+
+
+def times(cnt: int, lamb: Callable[[], T]) -> List[T]:
+    return [lamb() for _ in range(cnt)]

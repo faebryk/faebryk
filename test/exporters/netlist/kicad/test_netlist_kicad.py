@@ -5,7 +5,7 @@ import logging
 import unittest
 
 from faebryk.library.trait_impl.component import has_overriden_name_defined
-from faebryk.library.util import times
+from faebryk.libs.util import times
 
 logger = logging.getLogger(__name__)
 

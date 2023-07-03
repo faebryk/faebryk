@@ -8,7 +8,7 @@ from faebryk.library.trait_impl.component import (
     has_defined_type_description,
 )
 
-logger = logging.getLogger("MOSFET")
+logger = logging.getLogger(__name__)
 
 
 class MOSFET(Component):

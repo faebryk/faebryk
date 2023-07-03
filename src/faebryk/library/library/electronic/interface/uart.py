@@ -3,7 +3,7 @@ import logging
 from faebryk.library.core import Interface
 from faebryk.library.library.interfaces import Electrical
 
-logger = logging.getLogger("UART")
+logger = logging.getLogger(__name__)
 
 
 class UART_SIMPLE(Interface):

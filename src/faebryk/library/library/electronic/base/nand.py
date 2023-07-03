@@ -7,7 +7,7 @@ from faebryk.library.traits.interface import contructable_from_interface_list
 from faebryk.library.util import times
 from faebryk.libs.util import consume_iterator
 
-logger = logging.getLogger("NAND")
+logger = logging.getLogger(__name__)
 
 
 class NAND(Component):

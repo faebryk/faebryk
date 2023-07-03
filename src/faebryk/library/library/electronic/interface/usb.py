@@ -6,7 +6,7 @@ from faebryk.library.library.electronic.interface.differential_pair import (
 )
 from faebryk.library.library.interfaces import Electrical
 
-logger = logging.getLogger("USB")
+logger = logging.getLogger(__name__)
 
 
 class USB2_0(Interface):

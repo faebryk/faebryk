@@ -8,7 +8,7 @@ from faebryk.library.trait_impl.component import (
 )
 from faebryk.library.util import times
 
-logger = logging.getLogger("Switch")
+logger = logging.getLogger(__name__)
 
 
 class Switch(Component):

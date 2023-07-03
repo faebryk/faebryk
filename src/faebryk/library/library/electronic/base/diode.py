@@ -8,7 +8,7 @@ from faebryk.library.trait_impl.component import (
     has_defined_type_description,
 )
 
-logger = logging.getLogger("DIODE")
+logger = logging.getLogger(__name__)
 
 
 class DIODE(Component):

@@ -11,7 +11,7 @@ from faebryk.library.trait_impl.component import (
 from faebryk.library.traits.component import has_type_description
 from faebryk.library.util import times, unit_map
 
-logger = logging.getLogger("Resistor")
+logger = logging.getLogger(__name__)
 
 
 class Resistor(Component):

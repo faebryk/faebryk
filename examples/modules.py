@@ -82,7 +82,7 @@ def main():
                 output_control = Electrical()
 
             class _NODES(Module.NODES()):
-                switch = Switch()
+                switch = Switch(Electrical)()
                 pull_down_resistor = Resistor(TBD())
 
             self.IFs = _IFS(self)
@@ -162,7 +162,7 @@ def main():
                 SMDTwoPin(SMDTwoPin.Type._0805)
             )
 
-        if isinstance(node, Switch):
+        if isinstance(node, Switch(Electrical)):
             node.get_trait(can_attach_to_footprint).attach(
                 KicadFootprint.with_simple_names("Panasonic_EVQPUJ_EVQPUA", 2)
             )

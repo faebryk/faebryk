@@ -6,9 +6,9 @@ This file contains a faebryk sample.
 Faebryk samples demonstrate the usage by building example systems.
 This particular sample creates a netlist with some resistors and a nand ic 
     with no specific further purpose or function.
+It shall primarily demonstrate some simple faebryk concepts.
 Thus this is a netlist sample.
 Netlist samples can be run directly.
-The netlist is printed to stdout.
 """
 import logging
 

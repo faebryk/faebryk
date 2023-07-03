@@ -10,7 +10,6 @@ The goal of this sample is to show how faebryk can be used to iteratively
     expand the specifics of a design in multiple steps.
 Thus this is a netlist sample.
 Netlist samples can be run directly.
-The netlist is printed to stdout.
 """
 import logging
 

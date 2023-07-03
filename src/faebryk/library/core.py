@@ -586,17 +586,3 @@ class Footprint(Module):
 
 
 # -----------------------------------------------------------------------------
-
-
-# TODO test
-def holder(trait_type: Type[Trait], obj):
-    class _holder(trait_type.impl()):
-        ...
-
-        def get(self):
-            return obj
-
-    for m in getattr(trait_type, "__abstractmethods__"):
-        setattr(holder, m, holder.get)
-
-    return _holder

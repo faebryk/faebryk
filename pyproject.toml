@@ -25,6 +25,7 @@ dependencies = [
     "black",
     "click",
     "typing-extensions",
+    "rich"
 ]
 
 [project.urls]

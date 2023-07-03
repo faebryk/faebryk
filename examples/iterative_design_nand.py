@@ -43,6 +43,7 @@ from faebryk.library.util import (
     times,
 )
 from faebryk.libs.experiments.buildutil import export_netlist
+from faebryk.libs.logging import setup_basic_logging
 
 logger = logging.getLogger(__name__)
 
@@ -237,12 +238,17 @@ def main():
     app.NODEs.nand_ic = nand_ic
 
     # export
+    logger.info("Make graph")
     G = app.get_graph()
 
+    logger.info("Make netlist")
     t1 = make_t1_netlist_from_graph(G)
     t2 = make_t2_netlist_from_t1(t1)
     netlist = from_faebryk_t2_netlist(t2)
 
+    export_netlist(netlist)
+
+    logger.info("Make render")
     # render_sidebyside(G.G, depth=2).show(block=False)
     render_matrix(
         G.G,
@@ -256,11 +262,10 @@ def main():
         show_non_sum=False,
     ).show()
     # export_graph(G.G, False)
-    export_netlist(netlist)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    setup_basic_logging()
     logger.info("Running experiment")
 
     typer.run(main)

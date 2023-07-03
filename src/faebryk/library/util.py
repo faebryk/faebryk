@@ -100,11 +100,11 @@ IF = TypeVar("IF", GraphInterface, ModuleInterface)
 def connect_interfaces_via_chain(start: IF, bridges: Iterable[Node], end: IF):
     from faebryk.library.traits.component import can_bridge
 
-    end = start
+    last = start
     for bridge in bridges:
-        end.connect(bridge.get_trait(can_bridge).get_in())
-        end = bridge.get_trait(can_bridge).get_out()
-    end.connect(end)
+        last.connect(bridge.get_trait(can_bridge).get_in())
+        last = bridge.get_trait(can_bridge).get_out()
+    last.connect(end)
 
 
 def connect_all_interfaces(interfaces: List[IF]):
@@ -133,12 +133,13 @@ def specialize_interface(
     general: ModuleInterface,
     special: T,
 ) -> T:
+    logger.debug(f"Specializing MIF {general} with {special}")
+
+    # This is doing the heavy lifting
+    general.connect(special)
+
     # Establish sibling relationship
     general.GIFs.sibling.connect(special.GIFs.sibling)
-
-    # Connect already connected interfaces
-    for x in get_connected_mifs(general.GIFs.connected):
-        x._connect(special)
 
     return special
 
@@ -151,6 +152,8 @@ def specialize_module(
     special: T,
     matrix: list[tuple[ModuleInterface, ModuleInterface]] | None = None,
 ) -> T:
+    logger.debug(f"Specializing Module {general} with {special}" + " " + "=" * 20)
+
     if matrix is None:
 
         def _get_with_names(module: Module) -> dict[str, ModuleInterface]:
@@ -171,11 +174,7 @@ def specialize_module(
         assert src in general.IFs.get_all()
         assert dst in special.IFs.get_all()
 
-        if not type(dst) is type(src):
-            specialize_interface(src, dst)
-            continue
-
-        src.connect(dst)
+        specialize_interface(src, dst)
 
     for t in general.traits:
         # TODO needed?
@@ -184,5 +183,6 @@ def specialize_module(
         special.add_trait(t)
 
     general.GIFs.sibling.connect(special.GIFs.sibling)
+    logger.debug("=" * 120)
 
     return special

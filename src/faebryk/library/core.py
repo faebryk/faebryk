@@ -226,6 +226,15 @@ class Link(FaebrykLibObject):
     def get_connections(self) -> List[GraphInterface]:
         raise NotImplementedError
 
+    def __eq__(self, __value: Link) -> bool:
+        return set(self.get_connections()) == set(__value.get_connections())
+
+    def __hash__(self) -> int:
+        return super().__hash__()
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}([{', '.join(str(i) for i in self.get_connections())}])"
+
 
 class LinkSibling(Link):
     def __init__(self, interfaces: List[GraphInterface]) -> None:
@@ -296,6 +305,11 @@ class GraphInterface(FaebrykLibObject):
         assert link not in other.connections
         self.connections.append(link)
         other.connections.append(link)
+        try:
+            logger.debug(f"GIF connection: {link}")
+        # TODO
+        except:
+            ...
 
         return self
 
@@ -303,7 +317,7 @@ class GraphInterface(FaebrykLibObject):
         return f"{self.node.get_full_name()}.{self.name}"
 
     def __str__(self) -> str:
-        return self.get_full_name()
+        return f"{str(self.node)}.{self.name}"
 
     def __repr__(self) -> str:
         return (
@@ -427,12 +441,23 @@ class Node(FaebrykLibObject):
     def get_hierarchy(self) -> List[Tuple[Node, str]]:
         parent = self.get_parent()
         if not parent:
-            return []
+            return [(self, "*")]
+        parent_obj, name = parent
 
-        return parent[0].get_hierarchy() + [parent]
+        return parent_obj.get_hierarchy() + [(self, name)]
 
-    def get_full_name(self):
-        return ".".join([name for _, name in self.get_hierarchy()])
+    def get_full_name(self, types: bool = False):
+        hierarchy = self.get_hierarchy()
+        if types:
+            return ".".join([f"{name}|{type(obj).__name__}" for obj, name in hierarchy])
+        else:
+            return ".".join([f"{name}" for _, name in hierarchy])
+
+    def __str__(self) -> str:
+        return f"<{self.get_full_name(types=True)}>"
+
+    def __repr__(self) -> str:
+        return f"{str(self)}(@{hex(id(self))})"
 
 
 class Parameter(FaebrykLibObject):
@@ -468,17 +493,33 @@ class ModuleInterface(Node):
     def _connect(self, other: ModuleInterface) -> ModuleInterface:
         from faebryk.library.util import get_connected_mifs
 
+        if other is self:
+            return self
+
         # Already connected
         if other in get_connected_mifs(self.GIFs.connected):
             return self
 
-        # Connect to all siblings
-        for s in get_connected_mifs(self.GIFs.sibling):
-            for d in get_connected_mifs(other.GIFs.sibling):
-                s._connect(d)
+        logger.debug(f"MIF connection: {self} to {other}")
 
         # Connect graph IF
         self.GIFs.connected.connect(other.GIFs.connected)
+
+        # Connect to all siblings
+        s_sib = get_connected_mifs(self.GIFs.sibling) | {self}
+        d_sib = get_connected_mifs(other.GIFs.sibling) | {other}
+        logger.debug(f"Connect siblings {s_sib} -> {d_sib}")
+        for s in s_sib:
+            for d in d_sib:
+                s._connect(d)
+
+        # Connect to all connections
+        s_con = get_connected_mifs(self.GIFs.connected) | {self}
+        d_con = get_connected_mifs(other.GIFs.connected) | {other}
+        logger.debug(f"Connect cons {s_con} -> {d_con}")
+        for s in s_con:
+            for d in d_con:
+                s._connect(d)
 
         return self
 

@@ -32,6 +32,7 @@ from faebryk.library.library.parameters import TBD, Constant
 from faebryk.library.trait_impl.component import has_defined_type_description
 from faebryk.library.util import get_all_nodes
 from faebryk.libs.experiments.buildutil import export_graph, export_netlist
+from faebryk.libs.logging import setup_basic_logging
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +199,7 @@ def main():
 
 # Boilerplate -----------------------------------------------------------------
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    setup_basic_logging()
     logger.info("Running experiment")
 
     typer.run(main)

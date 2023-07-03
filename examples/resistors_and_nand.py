@@ -20,16 +20,24 @@ from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
 
 # library imports
 from faebryk.library.core import Module
-from faebryk.library.library.components import Resistor
-from faebryk.library.library.footprints import SMDTwoPin, can_attach_to_footprint
-from faebryk.library.library.interfaces import Electrical, ElectricPower
+from faebryk.library.kicad import KicadFootprint
+from faebryk.library.library.components import TI_CD4011BE, Resistor
+from faebryk.library.library.footprints import (
+    SMDTwoPin,
+    can_attach_to_footprint,
+    can_attach_to_footprint_via_pinmap,
+)
+from faebryk.library.library.interfaces import Electrical, ElectricLogic, ElectricPower
 from faebryk.library.library.parameters import Constant
+from faebryk.library.trait_impl.component import has_defined_type_description
+from faebryk.library.util import connect_interfaces_via_chain
 from faebryk.libs.experiments.buildutil import export_graph, export_netlist
+from faebryk.libs.logging import setup_basic_logging
 
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main(make_graph: bool = True, show_graph: bool = True):
     # power
     class Battery(Module):
         class _IFS(Module.IFS()):
@@ -39,34 +47,44 @@ def main():
             super().__init__()
             self.IFs = Battery._IFS(self)
 
+            self.add_trait(
+                can_attach_to_footprint_via_pinmap(
+                    {"1": self.IFs.power.NODEs.hv, "2": self.IFs.power.NODEs.lv}
+                )
+            ).attach(
+                KicadFootprint.with_simple_names(
+                    "BatteryHolder_ComfortableElectronic_CH273-2450_1x2450", 2
+                )
+            )
+            self.add_trait(has_defined_type_description("B"))
+
     battery = Battery()
 
     # functional components
     resistor1 = Resistor(Constant(100))
     resistor2 = Resistor(Constant(100))
-    # cd4011 = TI_CD4011BE()
+    cd4011 = TI_CD4011BE()
 
     # aliases
+    power = ElectricPower()
     vcc = Electrical()
     gnd = Electrical()
-    high = vcc
-    low = gnd
+    high = ElectricLogic()
+    low = ElectricLogic()
+
+    power.connect(battery.IFs.power)
+    power.NODEs.hv.connect(vcc)
+    power.NODEs.lv.connect(gnd)
+
+    high.connect_to_electric(vcc, power)
+    low.connect_to_electric(gnd, power)
 
     # connections
-    r1it = iter(resistor1.IFs.get_all())
-    r2it = iter(resistor2.IFs.get_all())
-    for it in [
-        r1it,
-        r2it,
-    ]:
-        next(it).connect(vcc)
-        next(it).connect(gnd)
-    # cd4011.NODEs.nands[0].IFs.inputs[0].connect(high)
-    # cd4011.NODEs.nands[0].IFs.inputs[1].connect(low)
-    # cd4011.IFs.power.connect(battery.IFs.power)
+    connect_interfaces_via_chain(vcc, [resistor1, resistor2], gnd)
 
-    vcc.connect(battery.IFs.power.NODEs.hv)
-    gnd.connect(battery.IFs.power.NODEs.lv)
+    cd4011.NODEs.nands[0].IFs.inputs[0].connect(high)
+    cd4011.NODEs.nands[0].IFs.inputs[1].connect(low)
+    cd4011.IFs.power.connect(battery.IFs.power)
 
     # make netlist exportable (packages, pinmaps)
     for r in [
@@ -81,7 +99,7 @@ def main():
         battery,
         resistor1,
         resistor2,
-        # cd4011,
+        cd4011,
     ]
     G = app.get_graph()
 
@@ -89,12 +107,13 @@ def main():
     t2 = make_t2_netlist_from_t1(t1)
     netlist = from_faebryk_t2_netlist(t2)
 
-    export_graph(G.G, True)
+    if make_graph:
+        export_graph(G.G, show_graph)
     export_netlist(netlist)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    setup_basic_logging()
     logger.info("Running experiment")
 
     typer.run(main)

@@ -4,7 +4,21 @@
 import logging
 import unittest
 
-from faebryk.library.trait_impl.module import has_overriden_name_defined
+from faebryk.core.core import Module
+from faebryk.core.graph import Graph
+from faebryk.exporters.netlist.graph import make_t1_netlist_from_graph
+from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
+from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
+from faebryk.library.can_attach_to_footprint_symmetrically import (
+    can_attach_to_footprint_symmetrically,
+)
+from faebryk.library.Electrical import Electrical
+from faebryk.library.has_defined_kicad_ref import has_defined_kicad_ref
+from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.has_kicad_footprint_equal_ifs_defined import (
+    has_kicad_footprint_equal_ifs_defined,
+)
+from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
 from faebryk.libs.util import times
 
 logger = logging.getLogger(__name__)
@@ -12,26 +26,13 @@ logger = logging.getLogger(__name__)
 
 # Netlists --------------------------------------------------------------------
 def test_netlist_graph():
-    from faebryk.core.core import Footprint, Node
-    from faebryk.exporters.netlist.graph import (
-        make_graph_from_components,
-        make_t1_netlist_from_graph,
-    )
-    from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
-    from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
-    from faebryk.library.kicad import has_defined_kicad_ref, has_kicad_manual_footprint
-    from faebryk.library.library.interfaces import Electrical
-    from faebryk.library.trait_impl.module import (
-        has_defined_footprint,
-        has_defined_footprint_pinmap,
-        has_defined_type_description,
-    )
+    from faebryk.core.core import Footprint
 
     # component definition
     gnd = Electrical()
     vcc = Electrical()
-    resistor1 = Node()
-    resistor2 = Node()
+    resistor1 = Module()
+    resistor2 = Module()
 
     # name
     resistor1.add_trait(has_defined_kicad_ref("R1"))
@@ -39,7 +40,7 @@ def test_netlist_graph():
     resistor1.add_trait(has_overriden_name_defined("R1"))
     resistor2.add_trait(has_overriden_name_defined("R2"))
 
-    class _RIFs(Node.GraphInterfacesCls()):
+    class _RIFs(Module.IFS()):
         unnamed = times(2, Electrical)
 
     for r in [resistor1, resistor2]:
@@ -49,17 +50,10 @@ def test_netlist_graph():
         r.IFs = _RIFs(r)
         # footprint
         fp = Footprint()
-        fp.add_trait(has_kicad_manual_footprint("Resistor_SMD:R_0805_2012Metric"))
-        r.add_trait(has_defined_footprint(fp))
-        # pinmap
-        r.add_trait(
-            has_defined_footprint_pinmap(
-                {
-                    1: r.IFs.unnamed[0],
-                    2: r.IFs.unnamed[1],
-                }
-            )
+        fp.add_trait(
+            has_kicad_footprint_equal_ifs_defined("Resistor_SMD:R_0805_2012Metric")
         )
+        r.add_trait(can_attach_to_footprint_symmetrically()).attach(fp)
 
     assert isinstance(resistor1.IFs, _RIFs)
     assert isinstance(resistor2.IFs, _RIFs)
@@ -71,11 +65,11 @@ def test_netlist_graph():
     # net naming
     net_wrappers = []
     for i in [gnd, vcc]:
-        wrap = Node()
+        wrap = Module()
         wrap.IFs.to_wrap = i
         wrap.add_trait(has_defined_kicad_ref("+3V3" if i == vcc else "GND"))
         wrap.add_trait(has_overriden_name_defined("+3V3" if i == vcc else "GND"))
-        wrap.add_trait(has_defined_footprint_pinmap({1: i}))
+        wrap.add_trait(can_attach_to_footprint_symmetrically())
         net_wrappers.append(wrap)
 
     # Make netlist
@@ -85,9 +79,7 @@ def test_netlist_graph():
         *net_wrappers,
     ]
     netlist = from_faebryk_t2_netlist(
-        make_t2_netlist_from_t1(
-            make_t1_netlist_from_graph(make_graph_from_components(comps))
-        )
+        make_t2_netlist_from_t1(make_t1_netlist_from_graph(Graph(comps)))
     )
 
     _, netlist_t1 = test_netlist_t1()

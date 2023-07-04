@@ -14,4 +14,4 @@ class UART_Base(ModuleInterface):
             tx = Electrical()
             gnd = Electrical()
 
-        self.NODEs = UART_Base.NODES(self)
+        self.NODEs = NODES(self)

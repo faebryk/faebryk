@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 from enum import Enum
 
 from faebryk.core.core import Footprint

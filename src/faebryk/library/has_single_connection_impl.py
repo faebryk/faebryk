@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 from faebryk.library.has_single_connection import has_single_connection
 
 

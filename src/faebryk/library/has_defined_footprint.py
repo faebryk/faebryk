@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 from faebryk.core.core import Footprint
 from faebryk.library.has_footprint_impl import has_footprint_impl
 

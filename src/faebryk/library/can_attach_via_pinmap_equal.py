@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 from faebryk.library.can_attach_via_pinmap import can_attach_via_pinmap
 from faebryk.library.Electrical import Electrical
 from faebryk.library.has_equal_pins import has_equal_pins

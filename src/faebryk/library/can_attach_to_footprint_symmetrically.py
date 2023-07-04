@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 from faebryk.core.core import Footprint, ModuleInterface
 from faebryk.library.can_attach_to_footprint import can_attach_to_footprint
 from faebryk.library.has_defined_footprint import has_defined_footprint

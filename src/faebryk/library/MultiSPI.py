@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 from faebryk.core.core import ModuleInterface
 from faebryk.library.Electrical import Electrical
 from faebryk.libs.util import times

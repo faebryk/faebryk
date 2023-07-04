@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 from typing import TypeVar
 
 from faebryk.core.core import Module, ModuleInterface

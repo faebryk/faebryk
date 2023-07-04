@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 import typing
 
 from faebryk.library.is_representable_by_single_value import (

@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 from faebryk.core.core import Module, Parameter
 from faebryk.core.util import unit_map
 from faebryk.library.can_bridge_defined import can_bridge_defined

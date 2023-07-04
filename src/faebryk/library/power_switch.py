@@ -1,6 +1,6 @@
 from faebryk.core.core import Module
 from faebryk.library.can_bridge_defined import can_bridge_defined
-from faebryk.library.Electrical import Electrical
+from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.MOSFET import MOSFET
 from faebryk.library.Resistor import Resistor
@@ -15,8 +15,7 @@ class PowerSwitch(Module):
         self.normally_closed = normally_closed
 
         class _IFs(Module.IFS()):
-            # TODO replace with logical
-            logic_in = Electrical()
+            logic_in = ElectricLogic()
             power_in = ElectricPower()
             switched_power_out = ElectricPower()
 
@@ -35,15 +34,13 @@ class PowerSwitch(Module):
         self.NODEs = _NODEs(self)
 
         # pull gate
-        self.NODEs.mosfet.IFs.gate.connect_via(
-            self.NODEs.pull_resistor,
-            self.IFs.power_in.NODEs.lv
-            if lowside and not normally_closed
-            else self.IFs.power_in.NODEs.hv,
-        )
+        if lowside and not normally_closed:
+            self.IFs.logic_in.pull_down(self.NODEs.pull_resistor)
+        else:
+            self.IFs.logic_in.pull_up(self.NODEs.pull_resistor)
 
         # connect gate to logic
-        self.IFs.logic_in.connect(self.NODEs.mosfet.IFs.gate)
+        self.IFs.logic_in.NODEs.signal.connect(self.NODEs.mosfet.IFs.gate)
 
         # passthrough non-switched side, bridge switched side
         if lowside:
@@ -62,3 +59,6 @@ class PowerSwitch(Module):
         self.add_trait(
             can_bridge_defined(self.IFs.power_in, self.IFs.switched_power_out)
         )
+
+        # TODO do more with logic
+        #   e.g check reference being same as power

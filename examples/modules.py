@@ -197,6 +197,9 @@ def main(make_graph: bool = True):
     netlist = from_faebryk_t2_netlist(t2)
     assert netlist is not None
 
+    # from pretty import pretty
+    # logger.info("Experiment components")
+    # logger.info("\n" + "\n".join(pretty(c) for c in components))
     export_netlist(netlist)
     if make_graph:
         export_graph(G.G, show=True)

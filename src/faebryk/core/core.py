@@ -34,6 +34,8 @@ class TraitImpl(Generic[U], ABC):
     trait: Type[Trait[U]]
 
     def __init__(self) -> None:
+        super().__init__()
+
         self._obj: U | None = None
 
         found = False

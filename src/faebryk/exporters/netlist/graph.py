@@ -16,6 +16,7 @@ from faebryk.core.core import (
 )
 from faebryk.core.graph import Graph
 from faebryk.library.Electrical import Electrical
+from faebryk.library.has_descriptive_properties import has_descriptive_properties
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
@@ -86,11 +87,12 @@ class can_represent_kicad_footprint_via_attached_component(
         properties = {
             "footprint": fp.get_trait(has_kicad_footprint).get_kicad_footprint()
         }
-        # TODO backport
-        # if c.has_trait(has_descriptive_properties):
-        #    self.properties.update(
-        #        c.get_trait(has_descriptive_properties).get_properties()
-        #    )
+
+        for c in [fp, self.component]:
+            if c.has_trait(has_descriptive_properties):
+                properties.update(
+                    c.get_trait(has_descriptive_properties).get_properties()
+                )
 
         name, value = self.get_name_and_value()
 

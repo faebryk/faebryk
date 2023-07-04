@@ -241,6 +241,9 @@ def main(make_graph: bool = True):
     t2 = make_t2_netlist_from_t1(t1)
     netlist = from_faebryk_t2_netlist(t2)
 
+    # from pretty import pretty
+    # logger.info("Experiment components")
+    # logger.info("\n" + "\n".join(pretty(c) for c in components))
     export_netlist(netlist)
 
     if make_graph:

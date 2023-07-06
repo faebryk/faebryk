@@ -110,6 +110,12 @@ class Footprint(Node):
     def name(self) -> str:
         return self.node[1]
 
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}({self.name}, {self.reference.text},"
+            f" {self.value.text})"
+        )
+
 
 class Pad(Node):
     @property

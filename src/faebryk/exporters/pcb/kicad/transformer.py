@@ -1,6 +1,7 @@
 import itertools
 import logging
 import math
+import pprint
 import random
 from operator import add
 from typing import Any, TypeVar, cast
@@ -77,6 +78,13 @@ class PCB_Transformer:
             fp = footprints[(fp_ref, fp_name)]
 
             node.add_trait(self.has_linked_kicad_footprint_defined(fp))
+
+        attached = {
+            gif.node: gif.node.get_trait(self.has_linked_kicad_footprint).get_fp()
+            for gif in self.graph.G.nodes
+            if gif.node.has_trait(self.has_linked_kicad_footprint)
+        }
+        logger.debug(f"Attached: {pprint.pformat(attached)}")
 
     def set_dimensions(self, width_mm: float, height_mm: float):
         for line_node in self.pcb.get_prop("gr_line"):
@@ -313,6 +321,16 @@ class PCB_Transformer:
     # Geometry ----------------------------------------------------------------
     class Geometry:
         Point = tuple[float, float]
+
+        @staticmethod
+        def mirror(axis: tuple[float | None, float | None], structure: list[Point]):
+            return [
+                (
+                    2 * axis[0] - x if axis[0] is not None else x,
+                    2 * axis[1] - y if axis[1] is not None else y,
+                )
+                for (x, y) in structure
+            ]
 
         @staticmethod
         def abs_pos(parent: At.Coord, child: At.Coord) -> At.Coord:

@@ -220,3 +220,11 @@ def cast_assert(t: type[T], obj) -> T:
 
 def times(cnt: int, lamb: Callable[[], T]) -> list[T]:
     return [lamb() for _ in range(cnt)]
+
+
+def rotate(x: list[T]) -> list[T]:
+    return x[1:] + [x[0]]
+
+
+def zip_rotate(x: list[T]) -> Iterable[tuple[T, T]]:
+    return zip(x, rotate(x))

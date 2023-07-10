@@ -1,3 +1,6 @@
+# This file is part of the faebryk project
+# SPDX-License-Identifier: MIT
+
 import itertools
 import logging
 import math

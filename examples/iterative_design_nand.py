@@ -16,9 +16,9 @@ import logging
 import typer
 from faebryk.core.core import Module, Parameter
 from faebryk.core.util import get_all_nodes, specialize_interface, specialize_module
-from faebryk.exporters.netlist.graph import make_t1_netlist_from_graph
+from faebryk.exporters.netlist.graph import attach_nets_and_kicad_info
 from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
-from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
+from faebryk.exporters.netlist.netlist import make_t2_netlist_from_graph
 from faebryk.exporters.visualize.graph import render_matrix
 from faebryk.library.can_attach_to_footprint import can_attach_to_footprint
 from faebryk.library.can_attach_to_footprint_via_pinmap import (
@@ -237,8 +237,8 @@ def main(make_graph: bool = True):
     G = app.get_graph()
 
     logger.info("Make netlist")
-    t1 = make_t1_netlist_from_graph(G)
-    t2 = make_t2_netlist_from_t1(t1)
+    attach_nets_and_kicad_info(G)
+    t2 = make_t2_netlist_from_graph(G)
     netlist = from_faebryk_t2_netlist(t2)
 
     # from pretty import pretty

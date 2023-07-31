@@ -264,11 +264,16 @@ def _defaulted_comp(ref, value, footprint, tstamp, fields, properties):
 
 
 # Test stuff ------------------------------------------------------------------
-def from_faebryk_t2_netlist(netlist, extra_comps=None):
+def from_faebryk_t2_netlist(t2_netlist):
     tstamp = itertools.count(1)
     net_code = itertools.count(1)
 
-    # t2_netlist = [(properties, vertices=[comp=(name, value, properties), pin)])]
+    netlist = t2_netlist["nets"]
+    pre_comps = t2_netlist["comps"]
+
+    # t2_netlist = {"nets":
+    #       [(properties, vertices=[comp=(name, value, properties), pin)])],
+    #   "comps": [comp]}
 
     # kicad_netlist = {
     #   comps:  [(ref, value, fp, tstamp)],
@@ -282,33 +287,16 @@ def from_faebryk_t2_netlist(netlist, extra_comps=None):
     #   - net_code can be generated (ascending, continuous)
     #   - components unique
 
-    def kicad_fp(fp):
-        # TODO implement
-        # This needs to translate a faebryk footprint to a kicad footprint
-        return fp
-
     def gen_net_name(net):
         import random
 
         return hex(random.randrange(1 << 31))
 
-    def unique(non_unique):
-        out_unique = []
-        for x in non_unique:
-            if x not in out_unique:
-                out_unique.append(x)
-        return out_unique
-
-    pre_comps = unique(
-        [vertex.component for net in netlist for vertex in net.vertices]
-        + (extra_comps or [])
-    )
-
     comps = [
         _defaulted_comp(
             ref=comp.name,
             value=comp.value,
-            footprint=kicad_fp(comp.properties["footprint"]),
+            footprint=comp.properties["footprint"],
             properties={k: v for k, v in comp.properties.items() if k != "footprint"},
             tstamp=next(tstamp),
             fields=list(comp.properties.get("fields", [])),

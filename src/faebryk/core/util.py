@@ -3,10 +3,18 @@
 
 import logging
 import math
-from typing import Iterable, TypeVar
+from typing import Callable, Iterable, TypeVar
+
+import networkx as nx
 
 # TODO this file should not exist
-from faebryk.core.core import GraphInterface, Module, ModuleInterface, Node
+from faebryk.core.core import (
+    GraphInterface,
+    GraphInterfaceSelf,
+    Module,
+    ModuleInterface,
+    Node,
+)
 from faebryk.libs.util import NotNone, cast_assert
 
 logger = logging.getLogger(__name__)
@@ -54,6 +62,14 @@ def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     return out
 
 
+def get_all_nodes_graph(G: nx.Graph):
+    return {
+        n
+        for gif in G.nodes
+        if isinstance(gif, GraphInterfaceSelf) and (n := gif.node) is not None
+    }
+
+
 def get_all_connected(gif: GraphInterface) -> list[GraphInterface]:
     return [
         other
@@ -70,6 +86,17 @@ def get_connected_mifs(gif: GraphInterface):
         for s in get_all_connected(gif)
         if s.node is not gif.node
     }
+
+
+def get_parent(node: Node, filter_expr: Callable):
+    candidates = [p for p, _ in node.get_hierarchy() if filter_expr(p)]
+    if not candidates:
+        return None
+    return candidates[-1]
+
+
+def get_parent_of_type(node: Node, parent_type: type):
+    return get_parent(node, lambda p: isinstance(p, parent_type))
 
 
 def connect_interfaces_via_chain(

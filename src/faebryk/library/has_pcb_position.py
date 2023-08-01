@@ -13,7 +13,7 @@ class has_pcb_position(ModuleTrait):
         TOP_LAYER = 2
         BOTTOM_LAYER = 3
 
-    Point = tuple[float, float]
+    Point = tuple[float, float, float]
 
     @abstractmethod
     def get_position(self) -> Point:

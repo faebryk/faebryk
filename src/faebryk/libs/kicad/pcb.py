@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from pathlib import Path
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Generic, List, Tuple, TypeVar
 
 import sexpdata
 from sexpdata import Symbol
@@ -43,6 +43,15 @@ class Node:
         self.node.clear()
         self.node.append(None)
 
+    def __repr__(self) -> str:
+        return repr(self.node)
+
+    def __hash__(self) -> int:
+        return hash(str(self))
+
+    def __eq__(self, __value: object) -> bool:
+        return str(self) == str(__value)
+
 
 class PCB(Node):
     @property
@@ -58,8 +67,16 @@ class PCB(Node):
         return [GR_Text.from_node(n) for n in self.get_prop("gr_text")]
 
     @property
-    def segments(self) -> List["Node"]:
-        return [Node.from_node(n) for n in self.get_prop("segment")]
+    def segments(self) -> List["Segment"]:
+        return [Segment.from_node(n) for n in self.get_prop("segment")]
+
+    @property
+    def nets(self) -> List["Net"]:
+        return [Net.from_node(n) for n in self.get_prop("net")]
+
+    @property
+    def layer_names(self) -> List["str"]:
+        return [n[1] for n in self.get_prop("layers")[0].node[1:]]
 
     @classmethod
     def load(cls, path: Path):
@@ -76,8 +93,13 @@ class PCB(Node):
         pcbsexpout = sexpdata.dumps(cleaned)
         return path.write_text(pcbsexpout)
 
+    def __repr__(self):
+        return object.__repr__(self)
+
 
 class Footprint(Node):
+    Coord = Tuple[float, float, float]
+
     @property
     def reference(self) -> "FP_Text":
         return FP_Text.from_node(
@@ -99,12 +121,16 @@ class Footprint(Node):
             )
         )
 
+    @property
+    def pads(self) -> List["Pad"]:
+        return [Pad.from_node(n) for n in self.get_prop("pad")]
+
     def get_pad(self, name: str) -> "Pad":
         return Pad.from_node(self.get([lambda x: x[:2] == [Symbol("pad"), name]])[0])
 
     @property
     def at(self):
-        return At.from_node(self.get_prop("at")[0])
+        return At[Footprint.Coord].from_node(self.get_prop("at")[0])
 
     @property
     def name(self) -> str:
@@ -118,9 +144,15 @@ class Footprint(Node):
 
 
 class Pad(Node):
+    Coord = tuple[float, float]
+
     @property
     def at(self):
-        return At.from_node(self.get_prop("at")[0])
+        return At[Pad.Coord].from_node(self.get_prop("at")[0])
+
+    @property
+    def layers(self):
+        return self.get_prop("layers")[0].node[1:]
 
     @property
     def name(self) -> str:
@@ -194,6 +226,33 @@ class Line(Node):
                 [Symbol("start"), *start],
                 [Symbol("end"), *end],
                 stroke.node,
+                [Symbol("layer"), layer],
+                [Symbol("tstamp"), tstamp],
+            ]
+        )
+
+
+class GR_Rect(Node):
+    Coord = Line.Coord
+    Stroke = Line.Stroke
+
+    @classmethod
+    def factory(
+        cls,
+        start: Coord,
+        end: Coord,
+        stroke: Stroke,
+        fill_type: str,
+        layer: str,
+        tstamp: str,
+    ):
+        return cls(
+            [
+                Symbol("gr_rect"),
+                [Symbol("start"), *start],
+                [Symbol("end"), *end],
+                stroke.node,
+                [Symbol("fill"), Symbol(fill_type)],
                 [Symbol("layer"), layer],
                 [Symbol("tstamp"), tstamp],
             ]
@@ -288,11 +347,15 @@ class GR_Text(Text):
         return Text.factory(text, at, layer, font, tstamp, text_type="gr_text")
 
 
-class At(Node):
-    Coord = Tuple[float, float, float] | Tuple[float, float]
+T = TypeVar("T", Tuple[float, float], Tuple[float, float, float])
+
+
+class At(Generic[T], Node):
+    Coord = T
 
     @property
     def coord(self) -> Coord:
+        # TODO
         if len(self.node[1:]) < 3:
             return tuple(self.node[1:] + [0])
         return tuple(self.node[1:4])
@@ -306,3 +369,77 @@ class At(Node):
         out = cls([Symbol("at")])
         out.coord = value
         return out
+
+
+class Net(Node):
+    @property
+    def id(self):
+        return self.node[1]
+
+    @property
+    def name(self):
+        return self.node[2]
+
+    @classmethod
+    def factory(cls, net_id: int, net_name: str):
+        return cls(
+            [
+                Symbol("net"),
+                net_id,
+                net_name,
+            ]
+        )
+
+
+class Segment(Node):
+    Coord = Tuple[float, float]
+
+    @classmethod
+    def factory(
+        cls,
+        start: Coord,
+        end: Coord,
+        width: float,
+        layer: str,
+        net_id: int,
+        tstamp: str,
+    ):
+        return cls(
+            [
+                Symbol("segment"),
+                [Symbol("start"), *start],
+                [Symbol("end"), *end],
+                [Symbol("width"), width],
+                [Symbol("layer"), layer],
+                [Symbol("net"), net_id],
+                [Symbol("tstamp"), tstamp],
+            ]
+        )
+
+
+class Arc(Node):
+    Coord = Tuple[float, float]
+
+    @classmethod
+    def factory(
+        cls,
+        start: Coord,
+        mid: Coord,
+        end: Coord,
+        width: float,
+        layer: str,
+        net_id: int,
+        tstamp: str,
+    ):
+        return cls(
+            [
+                Symbol("arc"),
+                [Symbol("start"), *start],
+                [Symbol("mid"), *mid],
+                [Symbol("end"), *end],
+                [Symbol("width"), width],
+                [Symbol("layer"), layer],
+                [Symbol("net"), net_id],
+                [Symbol("tstamp"), tstamp],
+            ]
+        )

@@ -27,9 +27,15 @@ class Net(Module):
                 )
 
                 name = "-".join(
-                    fp.get_trait(can_represent_kicad_footprint).get_name_and_value()[0]
-                    for mif, fp in self.get_fps().items()
-                    if fp.has_trait(can_represent_kicad_footprint)
+                    sorted(
+                        (
+                            t := fp.get_trait(can_represent_kicad_footprint)
+                        ).get_name_and_value()[0]
+                        + "-"
+                        + t.get_pin_name(mif)
+                        for mif, fp in self.get_fps().items()
+                        if fp.has_trait(can_represent_kicad_footprint)
+                    )
                 )
 
                 return name

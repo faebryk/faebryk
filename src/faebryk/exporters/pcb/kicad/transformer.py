@@ -6,8 +6,9 @@ import logging
 import math
 import pprint
 import random
+import re
 from operator import add
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
 import numpy as np
 from faebryk.core.core import (
@@ -23,13 +24,33 @@ from faebryk.core.graph import Graph
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
-from faebryk.libs.kicad.pcb import PCB, At, Footprint, FP_Text, GR_Text, Line, Pad, Via
+from faebryk.library.has_type_description import has_type_description
+from faebryk.library.Net import Net as FNet
+from faebryk.libs.kicad.pcb import (
+    PCB,
+    Arc,
+    At,
+    Footprint,
+    FP_Text,
+    GR_Text,
+    Line,
+    Net,
+    Pad,
+    Segment,
+    Via,
+)
+from faebryk.libs.kicad.pcb import Node as PCB_Node
 
 logger = logging.getLogger(__name__)
 
 
 class PCB_Transformer:
     class has_linked_kicad_footprint(ModuleTrait):
+        """
+        Module has footprint (which has kicad footprint) and that footprint
+        is found in the current PCB file.
+        """
+
         def get_fp(self) -> Footprint:
             raise NotImplementedError()
 
@@ -117,7 +138,7 @@ class PCB_Transformer:
 
         self.dimensions = (width_mm, height_mm)
 
-    def move_fp(self, fp: Footprint, coord: At.Coord):
+    def move_fp(self, fp: Footprint, coord: Footprint.Coord):
         if any([x.text == "FBRK:notouch" for x in fp.user_text]):
             logger.warning(f"Skipped no touch component: {fp.name}")
             return
@@ -151,24 +172,34 @@ class PCB_Transformer:
     def get_fp(cmp) -> Footprint:
         return cmp.get_trait(PCB_Transformer.has_linked_kicad_footprint).get_fp()
 
+    def get_net(self, net: FNet) -> Net:
+        nets = {pcb_net.name: pcb_net for pcb_net in self.pcb.nets}
+        return nets[net.get_trait(has_type_description).get_type_description()]
+
     T = TypeVar("T")
 
     @staticmethod
     def flipped(input_list: list[tuple[T, int]]) -> list[tuple[T, int]]:
         return [(x, (y + 180) % 360) for x, y in reversed(input_list)]
 
+    def gen_tstamp(self):
+        return str(next(self.tstamp_i))
+
+    def insert(self, node: PCB_Node):
+        self.pcb.append(node)
+
     # TODO
     def insert_plane(self, layer: str, net: Any):
         raise NotImplementedError()
 
     def insert_via(self, coord: tuple[float, float], net: str):
-        self.pcb.append(
+        self.insert(
             Via.factory(
                 at=At.factory(coord),
                 size_drill=self.via_size_drill,
                 layers=("F.Cu", "B.Cu"),
                 net=net,
-                tstamp=str(next(self.tstamp_i)),
+                tstamp=self.gen_tstamp(),
             )
         )
 
@@ -176,15 +207,56 @@ class PCB_Transformer:
         # TODO find a better way for this
         if not permanent:
             text = text + "_FBRK_AUTO"
-        self.pcb.append(
+        self.insert(
             GR_Text.factory(
                 text=text,
                 at=at,
                 layer="F.SilkS",
                 font=font,
-                tstamp=str(next(self.tstamp_i)),
+                tstamp=self.gen_tstamp(),
             )
         )
+
+    def insert_track(
+        self,
+        net_id: int,
+        points: list[Segment.Coord],
+        width: float,
+        layer: str,
+        arc: bool,
+    ):
+        # TODO marker
+
+        parts = []
+        if arc:
+            start_and_ends = points[::2]
+            for s, e, m in zip(start_and_ends[:-1], start_and_ends[1:], points[1::2]):
+                parts.append(
+                    Arc.factory(
+                        s,
+                        m,
+                        e,
+                        width=width,
+                        layer=layer,
+                        net_id=net_id,
+                        tstamp=self.gen_tstamp(),
+                    )
+                )
+        else:
+            for s, e in zip(points[:-1], points[1:]):
+                parts.append(
+                    Segment.factory(
+                        s,
+                        e,
+                        width=width,
+                        layer=layer,
+                        net_id=net_id,
+                        tstamp=self.gen_tstamp(),
+                    )
+                )
+
+        for part in parts:
+            self.insert(part)
 
     @staticmethod
     def get_corresponding_fp(
@@ -216,6 +288,31 @@ class PCB_Transformer:
         pad = fp.get_pad(pin_name)
 
         return fp, pad
+
+    def get_pad_copper_layers(self, pad: Pad):
+        COPPER = re.compile(r".*\.Cu")
+
+        all_layers = self.pcb.layer_names
+
+        def dewildcard(layer: str):
+            if "*" not in layer:
+                return {layer}
+            pattern = re.compile(layer.replace(".", r"\.").replace("*", r".*"))
+            return {
+                global_layer
+                for global_layer in all_layers
+                if pattern.match(global_layer) is not None
+            }
+
+        layers = pad.layers
+        dewildcarded_layers = {
+            sub_layer for layer in layers for sub_layer in dewildcard(layer)
+        }
+        matching_layers = {
+            layer for layer in dewildcarded_layers if COPPER.match(layer) is not None
+        }
+
+        return matching_layers
 
     def insert_via_next_to(self, intf: ModuleInterface, clearance: tuple[float, float]):
         fp, pad = self.get_pad(intf)
@@ -335,12 +432,13 @@ class PCB_Transformer:
                 for (x, y) in structure
             ]
 
+        C = TypeVar("C", tuple[float, float], tuple[float, float, float])
+
         @staticmethod
-        def abs_pos(parent: At.Coord, child: At.Coord) -> At.Coord:
+        def abs_pos(parent: C, child: tuple[float, float]) -> tuple[float, float]:
             x, y = parent[:2]
             rot = 0
             if len(parent) > 2:
-                parent = cast(tuple[float, float, float], parent)
                 rot = parent[2] / 360 * 2 * math.pi
 
             cx, cy = child[:2]
@@ -351,10 +449,11 @@ class PCB_Transformer:
             # print(f"Rotate {round(cx,2),round(cy,2)},
             # by {round(rot,2),parent[2]} to {rx,ry}")
 
-            return x + rx, y + ry, 0
+            out = x + rx, y + ry
+            return out
 
         @staticmethod
-        def translate(vec: Point, structure: list[Point]):
+        def translate(vec: Point, structure: list[Point]) -> list[Point]:
             return [tuple(map(add, vec, point)) for point in structure]
 
         @classmethod
@@ -374,7 +473,7 @@ class PCB_Transformer:
             )
 
         @staticmethod
-        def triangle(start: At.Coord, width: float, depth: float, count: int):
+        def triangle(start: C, width: float, depth: float, count: int):
             x1, y1 = start[:2]
 
             n = count - 1
@@ -389,7 +488,7 @@ class PCB_Transformer:
             return list(zip(xs, ys))
 
         @staticmethod
-        def line(start: At.Coord, length: float, count: int):
+        def line(start: C, length: float, count: int):
             x1, y1 = start[:2]
 
             n = count - 1
@@ -401,7 +500,7 @@ class PCB_Transformer:
             return list(zip(xs, ys))
 
         @staticmethod
-        def line2(start: At.Coord, end: At.Coord, count: int):
+        def line2(start: C, end: C, count: int):
             x1, y1 = start[:2]
             x2, y2 = end[:2]
 

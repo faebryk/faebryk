@@ -39,7 +39,7 @@ from faebryk.libs.logging import setup_basic_logging
 logger = logging.getLogger(__name__)
 
 
-def main(make_graph: bool = True, show_graph: bool = True):
+def App():
     # power
     class Battery(Module):
         class _IFS(Module.IFS()):
@@ -55,7 +55,7 @@ def main(make_graph: bool = True, show_graph: bool = True):
                 )
             ).attach(
                 KicadFootprint.with_simple_names(
-                    "BatteryHolder_ComfortableElectronic_CH273-2450_1x2450", 2
+                    "Battery:BatteryHolder_ComfortableElectronic_CH273-2450_1x2450", 2
                 )
             )
             self.add_trait(has_defined_type_description("B"))
@@ -103,16 +103,28 @@ def main(make_graph: bool = True, show_graph: bool = True):
         resistor2,
         cd4011,
     ]
+
+    return app
+
+
+def main(make_graph: bool = True, show_graph: bool = True):
+    logger.info("Building app")
+    app = App()
+
+    # make graph
+    logger.info("Make graph")
     G = app.get_graph()
 
-    # t1 = make_t1_netlist_from_graph(G)
+    logger.info("Make netlist")
     attach_nets_and_kicad_info(G)
     t2 = make_t2_netlist_from_graph(G)
     netlist = from_faebryk_t2_netlist(t2)
 
-    if make_graph:
-        export_graph(G.G, show_graph)
     export_netlist(netlist)
+
+    if make_graph:
+        logger.info("Make render")
+        export_graph(G.G, show=True)
 
 
 if __name__ == "__main__":

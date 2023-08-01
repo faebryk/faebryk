@@ -15,6 +15,7 @@ from faebryk.core.core import (
     ModuleInterface,
     Node,
 )
+from faebryk.library.Electrical import Electrical
 from faebryk.libs.util import NotNone, cast_assert
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,22 @@ def get_connected_mifs(gif: GraphInterface):
     }
 
 
+def get_net(mif: Electrical):
+    from faebryk.library.Net import Net
+
+    nets = {
+        net
+        for mif in get_connected_mifs(mif.GIFs.connected)
+        if (net := get_parent_of_type(mif, Net)) is not None
+    }
+
+    if not nets:
+        return None
+
+    assert len(nets) == 1
+    return next(iter(nets))
+
+
 def get_parent(node: Node, filter_expr: Callable):
     candidates = [p for p, _ in node.get_hierarchy() if filter_expr(p)]
     if not candidates:
@@ -95,7 +112,10 @@ def get_parent(node: Node, filter_expr: Callable):
     return candidates[-1]
 
 
-def get_parent_of_type(node: Node, parent_type: type):
+T = TypeVar("T")
+
+
+def get_parent_of_type(node: Node, parent_type: type[T]) -> T:
     return get_parent(node, lambda p: isinstance(p, parent_type))
 
 

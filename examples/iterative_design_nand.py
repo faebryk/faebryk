@@ -113,7 +113,7 @@ class XOR_with_NANDS(XOR):
         Q.connect(q3)
 
 
-def main(make_graph: bool = True):
+def App():
     # levels
     on = Logic()
     off = Logic()
@@ -198,7 +198,7 @@ def main(make_graph: bool = True):
 
     # packaging
     e_switch.get_trait(can_attach_to_footprint).attach(
-        KicadFootprint.with_simple_names("Panasonic_EVQPUJ_EVQPUA", 2)
+        KicadFootprint.with_simple_names("Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA", 2)
     )
     for node in get_all_nodes(app):
         if isinstance(node, Battery):
@@ -208,7 +208,7 @@ def main(make_graph: bool = True):
                 )
             ).attach(
                 KicadFootprint.with_simple_names(
-                    "BatteryHolder_ComfortableElectronic_CH273-2450_1x2450", 2
+                    "Battery:BatteryHolder_ComfortableElectronic_CH273-2450_1x2450", 2
                 )
             )
             node.add_trait(has_defined_type_description("B"))
@@ -232,6 +232,16 @@ def main(make_graph: bool = True):
 
     app.NODEs.nand_ic = nand_ic
 
+    # for visualization
+    helpers = [nxor, xor, e_out]
+
+    return app, helpers
+
+
+def main(make_graph: bool = True):
+    logger.info("Building app")
+    app, helpers = App()
+
     # export
     logger.info("Make graph")
     G = app.get_graph()
@@ -241,9 +251,6 @@ def main(make_graph: bool = True):
     t2 = make_t2_netlist_from_graph(G)
     netlist = from_faebryk_t2_netlist(t2)
 
-    # from pretty import pretty
-    # logger.info("Experiment components")
-    # logger.info("\n" + "\n".join(pretty(c) for c in components))
     export_netlist(netlist)
 
     if make_graph:
@@ -251,7 +258,7 @@ def main(make_graph: bool = True):
         render_matrix(
             G.G,
             nodes_rows=[
-                [nand_ic, led, nxor, xor, e_out],
+                [app.NODEs.nand_ic, app.NODEs.components[0], *helpers],
             ],
             depth=1,
             show_full=False,

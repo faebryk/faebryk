@@ -7,6 +7,27 @@ import re
 logger = logging.getLogger(__name__)
 
 
+def prettify_sexp_string(raw: str) -> str:
+    out = ""
+    level = 0
+    in_quotes = False
+    for c in raw:
+        if c == '"':
+            in_quotes = not in_quotes
+        if in_quotes:
+            ...
+        elif c == "\n":
+            continue
+        elif c == "(":
+            if level != 0:
+                out += "\n" + " " * 4 * level
+            level += 1
+        elif c == ")":
+            level -= 1
+        out += c
+    return out
+
+
 class multi_key_dict:
     def __init__(self, *args, **kwargs):
         self.dict_ = kwargs

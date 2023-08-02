@@ -4,7 +4,7 @@
 import itertools
 import logging
 
-import faebryk.exporters.netlist.kicad.sexp as sexp
+import faebryk.libs.kicad.sexp as sexp
 
 logger = logging.getLogger(__name__)
 
@@ -331,5 +331,7 @@ def from_faebryk_t2_netlist(t2_netlist):
     )
 
     sexp_netlist = sexp.gensexp(out_netlist)
+    assert isinstance(sexp_netlist, str)
+    sexp_netlist = sexp.prettify_sexp_string(sexp_netlist)
 
     return sexp_netlist

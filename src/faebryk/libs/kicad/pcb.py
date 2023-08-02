@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Generic, List, Tuple, TypeVar
 
 import sexpdata
+from faebryk.libs.kicad.sexp import prettify_sexp_string
 from sexpdata import Symbol
 
 
@@ -91,7 +92,9 @@ class PCB(Node):
 
         cleaned = remove_empty(self.node)
         pcbsexpout = sexpdata.dumps(cleaned)
-        return path.write_text(pcbsexpout)
+        out = prettify_sexp_string(pcbsexpout)
+
+        return path.write_text(out)
 
     def __repr__(self):
         return object.__repr__(self)
@@ -224,6 +227,47 @@ class Line(Node):
             [
                 Symbol("gr_line"),
                 [Symbol("start"), *start],
+                [Symbol("end"), *end],
+                stroke.node,
+                [Symbol("layer"), layer],
+                [Symbol("tstamp"), tstamp],
+            ]
+        )
+
+
+class GR_Arc(Node):
+    Coord = Tuple[float, float]
+
+    class Stroke(Node):
+        @classmethod
+        def factory(cls, width_mm: float, type: str):
+            return cls(
+                [
+                    Symbol("stroke"),
+                    [Symbol("width"), width_mm],
+                    [Symbol("type"), Symbol(type)],
+                ]
+            )
+
+    @property
+    def layer(self) -> Node:
+        return self.get_prop("layer")[0]
+
+    @classmethod
+    def factory(
+        cls,
+        start: Coord,
+        mid: Coord,
+        end: Coord,
+        stroke: Stroke,
+        layer: str,
+        tstamp: str,
+    ):
+        return cls(
+            [
+                Symbol("gr_arc"),
+                [Symbol("start"), *start],
+                [Symbol("mid"), *mid],
                 [Symbol("end"), *end],
                 stroke.node,
                 [Symbol("layer"), layer],

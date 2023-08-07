@@ -290,7 +290,7 @@ class PCB_Transformer:
         return fp, pad
 
     def get_pad_copper_layers(self, pad: Pad):
-        COPPER = re.compile(r".*\.Cu")
+        COPPER = re.compile(r"^.*\.Cu$")
 
         all_layers = self.pcb.layer_names
 

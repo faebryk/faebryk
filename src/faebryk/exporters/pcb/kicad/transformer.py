@@ -32,14 +32,19 @@ from faebryk.libs.kicad.pcb import (
     At,
     Footprint,
     FP_Text,
+    Geom,
     GR_Text,
     Line,
     Net,
     Pad,
+    Rect,
     Segment,
+    Segment_Arc,
     Via,
 )
-from faebryk.libs.kicad.pcb import Node as PCB_Node
+from faebryk.libs.kicad.pcb import (
+    Node as PCB_Node,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,9 +116,11 @@ class PCB_Transformer:
         logger.debug(f"Attached: {pprint.pformat(attached)}")
 
     def set_dimensions(self, width_mm: float, height_mm: float):
-        for line_node in self.pcb.get_prop("gr_line"):
-            line = Line.from_node(line_node)
-            if line.layer.node[1] != "Edge.Cuts":
+        for geo in self.pcb.geoms:
+            if not isinstance(geo, Line):
+                continue
+            line = geo
+            if line.layer_name != "Edge.Cuts":
                 continue
             line.delete()
 
@@ -168,6 +175,14 @@ class PCB_Transformer:
             if text.text.endswith("_FBRK_AUTO"):
                 text.delete()
 
+        # TODO maybe faebryk layer?
+        CLEAN_LAYERS = re.compile(r"^User.[2-9]$")
+        for geo in self.pcb.geoms:
+            if CLEAN_LAYERS.match(geo.layer_name) is None:
+                continue
+            geo.delete()
+        self.pcb.garbage_collect()
+
     @staticmethod
     def get_fp(cmp) -> Footprint:
         return cmp.get_trait(PCB_Transformer.has_linked_kicad_footprint).get_fp()
@@ -175,6 +190,98 @@ class PCB_Transformer:
     def get_net(self, net: FNet) -> Net:
         nets = {pcb_net.name: pcb_net for pcb_net in self.pcb.nets}
         return nets[net.get_trait(has_type_description).get_type_description()]
+
+    def get_edge(self) -> list[Line.Coord]:
+        def geo_to_lines(
+            geo: Geom, parent: PCB_Node
+        ) -> list[tuple[Line.Coord, Line.Coord]]:
+            lines = []
+            assert geo.sym is not None
+
+            if isinstance(geo, Line):
+                lines = [(geo.start, geo.end)]
+            elif isinstance(geo, Arc):
+                arc = (geo.start, geo.mid, geo.end)
+
+                l0 = (arc[0], arc[1])
+                l1 = (arc[1], arc[2])
+
+                lines = [l0, l1]
+            elif isinstance(geo, Rect):
+                rect = (geo.start, geo.end)
+
+                c0 = (rect[0][0], rect[1][1])
+                c1 = (rect[1][0], rect[0][1])
+
+                l0 = (rect[0], c0)
+                l1 = (rect[0], c1)
+                l2 = (rect[1], c0)
+                l3 = (rect[1], c1)
+
+                lines = [l0, l1, l2, l3]
+            else:
+                raise NotImplementedError(f"Unsupported type {type(geo)}: {geo}")
+
+            if geo.sym.startswith("fp"):
+                assert isinstance(parent, Footprint)
+                lines = [
+                    tuple(self.Geometry.abs_pos(parent.at.coord, x) for x in line)
+                    for line in lines
+                ]
+
+            return lines
+
+        def quantize_line(line: tuple[Line.Coord, Line.Coord]):
+            DIGITS = 2
+            return tuple(tuple(round(c, DIGITS) for c in p) for p in line)
+
+        lines: list[tuple[Line.Coord, Line.Coord]] = [
+            quantize_line(line)
+            for sub_lines in [
+                geo_to_lines(pcb_geo, self.pcb)
+                for pcb_geo in self.pcb.geoms
+                if pcb_geo.layer_name == "Edge.Cuts"
+            ]
+            + [
+                geo_to_lines(fp_geo, fp)
+                for fp in self.pcb.footprints
+                for fp_geo in fp.geoms
+                if fp_geo.layer_name == "Edge.Cuts"
+            ]
+            for line in sub_lines
+        ]
+
+        if not lines:
+            return []
+
+        from shapely import (
+            LineString,
+            get_geometry,
+            get_num_geometries,
+            polygonize_full,
+        )
+
+        polys, cut_edges, dangles, invalid_rings = polygonize_full(
+            list(map(LineString, lines))
+        )
+
+        if get_num_geometries(cut_edges) != 0:
+            raise Exception(f"EdgeCut: Cut edges: {cut_edges}")
+
+        if get_num_geometries(dangles) != 0:
+            raise Exception(f"EdgeCut: Dangling lines: {dangles}")
+
+        if get_num_geometries(invalid_rings) != 0:
+            raise Exception(f"EdgeCut: Invald rings: {invalid_rings}")
+
+        if (n := get_num_geometries(polys)) != 1:
+            if n == 0:
+                logger.warning(f"EdgeCut: No closed polygons found in {lines}")
+                assert False  # TODO remove
+                return []
+            raise Exception(f"EdgeCut: Ambiguous polygons {polys}")
+
+        return get_geometry(polys, 0).exterior.coords
 
     T = TypeVar("T")
 
@@ -232,7 +339,7 @@ class PCB_Transformer:
             start_and_ends = points[::2]
             for s, e, m in zip(start_and_ends[:-1], start_and_ends[1:], points[1::2]):
                 parts.append(
-                    Arc.factory(
+                    Segment_Arc.factory(
                         s,
                         m,
                         e,
@@ -257,6 +364,9 @@ class PCB_Transformer:
 
         for part in parts:
             self.insert(part)
+
+    def insert_geo(self, geo: Geom):
+        self.insert(geo)
 
     @staticmethod
     def get_corresponding_fp(
@@ -289,7 +399,12 @@ class PCB_Transformer:
 
         return fp, pad
 
-    def get_pad_copper_layers(self, pad: Pad):
+    def get_copper_layers(self):
+        COPPER = re.compile(r"^.*\.Cu$")
+
+        return {name for name in self.pcb.layer_names if COPPER.match(name) is not None}
+
+    def get_copper_layers_pad(self, pad: Pad):
         COPPER = re.compile(r"^.*\.Cu$")
 
         all_layers = self.pcb.layer_names

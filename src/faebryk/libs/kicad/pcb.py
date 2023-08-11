@@ -54,6 +54,213 @@ class Node:
         return str(self) == str(__value)
 
 
+class Geom(Node):
+    Coord = Tuple[float, float]
+    sym: None | str = None
+
+    class Stroke(Node):
+        @classmethod
+        def factory(cls, width_mm: float, type: str):
+            return cls(
+                [
+                    Symbol("stroke"),
+                    [Symbol("width"), width_mm],
+                    [Symbol("type"), Symbol(type)],
+                ]
+            )
+
+    @property
+    def layer_name(self) -> str:
+        return self.get_prop("layer")[0].node[1]
+
+
+class Line(Geom):
+    @property
+    def start(self) -> Geom.Coord:
+        return tuple(self.get_prop("start")[0].node[1:])
+
+    @property
+    def end(self) -> Geom.Coord:
+        return tuple(self.get_prop("end")[0].node[1:])
+
+    @classmethod
+    def factory(
+        cls,
+        start: Geom.Coord,
+        end: Geom.Coord,
+        stroke: Geom.Stroke,
+        layer: str,
+        tstamp: str,
+    ):
+        assert cls.sym is not None
+        return cls(
+            [
+                Symbol(cls.sym),
+                [Symbol("start"), *start],
+                [Symbol("end"), *end],
+                stroke.node,
+                [Symbol("layer"), layer],
+                [Symbol("tstamp"), tstamp],
+            ]
+        )
+
+
+class FP_Line(Line):
+    sym = "fp_line"
+
+
+class GR_Line(Line):
+    sym = "gr_line"
+
+
+class Arc(Geom):
+    @property
+    def start(self) -> Geom.Coord:
+        return tuple(self.get_prop("start")[0].node[1:])
+
+    @property
+    def mid(self) -> Geom.Coord:
+        return tuple(self.get_prop("mid")[0].node[1:])
+
+    @property
+    def end(self) -> Geom.Coord:
+        return tuple(self.get_prop("end")[0].node[1:])
+
+    @classmethod
+    def factory(
+        cls,
+        start: Geom.Coord,
+        mid: Geom.Coord,
+        end: Geom.Coord,
+        stroke: Geom.Stroke,
+        layer: str,
+        tstamp: str,
+    ):
+        assert cls.sym is not None
+        return cls(
+            [
+                Symbol(cls.sym),
+                [Symbol("start"), *start],
+                [Symbol("mid"), *mid],
+                [Symbol("end"), *end],
+                stroke.node,
+                [Symbol("layer"), layer],
+                [Symbol("tstamp"), tstamp],
+            ]
+        )
+
+
+class GR_Arc(Arc):
+    sym = "gr_arc"
+
+
+class FP_Arc(Arc):
+    sym = "fp_arc"
+
+
+class Rect(Geom):
+    @property
+    def start(self) -> Geom.Coord:
+        return tuple(self.get_prop("start")[0].node[1:])
+
+    @property
+    def end(self) -> Geom.Coord:
+        return tuple(self.get_prop("end")[0].node[1:])
+
+    @classmethod
+    def factory(
+        cls,
+        start: Geom.Coord,
+        end: Geom.Coord,
+        stroke: Geom.Stroke,
+        fill_type: str,
+        layer: str,
+        tstamp: str,
+    ):
+        assert cls.sym is not None
+        return cls(
+            [
+                Symbol(cls.sym),
+                [Symbol("start"), *start],
+                [Symbol("end"), *end],
+                stroke.node,
+                [Symbol("fill"), Symbol(fill_type)],
+                [Symbol("layer"), layer],
+                [Symbol("tstamp"), tstamp],
+            ]
+        )
+
+
+class GR_Rect(Rect):
+    sym = "gr_rect"
+
+
+class FP_Rect(Rect):
+    sym = "fp_rect"
+
+
+class Circle(Geom):
+    @property
+    def center(self) -> Geom.Coord:
+        return tuple(self.get_prop("center")[0].node[1:])
+
+    @property
+    def end(self) -> Geom.Coord:
+        return tuple(self.get_prop("end")[0].node[1:])
+
+    @classmethod
+    def factory(
+        cls,
+        center: Geom.Coord,
+        end: Geom.Coord,
+        stroke: Geom.Stroke,
+        fill_type: str,
+        layer: str,
+        tstamp: str,
+    ):
+        assert cls.sym is not None
+        return cls(
+            [
+                Symbol(cls.sym),
+                [Symbol("center"), *center],
+                [Symbol("end"), *end],
+                stroke.node,
+                [Symbol("fill"), Symbol(fill_type)],
+                [Symbol("layer"), layer],
+                [Symbol("tstamp"), tstamp],
+            ]
+        )
+
+
+class GR_Circle(Circle):
+    sym = "gr_circle"
+
+
+class FP_Circle(Circle):
+    sym = "fp_circle"
+
+
+ALL_GEOMS = [
+    FP_Line,
+    FP_Arc,
+    FP_Rect,
+    FP_Circle,
+    GR_Line,
+    GR_Arc,
+    GR_Rect,
+    GR_Circle,
+]
+
+
+def get_geoms(node: Node, prefix: str):
+    return [
+        geotype.from_node(n)
+        for geotype in ALL_GEOMS
+        for n in node.get_prop(geotype.sym)
+        if geotype.sym.startswith(prefix)
+    ]
+
+
 class PCB(Node):
     @property
     def footprints(self) -> List["Footprint"]:
@@ -76,6 +283,10 @@ class PCB(Node):
         return [Net.from_node(n) for n in self.get_prop("net")]
 
     @property
+    def geoms(self) -> List["Geom"]:
+        return get_geoms(self, "gr")
+
+    @property
     def layer_names(self) -> List["str"]:
         return [n[1] for n in self.get_prop("layers")[0].node[1:]]
 
@@ -83,7 +294,7 @@ class PCB(Node):
     def load(cls, path: Path):
         return cls(sexpdata.loads(path.read_text()))
 
-    def dump(self, path: Path):
+    def garbage_collect(self):
         def remove_empty(x):
             if type(x) in [list, tuple]:
                 rec = map(remove_empty, x)
@@ -91,7 +302,11 @@ class PCB(Node):
             return x
 
         cleaned = remove_empty(self.node)
-        pcbsexpout = sexpdata.dumps(cleaned)
+        self.node = cleaned
+
+    def dump(self, path: Path):
+        self.garbage_collect()
+        pcbsexpout = sexpdata.dumps(self.node)
         out = prettify_sexp_string(pcbsexpout)
 
         return path.write_text(out)
@@ -123,6 +338,10 @@ class Footprint(Node):
                 self.get([lambda n: n[0:2] == [Symbol("fp_text"), Symbol("user")]]),
             )
         )
+
+    @property
+    def geoms(self) -> List["Geom"]:
+        return get_geoms(self, "fp")
 
     @property
     def pads(self) -> List["Pad"]:
@@ -198,106 +417,6 @@ class Via(Node):
                 [Symbol("drill"), size_drill[1]],
                 [Symbol("layers"), *layers],
                 [Symbol("net"), net],
-                [Symbol("tstamp"), tstamp],
-            ]
-        )
-
-
-class Line(Node):
-    Coord = Tuple[float, float]
-
-    class Stroke(Node):
-        @classmethod
-        def factory(cls, width_mm: float, type: str):
-            return cls(
-                [
-                    Symbol("stroke"),
-                    [Symbol("width"), width_mm],
-                    [Symbol("type"), Symbol(type)],
-                ]
-            )
-
-    @property
-    def layer(self) -> Node:
-        return self.get_prop("layer")[0]
-
-    @classmethod
-    def factory(cls, start: Coord, end: Coord, stroke: Stroke, layer: str, tstamp: str):
-        return cls(
-            [
-                Symbol("gr_line"),
-                [Symbol("start"), *start],
-                [Symbol("end"), *end],
-                stroke.node,
-                [Symbol("layer"), layer],
-                [Symbol("tstamp"), tstamp],
-            ]
-        )
-
-
-class GR_Arc(Node):
-    Coord = Tuple[float, float]
-
-    class Stroke(Node):
-        @classmethod
-        def factory(cls, width_mm: float, type: str):
-            return cls(
-                [
-                    Symbol("stroke"),
-                    [Symbol("width"), width_mm],
-                    [Symbol("type"), Symbol(type)],
-                ]
-            )
-
-    @property
-    def layer(self) -> Node:
-        return self.get_prop("layer")[0]
-
-    @classmethod
-    def factory(
-        cls,
-        start: Coord,
-        mid: Coord,
-        end: Coord,
-        stroke: Stroke,
-        layer: str,
-        tstamp: str,
-    ):
-        return cls(
-            [
-                Symbol("gr_arc"),
-                [Symbol("start"), *start],
-                [Symbol("mid"), *mid],
-                [Symbol("end"), *end],
-                stroke.node,
-                [Symbol("layer"), layer],
-                [Symbol("tstamp"), tstamp],
-            ]
-        )
-
-
-class GR_Rect(Node):
-    Coord = Line.Coord
-    Stroke = Line.Stroke
-
-    @classmethod
-    def factory(
-        cls,
-        start: Coord,
-        end: Coord,
-        stroke: Stroke,
-        fill_type: str,
-        layer: str,
-        tstamp: str,
-    ):
-        return cls(
-            [
-                Symbol("gr_rect"),
-                [Symbol("start"), *start],
-                [Symbol("end"), *end],
-                stroke.node,
-                [Symbol("fill"), Symbol(fill_type)],
-                [Symbol("layer"), layer],
                 [Symbol("tstamp"), tstamp],
             ]
         )
@@ -461,7 +580,7 @@ class Segment(Node):
         )
 
 
-class Arc(Node):
+class Segment_Arc(Node):
     Coord = Tuple[float, float]
 
     @classmethod

@@ -202,11 +202,7 @@ class PCB_Transformer:
                 lines = [(geo.start, geo.end)]
             elif isinstance(geo, Arc):
                 arc = (geo.start, geo.mid, geo.end)
-
-                l0 = (arc[0], arc[1])
-                l1 = (arc[1], arc[2])
-
-                lines = [l0, l1]
+                lines = self.Geometry.approximate_arc(*arc, resolution=10)
             elif isinstance(geo, Rect):
                 rect = (geo.start, geo.end)
 
@@ -262,7 +258,7 @@ class PCB_Transformer:
         )
 
         polys, cut_edges, dangles, invalid_rings = polygonize_full(
-            list(map(LineString, lines))
+            [LineString(line) for line in lines]
         )
 
         if get_num_geometries(cut_edges) != 0:
@@ -627,3 +623,70 @@ class PCB_Transformer:
             xs = [round(x1 + cx * i, 2) for i in range(count)]
 
             return list(zip(xs, ys))
+
+        @staticmethod
+        def find_circle_center(p1, p2, p3):
+            """
+            Finds the center of the circle passing through the three given points.
+            """
+            # Compute the midpoints
+            mid1 = (p1 + p2) / 2
+            mid2 = (p2 + p3) / 2
+
+            # Compute the slopes of the lines
+            m1 = (p2[1] - p1[1]) / (p2[0] - p1[0])
+            m2 = (p3[1] - p2[1]) / (p3[0] - p2[0])
+
+            # The slopes of the perpendicular bisectors
+            perp_m1 = -1 / m1
+            perp_m2 = -1 / m2
+
+            # Equations of the perpendicular bisectors
+            # y = perp_m1 * (x - mid1[0]) + mid1[1]
+            # y = perp_m2 * (x - mid2[0]) + mid2[1]
+
+            # Solving for x
+            x = (mid2[1] - mid1[1] + perp_m1 * mid1[0] - perp_m2 * mid2[0]) / (
+                perp_m1 - perp_m2
+            )
+
+            # Solving for y using one of the bisector equations
+            y = perp_m1 * (x - mid1[0]) + mid1[1]
+
+            return np.array([x, y])
+
+        @staticmethod
+        def approximate_arc(p_start, p_mid, p_end, resolution=10):
+            p_start, p_mid, p_end = (np.array(p) for p in (p_start, p_mid, p_end))
+
+            # Calculate the center of the circle
+            center = PCB_Transformer.Geometry.find_circle_center(p_start, p_mid, p_end)
+
+            # Calculate start, mid, and end angles
+            start_angle = np.arctan2(p_start[1] - center[1], p_start[0] - center[0])
+            mid_angle = np.arctan2(p_mid[1] - center[1], p_mid[0] - center[0])
+            end_angle = np.arctan2(p_end[1] - center[1], p_end[0] - center[0])
+
+            # Adjust angles if necessary
+            if start_angle > mid_angle:
+                start_angle -= 2 * np.pi
+            if mid_angle > end_angle:
+                mid_angle -= 2 * np.pi
+
+            # Radius of the circle
+            r = np.linalg.norm(p_start - center)
+
+            # Compute angles of line segment endpoints
+            angles = np.linspace(start_angle, end_angle, resolution + 1)
+
+            # Compute points on the arc
+            points = np.array(
+                [[center[0] + r * np.cos(a), center[1] + r * np.sin(a)] for a in angles]
+            )
+
+            # Create line segments
+            segments = [(points[i], points[i + 1]) for i in range(resolution)]
+
+            seg_no_np = [(tuple(a), tuple(b)) for a, b in segments]
+
+            return seg_no_np

@@ -84,9 +84,9 @@ class PCB_Transformer:
         self.via_size_drill = (0.46, 0.2)
 
         self.tstamp_i = itertools.count()
+        self.cleanup()
 
         self.attach()
-        self.cleanup()
 
     def attach(self):
         footprints = {(f.reference.text, f.name): f for f in self.pcb.footprints}

@@ -7,7 +7,7 @@ from faebryk.library.Constant import Constant
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.Resistor import Resistor
 from faebryk.library.USB_Type_C_Receptacle_24_pin import USB_Type_C_Receptacle_24_pin
-from faebryk.libs.units import K
+from faebryk.libs.units import k
 from faebryk.libs.util import times
 
 
@@ -24,7 +24,7 @@ class USB_C_PSU(Module):
         # components
         class _NODEs(Module.NODES()):
             usb = USB_Type_C_Receptacle_24_pin()
-            configuration_resistors = times(2, lambda: Resistor(Constant(5.1 * K)))
+            configuration_resistors = times(2, lambda: Resistor(Constant(5.1 * k)))
 
         self.NODEs = _NODEs(self)
 
@@ -42,3 +42,6 @@ class USB_C_PSU(Module):
         self.NODEs.usb.IFs.cc2.connect_via(
             self.NODEs.configuration_resistors[1], self.IFs.power_out.NODEs.lv
         )
+
+
+5

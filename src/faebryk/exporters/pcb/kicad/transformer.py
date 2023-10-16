@@ -33,8 +33,8 @@ from faebryk.libs.kicad.pcb import (
     Footprint,
     FP_Text,
     Geom,
+    GR_Line,
     GR_Text,
-    Line,
     Net,
     Pad,
     Rect,
@@ -117,7 +117,7 @@ class PCB_Transformer:
 
     def set_dimensions(self, width_mm: float, height_mm: float):
         for geo in self.pcb.geoms:
-            if not isinstance(geo, Line):
+            if not isinstance(geo, GR_Line):
                 continue
             line = geo
             if line.layer_name != "Edge.Cuts":
@@ -134,10 +134,10 @@ class PCB_Transformer:
 
         for start, end in zip(points[:-1], points[1:]):
             self.pcb.append(
-                Line.factory(
+                GR_Line.factory(
                     start,
                     end,
-                    stroke=Line.Stroke.factory(0.05, "default"),
+                    stroke=GR_Line.Stroke.factory(0.05, "default"),
                     layer="Edge.Cuts",
                     tstamp=str(int(random.random() * 100000)),
                 )
@@ -191,14 +191,14 @@ class PCB_Transformer:
         nets = {pcb_net.name: pcb_net for pcb_net in self.pcb.nets}
         return nets[net.get_trait(has_type_description).get_type_description()]
 
-    def get_edge(self) -> list[Line.Coord]:
+    def get_edge(self) -> list[GR_Line.Coord]:
         def geo_to_lines(
             geo: Geom, parent: PCB_Node
-        ) -> list[tuple[Line.Coord, Line.Coord]]:
+        ) -> list[tuple[GR_Line.Coord, GR_Line.Coord]]:
             lines = []
             assert geo.sym is not None
 
-            if isinstance(geo, Line):
+            if isinstance(geo, GR_Line):
                 lines = [(geo.start, geo.end)]
             elif isinstance(geo, Arc):
                 arc = (geo.start, geo.mid, geo.end)
@@ -227,11 +227,11 @@ class PCB_Transformer:
 
             return lines
 
-        def quantize_line(line: tuple[Line.Coord, Line.Coord]):
+        def quantize_line(line: tuple[GR_Line.Coord, GR_Line.Coord]):
             DIGITS = 2
             return tuple(tuple(round(c, DIGITS) for c in p) for p in line)
 
-        lines: list[tuple[Line.Coord, Line.Coord]] = [
+        lines: list[tuple[GR_Line.Coord, GR_Line.Coord]] = [
             quantize_line(line)
             for sub_lines in [
                 geo_to_lines(pcb_geo, self.pcb)

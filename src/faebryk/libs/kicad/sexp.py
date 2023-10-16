@@ -25,6 +25,9 @@ def prettify_sexp_string(raw: str) -> str:
         elif c == ")":
             level -= 1
         out += c
+
+    # if i > 0 no strip is a kicad bug(?) workaround
+    out = "\n".join(x.rstrip() if i > 0 else x for i, x in enumerate(out.splitlines()))
     return out
 
 

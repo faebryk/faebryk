@@ -38,6 +38,10 @@ class Net(Module):
                     )
                 )
 
+                # kicad can't handle long net names
+                if len(name) > 255:
+                    name = name[:200] + "..." + name[-52:]
+
                 return name
 
         self.add_trait(_())

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Generic, Iterable, Optional, Type, TypeVar
+from typing import Generic, Iterable, Optional, Type, TypeVar, Sequence
 
 from faebryk.libs.util import Holder, NotNone, cast_assert
 from typing_extensions import Self
@@ -342,6 +342,9 @@ class GraphInterface(FaebrykLibObject):
         self.cache.add(other)
         return self
 
+    def get_direct_connections(self) -> set[GraphInterface]:
+        return self.cache
+
     def _is_connected(self, other: GraphInterface):
         return other in self.cache
 
@@ -503,6 +506,15 @@ class Parameter(FaebrykLibObject):
 # -----------------------------------------------------------------------------
 
 # TODO: move file--------------------------------------------------------------
+TMI = TypeVar("TMI", bound="ModuleInterface")
+
+
+class _ModuleInterfaceTrait(Generic[TMI], Trait[TMI]):
+    ...
+
+
+class ModuleInterfaceTrait(_ModuleInterfaceTrait["ModuleInterface"]):
+    ...
 
 
 class ModuleInterface(Node):
@@ -574,15 +586,30 @@ class ModuleInterface(Node):
 
         return self
 
+    def get_direct_connections(self) -> set[ModuleInterface]:
+        return {
+            gif.node
+            for gif in self.GIFs.connected.get_direct_connections()
+            if isinstance(gif.node, ModuleInterface)
+        }
+
     def connect(self, other: Self) -> Self:
         # TODO consider some type of check at the end within the graph instead
         # assert type(other) is type(self)
         return self.__connect(other)
 
-    def connect_via(self, bridge: Node, other: Self):
+    def connect_via(self, bridge: Node | Sequence[Node], other: Self | None = None):
         from faebryk.library.can_bridge import can_bridge
 
-        bridge.get_trait(can_bridge).bridge(self, other)
+        bridges = [bridge] if isinstance(bridge, Node) else bridge
+        intf = self
+        for sub_bridge in bridges:
+            t = sub_bridge.get_trait(can_bridge)
+            intf.connect(t.get_in())
+            intf = t.get_out()
+
+        if other:
+            intf.connect(other)
 
     def is_connected_to(self, other: ModuleInterface):
         return self.GIFs.connected.is_connected(other.GIFs.connected)

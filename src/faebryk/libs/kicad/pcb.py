@@ -31,8 +31,29 @@ class Node:
         else:
             return [sub for next_node in result for sub in next_node.get(key[1:])]
 
-    def get_prop(self, key: str) -> List["Node"]:
-        return self.get([lambda n: len(n) > 0 and n[0] == Symbol(key)])
+    def get_recursive(self, key: Callable[[Any], bool]) -> List["Node"]:
+        result = [
+            Node(search_node)
+            for search_node in self.node
+            if isinstance(search_node, list) and key(search_node)
+        ]
+
+        result += [
+            sub
+            for next_node in self.node
+            if isinstance(next_node, list)
+            for sub in Node(next_node).get_recursive(key)
+        ]
+
+        return result
+
+    def get_prop(self, key: str | list[str], recursive=False) -> List["Node"]:
+        if isinstance(key, str):
+            key = [key]
+        func = lambda n: len(n) > 0 and n[0] in ([Symbol(k) for k in key])
+        if recursive:
+            return self.get_recursive(func)
+        return self.get([func])
 
     def append(self, node: "Node"):
         self.node.append(node.node)
@@ -340,6 +361,14 @@ class Footprint(Node):
         )
 
     @property
+    def layer(self) -> str:
+        return self.get_prop("layer")[0].node[1]
+
+    @layer.setter
+    def layer(self, value: str):
+        self.get_prop("layer")[0].node[1] = value
+
+    @property
     def geoms(self) -> List["Geom"]:
         return get_geoms(self, "fp")
 
@@ -387,6 +416,10 @@ class Pad(Node):
     @property
     def size(self) -> Tuple[float, float]:
         return tuple(self.get_prop("size")[0].node[1:3])
+
+    @size.setter
+    def size(self, value: Tuple[float, float]):
+        self.get_prop("size")[0].node[1:3] = value
 
 
 class Via(Node):

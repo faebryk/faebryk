@@ -6,6 +6,7 @@ from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.LED import LED
 from faebryk.library.Resistor import Resistor
 from faebryk.library.TBD import TBD
+from faebryk.library.can_bridge_defined import can_bridge_defined
 
 
 class PoweredLED(Module):
@@ -26,4 +27,8 @@ class PoweredLED(Module):
         self.IFs.power.NODEs.hv.connect(self.NODEs.led.IFs.anode)
         self.IFs.power.NODEs.lv.connect_via(
             self.NODEs.current_limiting_resistor, self.NODEs.led.IFs.cathode
+        )
+
+        self.add_trait(
+            can_bridge_defined(self.IFs.power.NODEs.hv, self.IFs.power.NODEs.lv)
         )

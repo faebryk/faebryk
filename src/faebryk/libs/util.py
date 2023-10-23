@@ -170,7 +170,9 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
                     self.handle_add(f"{name}{i_acc}", instance)
                 return
 
-            raise Exception("Invalid property added")
+            raise Exception(
+                f"Invalid property added for {name=} {value=} of type {type(value)}, expected {_type} or iterable thereof"
+            )
 
         def get_all(self) -> list[T]:
             # check for illegal list modifications

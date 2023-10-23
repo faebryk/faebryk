@@ -8,6 +8,7 @@ import pprint
 import random
 import re
 from operator import add
+from typing import List
 from typing import Any, TypeVar
 
 import numpy as np
@@ -25,6 +26,7 @@ from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.has_type_description import has_type_description
+from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.Net import Net as FNet
 from faebryk.libs.kicad.pcb import (
     PCB,
@@ -104,6 +106,10 @@ class PCB_Transformer:
             fp_ref = node.get_trait(has_overriden_name).get_name()
             fp_name = g_fp.get_trait(has_kicad_footprint).get_kicad_footprint()
 
+            assert (
+                fp_ref,
+                fp_name,
+            ) in footprints, f"Footprint ({fp_ref=}, {fp_name=}) not found in footprints dictionary. Did you import the latest NETLIST into KiCad?"
             fp = footprints[(fp_ref, fp_name)]
 
             node.add_trait(self.has_linked_kicad_footprint_defined(fp))
@@ -115,7 +121,17 @@ class PCB_Transformer:
         }
         logger.debug(f"Attached: {pprint.pformat(attached)}")
 
-    def set_dimensions(self, width_mm: float, height_mm: float):
+    def set_dimensions_rectangle(
+        self,
+        width_mm: float,
+        height_mm: float,
+        origin_x_mm: float = 0.0,
+        origin_y_mm: float = 0.0,
+    ):
+        """
+        Create a rectengular board outline (edge cut)
+        """
+
         for geo in self.pcb.geoms:
             if not isinstance(geo, GR_Line):
                 continue
@@ -125,11 +141,11 @@ class PCB_Transformer:
             line.delete()
 
         points = [
-            (0, 0),
-            (0, height_mm),
-            (width_mm, height_mm),
-            (width_mm, 0),
-            (0, 0),
+            (origin_x_mm, origin_y_mm),
+            (origin_x_mm, origin_y_mm + height_mm),
+            (origin_x_mm + width_mm, origin_y_mm + height_mm),
+            (origin_x_mm + width_mm, origin_y_mm),
+            (origin_x_mm, origin_y_mm),
         ]
 
         for start, end in zip(points[:-1], points[1:]):
@@ -145,13 +161,88 @@ class PCB_Transformer:
 
         self.dimensions = (width_mm, height_mm)
 
-    def move_fp(self, fp: Footprint, coord: Footprint.Coord):
+    def set_dimensions_complex(
+        self,
+        points: List,
+        origin_x_mm: float = 0.0,
+        origin_y_mm: float = 0.0,
+        remove_existing_outline: bool = True,
+    ):
+        """
+        Create a board outline (edge cut) consisting out of points connected via straight lines
+        """
+
+        # remove existing lines on Egde.cuts layer
+        if remove_existing_outline:
+            for geo in self.pcb.geoms:
+                if not isinstance(geo, GR_Line):
+                    continue
+                line = geo
+                if line.layer_name != "Edge.Cuts":
+                    continue
+                line.delete()
+
+        # offset the points with origin
+        points_offset = []
+        for point in points:
+            points_offset.append((point[0] + origin_x_mm, point[1] + origin_y_mm))
+
+        # Append the first point to the end to create a closed shape
+        points_offset.append(points_offset[0])
+
+        # create Edge.Cuts lines
+        for start, end in zip(points_offset, points_offset[1:]):
+            self.pcb.append(
+                GR_Line.factory(
+                    start,
+                    end,
+                    stroke=GR_Line.Stroke.factory(0.05, "default"),
+                    layer="Edge.Cuts",
+                    tstamp=str(int(random.random() * 100000)),
+                )
+            )
+
+        width_mm = max(p[0] for p in points)
+        height_mm = max(p[1] for p in points)
+
+        self.dimensions = (width_mm, height_mm)
+
+    def move_fp(self, fp: Footprint, coord: Footprint.Coord, layer: str):
         if any([x.text == "FBRK:notouch" for x in fp.user_text]):
             logger.warning(f"Skipped no touch component: {fp.name}")
             return
 
+        # Rotate
+        rot_angle = (coord[2] - fp.at.coord[2]) % 360
+
+        if rot_angle:
+            for at_prop in fp.get_prop("at", recursive=True):
+                coords = at_prop.node[1:]
+                # if rot is 0 in coord, its compressed to a 2-tuple by kicad
+                if len(coords) == 2:
+                    coords.append(0)
+                coords[2] = (coords[2] + rot_angle) % 360
+                at_prop.node[1:] = coords
+
         fp.at.coord = coord
 
+        # Flip
+        # TODO a bit ugly with the hardcoded front layer
+        flip = layer != "F.Cu" and fp.layer != layer
+
+        if flip:
+            for layer_prop in fp.get_prop(["layer", "layers"], recursive=True):
+
+                def _flip(x):
+                    return (
+                        x.replace("F.", "<F>.")
+                        .replace("B.", "F.")
+                        .replace("<F>.", "B.")
+                    )
+
+                layer_prop.node[1:] = [_flip(x) for x in layer_prop.node[1:]]
+
+        # Label
         if any([x.text == "FBRK:autoplaced" for x in fp.user_text]):
             return
         fp.append(
@@ -531,10 +622,12 @@ class PCB_Transformer:
 
     # Geometry ----------------------------------------------------------------
     class Geometry:
-        Point = tuple[float, float]
+        Point2D = tuple[float, float]
+        # TODO fix all Point2D functions to use Point
+        Point = has_pcb_position.Point
 
         @staticmethod
-        def mirror(axis: tuple[float | None, float | None], structure: list[Point]):
+        def mirror(axis: tuple[float | None, float | None], structure: list[Point2D]):
             return [
                 (
                     2 * axis[0] - x if axis[0] is not None else x,
@@ -543,15 +636,13 @@ class PCB_Transformer:
                 for (x, y) in structure
             ]
 
-        C = TypeVar("C", tuple[float, float], tuple[float, float, float])
-
         @staticmethod
-        def abs_pos(parent: C, child: tuple[float, float]) -> tuple[float, float]:
-            x, y = parent[:2]
-            rot = 0
-            if len(parent) > 2:
-                rot = parent[2] / 360 * 2 * math.pi
+        def abs_pos(parent: Point, child: Point) -> Point:
+            rot_deg = parent[2] + child[2]
 
+            rot = rot_deg / 360 * 2 * math.pi
+
+            x, y = parent[:2]
             cx, cy = child[:2]
 
             rx = round(cx * math.cos(rot) + cy * math.sin(rot), 2)
@@ -560,17 +651,24 @@ class PCB_Transformer:
             # print(f"Rotate {round(cx,2),round(cy,2)},
             # by {round(rot,2),parent[2]} to {rx,ry}")
 
-            out = x + rx, y + ry
+            for i in range(2, len(parent)):
+                if len(child) <= i:
+                    continue
+                if parent[i] != 0 and child[i] != 0:
+                    logger.warn(f"Adding non-zero values: {parent[i]=} + {child[i]=}")
+
+            out = x + rx, y + ry, *(c1 + c2 for c1, c2 in zip(parent[2:], child[2:]))
+
             return out
 
         @staticmethod
-        def translate(vec: Point, structure: list[Point]) -> list[Point]:
+        def translate(vec: Point2D, structure: list[Point2D]) -> list[Point2D]:
             return [tuple(map(add, vec, point)) for point in structure]
 
         @classmethod
         def rotate(
-            cls, axis: Point, structure: list[Point], angle_deg: float
-        ) -> list[Point]:
+            cls, axis: Point2D, structure: list[Point2D], angle_deg: float
+        ) -> list[Point2D]:
             theta = np.radians(angle_deg)
             c, s = np.cos(theta), np.sin(theta)
             R = np.array(((c, -s), (s, c)))
@@ -582,6 +680,8 @@ class PCB_Transformer:
                     for point in cls.translate(axis, structure)
                 ],
             )
+
+        C = TypeVar("C", tuple[float, float], tuple[float, float, float])
 
         @staticmethod
         def triangle(start: C, width: float, depth: float, count: int):

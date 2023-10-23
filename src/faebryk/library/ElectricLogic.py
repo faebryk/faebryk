@@ -46,6 +46,14 @@ class ElectricLogic(Logic):
         assert isinstance(resistor, Resistor)
         self.NODEs.signal.connect_via(resistor, self.NODEs.reference.NODEs.hv)
 
+    def low_pass(self, capacitor, resistor):
+        from faebryk.library.Capacitor import Capacitor
+
+        assert isinstance(capacitor, Capacitor)
+
+        self.pull_up(resistor)
+        self.NODEs.signal.connect_via(capacitor, self.NODEs.reference.NODEs.lv)
+
     def set(self, on: bool):
         r = self.NODEs.reference.NODEs
         self.NODEs.signal.connect(r.hv if on else r.lv)

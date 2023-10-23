@@ -61,7 +61,7 @@ class Resistor(Module):
                     resistance.value,
                     ["µΩ", "mΩ", "Ω", "kΩ", "MΩ", "GΩ"],
                     start="Ω",
-                )
+                ).encode("utf-8")
 
         self.add_trait(_has_type_description())
 

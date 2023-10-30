@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: MIT
 
 from typing import Sequence
+
 from faebryk.core.core import ModuleInterface, Parameter
-from faebryk.library.Constant import Constant
 from faebryk.library.Capacitor import Capacitor
+from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
 from faebryk.library.Power import Power
 
@@ -38,11 +39,12 @@ class ElectricPower(Power):
 
         self.constraints: Sequence[ElectricPower.Constraint] = []
 
-    def _connect(self, other: ModuleInterface) -> ModuleInterface:
+    def _on_connect(self, other: ModuleInterface) -> None:
+        super()._on_connect(other)
+
         if isinstance(other, type(self)):
             self.NODEs.hv.connect(other.NODEs.hv)
             self.NODEs.lv.connect(other.NODEs.lv)
-        return super()._connect(other)
 
     def decouple(self, capacitor: Capacitor):
         self.NODEs.hv.connect_via(capacitor, self.NODEs.lv)

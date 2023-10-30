@@ -82,7 +82,6 @@ class ElectricLogic(Logic):
         return cls.connect_all_node_references(
             # TODO ugly
             node.NODEs.get_all()
-            if isinstance(node, ModuleInterface)
-            else node.IFs.get_all(),
+            + (node.IFs.get_all() if isinstance(node, Module) else []),
             gnd_only=gnd_only,
         )

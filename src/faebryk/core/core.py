@@ -754,7 +754,8 @@ class ModuleInterface(Node):
         )
 
         logger.debug(f"Up connect {src_m} -> {dst_m}")
-        src_m.connect(dst_m, linkcls=link)
+        src_m.connect(dst_m, linkcls=link)  #
+        # ^ this is broken after merge: "ElectricPower.connect() got an unexpected keyword argument 'linkcls'"
 
     def _connect_across_hierarchies(self, other: ModuleInterface, linkcls: type[Link]):
         existing_link = self.is_connected_to(other)

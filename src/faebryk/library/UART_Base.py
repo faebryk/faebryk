@@ -26,16 +26,11 @@ class UART_Base(ModuleInterface):
         self.baud = TBD()
 
     def set_baud(self, baud: Parameter):
-        assert not isinstance(self.baud, Constant)
         self.baud = baud
 
     def connect(self, other: "UART_Base"):
         super().connect(other)
-        if self.baud == other.baud:
-            return
 
-        # TODO parameter specialization
-        if isinstance(self.baud, Constant):
-            other.set_baud(self.baud)
-        elif isinstance(other.baud, Constant):
-            self.set_baud(other.baud)
+        baud = self.baud.resolve(other.baud)
+        other.set_baud(baud)
+        self.set_baud(baud)

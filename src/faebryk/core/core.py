@@ -499,8 +499,65 @@ class Node(FaebrykLibObject):
 
 
 class Parameter(FaebrykLibObject):
+    class ResolutionException(Exception):
+        ...
+
     def __init__(self) -> None:
         super().__init__()
+
+    # TODO replace with better (graph-based resolution)
+    def resolve(self, other: "Parameter") -> "Parameter":
+        from faebryk.library.TBD import TBD
+        from faebryk.library.Constant import Constant
+        from faebryk.library.Range import Range
+
+        if isinstance(self, TBD):
+            return other
+        if isinstance(other, TBD):
+            return self
+
+        T = TypeVar("T", bound=Parameter)
+        U = TypeVar("U", bound=Parameter)
+
+        def _is_pair(type1: T, type2: U) -> Optional[tuple[T, U]]:
+            if isinstance(self, type1) and isinstance(other, type2):
+                return self, other
+            if isinstance(other, type1) and isinstance(self, type2):
+                return other, self
+            return None
+
+        if pair := _is_pair(Constant, Constant):
+            if len({p.value for p in pair}) != 1:
+                raise Parameter.ResolutionException("conflicting constants")
+            return pair[0]
+
+        if pair := _is_pair(Constant, Range):
+            if not pair[1].contains(pair[0].value):
+                raise Parameter.ResolutionException("constant not in range")
+            return pair[0]
+
+        if pair := _is_pair(Range, Range):
+            min_ = min(p.min for p in pair)
+            max_ = max(p.max for p in pair)
+            if any(any(not p.contains(v) for p in pair) for v in (min_, max_)):
+                raise Parameter.ResolutionException("conflicting ranges")
+            return Range(min_, max_)
+
+        raise NotImplementedError
+
+    @staticmethod
+    def resolve_all(params: "Sequence[Parameter]"):
+        from faebryk.library.TBD import TBD
+
+        params_set = set(params)
+        if not params_set:
+            return TBD()
+        it = iter(params_set)
+        most_specific = next(it)
+        for param in it:
+            most_specific = most_specific.resolve(param)
+
+        return most_specific
 
 
 # -----------------------------------------------------------------------------

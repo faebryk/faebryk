@@ -13,19 +13,13 @@ class ElectricPower(Power):
     class Constraint:
         ...
 
-    class ConstraintConsume(Constraint):
-        ...
-
-    class ConstraintConsumeCurrent(ConstraintConsume):
+    class ConstraintCurrent(Constraint):
         def __init__(self, current: Parameter) -> None:
             self.current = current
 
-    class ConstraintConsumeVoltage(ConstraintConsume):
-        def __init__(
-            self, voltage: Parameter, tolerance: Parameter = Constant(0)
-        ) -> None:
+    class ConstraintVoltage(Constraint):
+        def __init__(self, voltage: Parameter) -> None:
             self.voltage = voltage
-            self.tolerance = tolerance
 
     def __init__(self) -> None:
         super().__init__()
@@ -38,14 +32,24 @@ class ElectricPower(Power):
 
         self.constraints: Sequence[ElectricPower.Constraint] = []
 
-    def _connect(self, other: ModuleInterface) -> ModuleInterface:
-        if isinstance(other, type(self)):
-            self.NODEs.hv.connect(other.NODEs.hv)
-            self.NODEs.lv.connect(other.NODEs.lv)
-        return super()._connect(other)
-
     def decouple(self, capacitor: Capacitor):
         self.NODEs.hv.connect_via(capacitor, self.NODEs.lv)
 
     def add_constraint(self, *constraint: Constraint):
         self.constraints.extend(list(constraint))
+
+    def connect(self, other: ModuleInterface):
+        super().connect(other)
+        if not isinstance(other, ElectricPower):
+            return
+
+        constraints = set(self.constraints + other.constraints)
+
+        # checks if voltages compatible
+        Parameter.resolve_all(
+            {
+                c.voltage
+                for c in constraints
+                if isinstance(c, ElectricPower.ConstraintVoltage)
+            }
+        )

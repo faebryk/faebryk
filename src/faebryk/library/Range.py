@@ -23,5 +23,12 @@ class Range(Parameter):
             )
         self.add_trait(is_representable_by_single_value_defined(value_to_check))
 
+    def contains(self, value_to_check: typing.Any) -> bool:
+        return self.min <= value_to_check <= self.max
+
+    @classmethod
+    def from_center(cls, center: typing.Any, delta: typing.Any) -> "Range":
+        return cls(center - delta, center + delta)
+
     def __str__(self) -> str:
         return f"{type(self).__name__}({self.min}, {self.max})"

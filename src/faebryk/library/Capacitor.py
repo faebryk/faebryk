@@ -8,6 +8,8 @@ from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
 from faebryk.library.has_type_description import has_type_description
 from faebryk.libs.util import times
+from faebryk.library.has_defined_capacitance import has_defined_capacitance
+from faebryk.library.has_capacitance import has_capacitance
 
 
 class Capacitor(Module):
@@ -25,7 +27,10 @@ class Capacitor(Module):
         class _has_type_description(has_type_description.impl()):
             @staticmethod
             def get_type_description():
-                assert isinstance(self.capacitance, Constant)
+                assert isinstance(
+                    self.get_trait(has_capacitance).get_capacitance(), Constant
+                )
+                capacitance = self.get_trait(has_capacitance).get_capacitance()
                 return unit_map(
                     self.capacitance.value,
                     ["µF", "mF", "F", "KF", "MF", "GF"],
@@ -47,11 +52,14 @@ class Capacitor(Module):
         self.add_trait(can_bridge_defined(*self.IFs.unnamed))
 
     def set_capacitance(self, capacitance: Parameter):
-        self.capacitance = capacitance
-
+        self.add_trait(has_defined_capacitance(capacitance))
         if type(capacitance) is not Constant:
+            # TODO this is a bit ugly
+            # it might be that there was another more abstract valid trait
+            # but this challenges the whole trait overriding mechanism
+            # might have to make a trait stack thats popped or so
+            self.del_trait(has_type_description)
             return
-        _capacitance: Constant = capacitance
 
         class _has_type_description(has_type_description.impl()):
             @staticmethod

@@ -3,7 +3,7 @@
 
 import logging
 import math
-from typing import Callable, Iterable, TypeVar
+from typing import Callable, Iterable, TypeVar, cast
 
 import networkx as nx
 
@@ -11,6 +11,7 @@ import networkx as nx
 from faebryk.core.core import (
     GraphInterface,
     GraphInterfaceSelf,
+    Link,
     Module,
     ModuleInterface,
     Node,
@@ -46,6 +47,13 @@ def integer_base(value: int | float, base=1000):
     return value
 
 
+def is_type_set_subclasses(type_subclasses: set[type], types: set[type]) -> bool:
+    hits = {t: any(issubclass(s, t) for s in type_subclasses) for t in types}
+    return all(hits.values()) and all(
+        any(issubclass(s, t) for t in types) for s in hits
+    )
+
+
 def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     if order_types is None:
         order_types = []
@@ -71,9 +79,9 @@ def get_all_nodes_graph(G: nx.Graph):
     }
 
 
-def get_all_connected(gif: GraphInterface) -> list[GraphInterface]:
+def get_all_connected(gif: GraphInterface) -> list[tuple[GraphInterface, Link]]:
     return [
-        other
+        (other, link)
         for link in gif.connections
         for other in link.get_connections()
         if other is not gif
@@ -81,10 +89,19 @@ def get_all_connected(gif: GraphInterface) -> list[GraphInterface]:
 
 
 def get_connected_mifs(gif: GraphInterface):
+    return set(get_connected_mifs_with_link(gif).keys())
+
+
+def get_connected_mifs_with_link(gif: GraphInterface):
     assert isinstance(gif.node, ModuleInterface)
+    connections = get_all_connected(gif)
+
+    # check if ambiguous links between mifs
+    assert len(connections) == len({c[0] for c in connections})
+
     return {
-        cast_assert(ModuleInterface, s.node)
-        for s in get_all_connected(gif)
+        cast_assert(ModuleInterface, s.node): link
+        for s, link in connections
         if s.node is not gif.node
     }
 
@@ -154,7 +171,7 @@ def zip_connect_modules(src: Iterable[Module], dst: Iterable[Module]):
             src_i.connect(dst_i)
 
 
-def zip_connect_moduleinterfaces(
+def zip_moduleinterfaces(
     src: Iterable[ModuleInterface], dst: Iterable[ModuleInterface]
 ):
     # TODO check names?
@@ -163,7 +180,34 @@ def zip_connect_moduleinterfaces(
         for src_i, dst_i in zip(src_m.NODEs.get_all(), dst_m.NODEs.get_all()):
             assert isinstance(src_i, ModuleInterface)
             assert isinstance(dst_i, ModuleInterface)
-            src_i.connect(dst_i)
+            yield src_i, dst_i
+
+
+def get_mif_tree(
+    obj: ModuleInterface | Module,
+) -> dict[ModuleInterface, dict[ModuleInterface, dict]]:
+    mifs = obj.IFs.get_all() if isinstance(obj, Module) else obj.NODEs.get_all()
+    assert all(isinstance(i, ModuleInterface) for i in mifs)
+    mifs = cast(list[ModuleInterface], mifs)
+
+    return {mif: get_mif_tree(mif) for mif in mifs}
+
+
+def format_mif_tree(tree: dict[ModuleInterface, dict[ModuleInterface, dict]]) -> str:
+    def str_tree(
+        tree: dict[ModuleInterface, dict[ModuleInterface, dict]]
+    ) -> dict[str, dict]:
+        def get_name(k: ModuleInterface):
+            # get_parent never none, since k gotten from parent
+            return NotNone(k.get_parent())[1]
+
+        return {
+            f"{get_name(k)} ({type(k).__name__})": str_tree(v) for k, v in tree.items()
+        }
+
+    import json
+
+    return json.dumps(str_tree(tree), indent=4)
 
 
 T = TypeVar("T", bound=ModuleInterface)

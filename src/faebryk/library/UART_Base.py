@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.core.core import ModuleInterface, Parameter
-from faebryk.library.TBD import TBD
 from faebryk.library.Constant import Constant
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.has_single_electric_reference_defined import (
     has_single_electric_reference_defined,
 )
+from faebryk.library.TBD import TBD
 
 
 class UART_Base(ModuleInterface):
@@ -28,8 +28,11 @@ class UART_Base(ModuleInterface):
     def set_baud(self, baud: Parameter):
         self.baud = baud
 
-    def connect(self, other: "UART_Base"):
-        super().connect(other)
+    def _on_connect(self, other: "UART_Base"):
+        super()._on_connect(other)
+
+        if self.baud == other.baud:
+            return
 
         baud = self.baud.resolve(other.baud)
         other.set_baud(baud)

@@ -3,14 +3,19 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from abc import ABC, abstractmethod
-from typing import Generic, Iterable, Optional, Type, TypeVar, Sequence
+from typing import Callable, Generic, Iterable, Optional, Sequence, Type, TypeVar
 
 from faebryk.libs.util import Holder, NotNone, cast_assert
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
+
+# Saves stack trace for each link for debugging
+# Can be enabled from test cases and apps, but very slow, so only for debug
+LINK_TB = False
 
 # 1st order classes -----------------------------------------------------------
 T = TypeVar("T", bound="FaebrykLibObject")
@@ -230,6 +235,9 @@ class Link(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
+        if LINK_TB:
+            self.tb = inspect.stack()
+
     def get_connections(self) -> list[GraphInterface]:
         raise NotImplementedError
 
@@ -302,6 +310,31 @@ class LinkDirect(Link):
         return self.interfaces
 
 
+class LinkFilteredException(Exception):
+    ...
+
+
+class _TLinkDirectShallow(LinkDirect):
+    def __new__(cls, *args, **kwargs):
+        if cls is _TLinkDirectShallow:
+            raise TypeError(
+                "Can't instantiate abstract class _TLinkDirectShallow directly"
+            )
+        return LinkDirect.__new__(cls, *args, **kwargs)
+
+
+def LinkDirectShallow(if_filter: Callable[[LinkDirect, GraphInterface], bool]):
+    class _LinkDirectShallow(_TLinkDirectShallow):
+        i_filter = if_filter
+
+        def __init__(self, interfaces: list[GraphInterface]) -> None:
+            if not all(map(self.i_filter, interfaces)):
+                raise LinkFilteredException()
+            super().__init__(interfaces)
+
+    return _LinkDirectShallow
+
+
 class GraphInterface(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
@@ -311,7 +344,7 @@ class GraphInterface(FaebrykLibObject):
         self._node: Optional[Node] = None
         self.name: str = type(self).__name__
 
-        self.cache = set()
+        self.cache: dict[GraphInterface, Link] = {}
 
     @property
     def node(self):
@@ -329,6 +362,7 @@ class GraphInterface(FaebrykLibObject):
         if linkcls is None:
             linkcls = LinkDirect
         link = linkcls([other, self])
+
         assert link not in self.connections
         assert link not in other.connections
         self.connections.append(link)
@@ -339,14 +373,14 @@ class GraphInterface(FaebrykLibObject):
         except Exception:
             ...
 
-        self.cache.add(other)
+        self.cache[other] = link
         return self
 
     def get_direct_connections(self) -> set[GraphInterface]:
-        return self.cache
+        return set(self.cache.keys())
 
     def _is_connected(self, other: GraphInterface):
-        return other in self.cache
+        return self.cache.get(other)
 
     def is_connected(self, other: GraphInterface):
         return self._is_connected(other) or other._is_connected(self)
@@ -566,12 +600,42 @@ class Parameter(FaebrykLibObject):
 TMI = TypeVar("TMI", bound="ModuleInterface")
 
 
+def _resolve_link(links: Iterable[type[Link]]) -> type[Link]:
+    from faebryk.core.util import is_type_set_subclasses
+
+    uniq = set(links)
+    if len(uniq) == 1:
+        return next(iter(uniq))
+
+    if is_type_set_subclasses(uniq, {LinkDirect, _TLinkDirectShallow}):
+        return [u for u in uniq if issubclass(u, _TLinkDirectShallow)][0]
+
+    raise NotImplementedError()
+
+
 class _ModuleInterfaceTrait(Generic[TMI], Trait[TMI]):
     ...
 
 
 class ModuleInterfaceTrait(_ModuleInterfaceTrait["ModuleInterface"]):
     ...
+
+
+class _LEVEL:
+    """connect depth counter to debug connections in ModuleInterface"""
+
+    def __init__(self) -> None:
+        self.value = 0
+
+    def inc(self):
+        self.value += 1
+        return self.value - 1
+
+    def dec(self):
+        self.value -= 1
+
+
+_CONNECT_DEPTH = _LEVEL()
 
 
 class ModuleInterface(Node):
@@ -594,8 +658,10 @@ class ModuleInterface(Node):
         super().__init__()
         self.GIFs = ModuleInterface.GIFS()(self)
 
-    def __connect(self, other: ModuleInterface) -> ModuleInterface:
-        from faebryk.core.util import get_connected_mifs
+    def _connect_siblings_and_connections(
+        self, other: ModuleInterface, linkcls: type[Link]
+    ) -> ModuleInterface:
+        from faebryk.core.util import get_connected_mifs_with_link
 
         if other is self:
             return self
@@ -607,41 +673,115 @@ class ModuleInterface(Node):
         logger.debug(f"MIF connection: {self} to {other}")
 
         def cross_connect(
-            s_group: Iterable[ModuleInterface],
-            d_group: Iterable[ModuleInterface],
+            s_group: dict[ModuleInterface, type[Link]],
+            d_group: dict[ModuleInterface, type[Link]],
             hint=None,
         ):
             if logger.isEnabledFor(logging.DEBUG) and hint is not None:
-                logger.debug(f"Connect {hint} {s_sib} -> {d_sib}")
+                logger.debug(f"Connect {hint} {s_group} -> {d_group}")
 
-            for s in s_group:
-                for d in d_group:
-                    s._connect(d)
+            for s, slink in s_group.items():
+                for d, dlink in d_group.items():
+                    # can happen while connection trees are resolving
+                    if s is d:
+                        continue
+                    link = _resolve_link([slink, dlink, linkcls])
+
+                    s._connect_across_hierarchies(d, linkcls=link)
+
+        def _get_connected_mifs(gif: GraphInterface):
+            return {k: type(v) for k, v in get_connected_mifs_with_link(gif).items()}
 
         # Connect to all connections
-        s_con = get_connected_mifs(self.GIFs.connected) | {self}
-        d_con = get_connected_mifs(other.GIFs.connected) | {other}
+        s_con = _get_connected_mifs(self.GIFs.connected) | {self: linkcls}
+        d_con = _get_connected_mifs(other.GIFs.connected) | {other: linkcls}
         cross_connect(s_con, d_con, "connections")
 
         # Connect to all siblings
-        s_sib = get_connected_mifs(self.GIFs.sibling) | {self}
-        d_sib = get_connected_mifs(other.GIFs.sibling) | {other}
+        s_sib = _get_connected_mifs(self.GIFs.sibling) | {self: linkcls}
+        d_sib = _get_connected_mifs(other.GIFs.sibling) | {other: linkcls}
         cross_connect(s_sib, d_sib, "siblings")
 
         return self
 
-    def _connect(self, other: ModuleInterface) -> ModuleInterface:
-        from faebryk.core.util import zip_connect_moduleinterfaces
+    def _on_connect(self, other: ModuleInterface):
+        """override to handle custom connection logic"""
+        ...
 
-        if self.is_connected_to(other):
-            return self
+    def _try_connect_down(self, other: ModuleInterface, linkcls: type[Link]) -> None:
+        from faebryk.core.util import zip_moduleinterfaces
 
-        if isinstance(other, type(self)):
-            zip_connect_moduleinterfaces([self], [other])
+        if not isinstance(other, type(self)):
+            return
 
-        self.GIFs.connected.connect(other.GIFs.connected)
+        for src, dst in zip_moduleinterfaces([self], [other]):
+            src.connect(dst, linkcls=linkcls)
 
-        return self
+    def _try_connect_up(self, other: ModuleInterface) -> None:
+        p1 = self.get_parent()
+        p2 = other.get_parent()
+        if not (
+            p1
+            and p2
+            and p1[0] is not p2[0]
+            and isinstance(p1[0], type(p2[0]))
+            and isinstance(p1[0], ModuleInterface)
+        ):
+            return
+
+        src_m = p1[0]
+        dst_m = p2[0]
+        assert isinstance(dst_m, ModuleInterface)
+
+        def _is_connected(a, b):
+            assert isinstance(a, ModuleInterface)
+            assert isinstance(b, ModuleInterface)
+            return a.is_connected_to(b)
+
+        connection_map = [
+            (src_i, dst_i, _is_connected(src_i, dst_i))
+            for src_i, dst_i in zip(src_m.NODEs.get_all(), dst_m.NODEs.get_all())
+        ]
+
+        if not all(connected for _, _, connected in connection_map):
+            return
+
+        # decide which LinkType to use here
+        # depends on connections between src_i & dst_i
+        # e.g. if any Shallow, we need to choose shallow
+        link = _resolve_link(
+            [type(sublink) for _, _, sublink in connection_map if sublink]
+        )
+
+        logger.debug(f"Up connect {src_m} -> {dst_m}")
+        src_m.connect(dst_m, linkcls=link)
+
+    def _connect_across_hierarchies(self, other: ModuleInterface, linkcls: type[Link]):
+        existing_link = self.is_connected_to(other)
+        if existing_link:
+            if isinstance(existing_link, linkcls):
+                return
+            if _resolve_link([type(existing_link), linkcls]) is type(existing_link):
+                return
+            # TODO
+            raise NotImplementedError("Overriding existing links not implemented")
+
+        # level 0 connect
+        try:
+            self.GIFs.connected.connect(other.GIFs.connected, linkcls=linkcls)
+        except LinkFilteredException:
+            return
+
+        logger.debug(f"{' '*2*_CONNECT_DEPTH.inc()}Connect {self} to {other}")
+        self._on_connect(other)
+
+        # level +1 (down) connect
+        self._try_connect_down(other, linkcls=linkcls)
+
+        # level -1 (up) connect
+        self._try_connect_up(other)
+
+        _CONNECT_DEPTH.dec()
 
     def get_direct_connections(self) -> set[ModuleInterface]:
         return {
@@ -650,10 +790,12 @@ class ModuleInterface(Node):
             if isinstance(gif.node, ModuleInterface)
         }
 
-    def connect(self, other: Self) -> Self:
+    def connect(self, other: Self, linkcls=None) -> Self:
         # TODO consider some type of check at the end within the graph instead
         # assert type(other) is type(self)
-        return self.__connect(other)
+        if linkcls is None:
+            linkcls = LinkDirect
+        return self._connect_siblings_and_connections(other, linkcls=linkcls)
 
     def connect_via(self, bridge: Node | Sequence[Node], other: Self | None = None):
         from faebryk.library.can_bridge import can_bridge

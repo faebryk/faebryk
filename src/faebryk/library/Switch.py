@@ -14,8 +14,12 @@ from faebryk.libs.util import times
 T = TypeVar("T", bound=ModuleInterface)
 
 
+class _TSwitch(Module):
+    ...
+
+
 def Switch(interface_type: type[T]):
-    class _Switch(Module):
+    class _Switch(_TSwitch):
         def __init__(self) -> None:
             super().__init__()
 

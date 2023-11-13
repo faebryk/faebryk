@@ -31,13 +31,25 @@ class ElectricLogic(Logic):
         self.NODEs.signal.connect(signal)
         return self
 
-    def connect_references(self, other: "ElectricLogic"):
-        self.NODEs.reference.connect(other.NODEs.reference)
+    def connect_reference(self, reference: ElectricPower, invert: bool = False):
+        if invert:
+            # TODO
+            raise NotImplementedError()
+        #    inverted = ElectricPower()
+        #    inverted.NODEs.lv.connect(reference.NODEs.hv)
+        #    inverted.NODEs.hv.connect(reference.NODEs.lv)
+        #    reference = inverted
+        self.NODEs.reference.connect(reference)
+
+    def connect_references(self, other: "ElectricLogic", invert: bool = False):
+        self.connect_reference(other.NODEs.reference, invert=invert)
 
     def pull_down(self, resistor):
         from faebryk.library.Resistor import Resistor
 
-        assert isinstance(resistor, Resistor)
+        assert isinstance(
+            resistor, Resistor
+        ), f"pull-down can only be done with Resistors, not with type: {type(resistor)}"
         self.NODEs.signal.connect_via(resistor, self.NODEs.reference.NODEs.lv)
 
     def pull_up(self, resistor):

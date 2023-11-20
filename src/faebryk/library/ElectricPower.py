@@ -36,18 +36,6 @@ class ElectricPower(Power):
     def _on_connect(self, other: ModuleInterface) -> None:
         super()._on_connect(other)
 
-        if isinstance(other, type(self)):
-            self.NODEs.hv.connect(other.NODEs.hv)
-            self.NODEs.lv.connect(other.NODEs.lv)
-
-    def decouple(self, capacitor: Capacitor):
-        self.NODEs.hv.connect_via(capacitor, self.NODEs.lv)
-
-    def add_constraint(self, *constraint: Constraint):
-        self.constraints.extend(list(constraint))
-
-    def connect(self, other: ModuleInterface):
-        super().connect(other)
         if not isinstance(other, ElectricPower):
             return
 
@@ -61,3 +49,9 @@ class ElectricPower(Power):
                 if isinstance(c, ElectricPower.ConstraintVoltage)
             }
         )
+
+    def decouple(self, capacitor: Capacitor):
+        self.NODEs.hv.connect_via(capacitor, self.NODEs.lv)
+
+    def add_constraint(self, *constraint: Constraint):
+        self.constraints.extend(list(constraint))

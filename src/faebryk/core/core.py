@@ -374,6 +374,7 @@ class GraphInterface(FaebrykLibObject):
             ...
 
         self.cache[other] = link
+        other.cache[self] = link
         return self
 
     def get_direct_connections(self) -> set[GraphInterface]:
@@ -532,6 +533,10 @@ class Node(FaebrykLibObject):
         return f"{str(self)}(@{hex(id(self))})"
 
 
+T = TypeVar("T", bound="Parameter")
+U = TypeVar("U", bound="Parameter")
+
+
 class Parameter(FaebrykLibObject):
     class ResolutionException(Exception):
         ...
@@ -550,9 +555,6 @@ class Parameter(FaebrykLibObject):
             return other
         if isinstance(other, TBD):
             return self
-
-        T = TypeVar("T", bound=Parameter)
-        U = TypeVar("U", bound=Parameter)
 
         def _is_pair(type1: type[T], type2: type[U]) -> Optional[tuple[T, U]]:
             if isinstance(self, type1) and isinstance(other, type2):

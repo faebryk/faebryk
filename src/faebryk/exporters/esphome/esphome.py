@@ -1,19 +1,12 @@
 import logging
-from abc import abstractmethod
-from faebryk.core.core import Module, ModuleTrait, Parameter
-from dataclasses import dataclass, field
-from faebryk.libs.units import m
-from faebryk.library.Constant import Constant
-from faebryk.library.TBD import TBD
-from faebryk.library.has_datasheet_defined import has_datasheet_defined
-from faebryk.library.ElectricPower import ElectricPower
-from faebryk.library.has_esphome_config import has_esphome_config, is_esphome_bus
-from faebryk.library.has_single_electric_reference import has_single_electric_reference
-from faebryk.library.UART_Base import UART_Base
+from typing import Any, Callable
+
+import yaml
+from faebryk.core.core import Parameter
 from faebryk.core.graph import Graph
 from faebryk.core.util import get_all_nodes_graph
-from typing import Callable, Any
-import yaml
+from faebryk.library.Constant import Constant
+from faebryk.library.has_esphome_config import has_esphome_config
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +36,9 @@ def merge_dicts(*dicts: dict) -> dict:
         for k, v in d.items():
             if k in result:
                 if isinstance(v, list):
-                    assert isinstance(result[k], list)
+                    assert isinstance(
+                        result[k], list
+                    ), f"Trying to merge list into key '{k}' of type {type(result[k])}"
                     result[k] += v
                 elif isinstance(v, dict):
                     assert isinstance(result[k], dict)

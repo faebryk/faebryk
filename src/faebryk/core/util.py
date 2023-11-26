@@ -282,6 +282,5 @@ def get_parameter_max(param: Parameter):
     if isinstance(param, Range):
         return param.max
     if isinstance(param, Set):
-        # return max(map(get_parameter_max, param.value))
-        return max(map(get_parameter_max, param))
+        return max(map(get_parameter_max, param.params))
     raise ValueError(f"Can't get max for {param}")

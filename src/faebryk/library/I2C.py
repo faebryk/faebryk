@@ -43,17 +43,16 @@ class I2C(ModuleInterface):
     def _on_connect(self, other: "I2C"):
         super()._on_connect(other)
 
-        # Remove
-        logger.warn(f"I2C._on_connect: {self} -> {other}")
-
         if self.frequency == other.frequency:
             return
 
         try:
             frequency = self.frequency.resolve(other.frequency)
-        except Parameter.ResolutionException as e:
+        except Parameter.ResolutionException:
             raise Parameter.ResolutionException(
-                f"Cannot resolve frequencies of\n\t {self}({self.frequency}) and\n\t {other}({other.frequency})"
+                "Cannot resolve frequencies of\n"
+                + f"\t {self}({self.frequency}) and\n"
+                + f"\t {other}({other.frequency})"
             )
         other.set_frequency(frequency)
         self.set_frequency(frequency)

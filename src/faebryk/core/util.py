@@ -15,8 +15,12 @@ from faebryk.core.core import (
     Module,
     ModuleInterface,
     Node,
+    Parameter,
 )
+from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
+from faebryk.library.Range import Range
+from faebryk.library.Set import Set
 from faebryk.libs.util import NotNone, cast_assert
 
 logger = logging.getLogger(__name__)
@@ -270,3 +274,14 @@ def specialize_module(
     logger.debug("=" * 120)
 
     return special
+
+
+def get_parameter_max(param: Parameter):
+    if isinstance(param, Constant):
+        return param.value
+    if isinstance(param, Range):
+        return param.max
+    if isinstance(param, Set):
+        # return max(map(get_parameter_max, param.value))
+        return max(map(get_parameter_max, param))
+    raise ValueError(f"Can't get max for {param}")

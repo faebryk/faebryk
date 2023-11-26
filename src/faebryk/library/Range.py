@@ -31,4 +31,15 @@ class Range(Parameter):
         return cls(center - delta, center + delta)
 
     def __str__(self) -> str:
-        return f"{type(self).__name__}({self.min}, {self.max})"
+        return f"{type(self).__name__}({self.min} -> {self.max})"
+
+    def __repr__(self):
+        return str(self)  # + "@" + hex(id(self))
+
+    def __eq__(self, other: typing.Any) -> bool:
+        if not isinstance(other, Range):
+            return False
+        return self.min == other.min and self.max == other.max
+
+    def __hash__(self) -> int:
+        return hash((self.min, self.max))

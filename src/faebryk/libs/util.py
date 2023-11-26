@@ -74,7 +74,7 @@ def get_key(haystack: dict[T, U], needle: U) -> T:
 def find(haystack: Iterable[T], needle: Callable) -> T:
     results = list(filter(needle, haystack))
     if len(results) != 1:
-        raise ValueError
+        raise ValueError()
     return results[0]
 
 

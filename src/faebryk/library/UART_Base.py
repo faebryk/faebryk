@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.core.core import ModuleInterface, Parameter
-from faebryk.library.Constant import Constant
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.has_single_electric_reference_defined import (
     has_single_electric_reference_defined,

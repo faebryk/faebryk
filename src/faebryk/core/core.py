@@ -541,9 +541,10 @@ class Parameter(FaebrykLibObject):
 
     # TODO replace with better (graph-based resolution)
     def resolve(self, other: "Parameter") -> "Parameter":
-        from faebryk.library.TBD import TBD
         from faebryk.library.Constant import Constant
         from faebryk.library.Range import Range
+        from faebryk.library.Set import Set
+        from faebryk.library.TBD import TBD
 
         if isinstance(self, TBD):
             return other
@@ -553,7 +554,7 @@ class Parameter(FaebrykLibObject):
         T = TypeVar("T", bound=Parameter)
         U = TypeVar("U", bound=Parameter)
 
-        def _is_pair(type1: T, type2: U) -> Optional[tuple[T, U]]:
+        def _is_pair(type1: type[T], type2: type[U]) -> Optional[tuple[T, U]]:
             if isinstance(self, type1) and isinstance(other, type2):
                 return self, other
             if isinstance(other, type1) and isinstance(self, type2):
@@ -571,11 +572,31 @@ class Parameter(FaebrykLibObject):
             return pair[0]
 
         if pair := _is_pair(Range, Range):
-            min_ = min(p.min for p in pair)
-            max_ = max(p.max for p in pair)
+            min_ = max(p.min for p in pair)
+            max_ = min(p.max for p in pair)
             if any(any(not p.contains(v) for p in pair) for v in (min_, max_)):
                 raise Parameter.ResolutionException("conflicting ranges")
             return Range(min_, max_)
+
+        if pair := _is_pair(Parameter, TBD):
+            return pair[0]
+
+        if pair := _is_pair(Parameter, Set):
+            out = set()
+            for set_other in pair[1].params:
+                try:
+                    out.add(set_other.resolve(pair[0]))
+                except Parameter.ResolutionException as e:
+                    # TODO remove
+                    logger.warn(f"Not resolvable: {pair[0]} {set_other}: {e.args[0]}")
+                    pass
+            if len(out) == 1:
+                return next(iter(out))
+            if len(out) == 0:
+                raise Parameter.ResolutionException(
+                    f"parameter |{pair[0]}| not resolvable with set |{pair[1]}|"
+                )
+            return Set(out)
 
         raise NotImplementedError
 
@@ -787,7 +808,7 @@ class ModuleInterface(Node):
         return {
             gif.node
             for gif in self.GIFs.connected.get_direct_connections()
-            if isinstance(gif.node, ModuleInterface)
+            if isinstance(gif.node, ModuleInterface) and gif.node is not self
         }
 
     def connect(self, other: Self, linkcls=None) -> Self:

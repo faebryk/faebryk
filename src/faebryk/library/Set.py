@@ -17,7 +17,7 @@ class Set(Parameter):
     @staticmethod
     def flatten(params: set[Parameter]) -> set[Parameter]:
         return set(p for p in params if not isinstance(p, Set)) | set(
-            Set.flatten(p.params) for p in params if isinstance(p, Set)
+            x for p in params if isinstance(p, Set) for x in Set.flatten(p.params)
         )
 
     def __str__(self) -> str:
@@ -33,4 +33,4 @@ class Set(Parameter):
         return self.params == other.params
 
     def __hash__(self) -> int:
-        return hash(self.params)
+        return sum(hash(p) for p in self.params)

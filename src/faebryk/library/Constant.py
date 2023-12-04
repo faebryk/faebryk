@@ -17,3 +17,12 @@ class Constant(Parameter):
 
     def __repr__(self):
         return f"{type(self).__name__}({self.value!r})@{id(self):#x}"
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Constant):
+            return False
+
+        return self.value == other.value
+
+    def __hash__(self) -> int:
+        return hash(self.value)

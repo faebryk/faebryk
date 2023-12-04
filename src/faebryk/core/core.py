@@ -611,9 +611,7 @@ class Parameter(FaebrykLibObject):
         from faebryk.library.Set import Set
         from faebryk.library.TBD import TBD
 
-        def _is_pair(
-            type1: type[T], type2: type[U], op: Callable
-        ) -> Optional[tuple[T, U, Callable]]:
+        def _is_pair(type1: type[T], type2: type[U]) -> Optional[tuple[T, U, Callable]]:
             if isinstance(self, type1) and isinstance(other, type2):
                 return self, other, op
             if isinstance(self, type2) and isinstance(other, type1):

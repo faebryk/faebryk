@@ -78,13 +78,16 @@ class ElectricLogic(Logic):
     def connect_all_node_references(
         nodes: Iterable[Node], gnd_only=False
     ) -> ElectricPower:
-        refs = [
+        # TODO check if any child contains ElectricLogic which is not connected
+        # e.g find them in graph and check if any has parent without "single reference"
+
+        refs = {
             x.get_trait(has_single_electric_reference).get_reference()
             for x in nodes
             if x.has_trait(has_single_electric_reference)
-        ]
+        }
         if gnd_only:
-            return connect_all_interfaces([r.NODEs.lv for r in refs])
+            return connect_all_interfaces({r.NODEs.lv for r in refs})
         return connect_all_interfaces(refs)
 
     @classmethod

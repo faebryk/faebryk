@@ -154,10 +154,13 @@ def connect_interfaces_via_chain(
 
 def connect_all_interfaces(interfaces: Iterable[ModuleInterface]):
     interfaces = list(interfaces)
-    for i in interfaces:
-        for j in interfaces:
-            i.connect(j)
-    return interfaces[0]
+    if not interfaces:
+        return
+    return connect_to_all_interfaces(interfaces[0], interfaces[1:])
+    # not needed with current connection implementation
+    # for i in interfaces:
+    #    for j in interfaces:
+    #        i.connect(j)
 
 
 def connect_to_all_interfaces(
@@ -165,6 +168,7 @@ def connect_to_all_interfaces(
 ):
     for i in targets:
         source.connect(i)
+    return source
 
 
 def zip_connect_modules(src: Iterable[Module], dst: Iterable[Module]):

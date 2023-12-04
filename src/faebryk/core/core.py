@@ -8,7 +8,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Callable, Generic, Iterable, Optional, Sequence, Type, TypeVar
 
-from faebryk.libs.util import Holder, NotNone, cast_assert
+from faebryk.libs.util import Holder, NotNone, cast_assert, is_type_pair
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -533,10 +533,6 @@ class Node(FaebrykLibObject):
         return f"{str(self)}(@{hex(id(self))})"
 
 
-T = TypeVar("T", bound="Parameter")
-U = TypeVar("U", bound="Parameter")
-
-
 class Parameter(FaebrykLibObject):
     class ResolutionException(Exception):
         ...
@@ -544,24 +540,22 @@ class Parameter(FaebrykLibObject):
     def __init__(self) -> None:
         super().__init__()
 
+    T = TypeVar("T")
+    U = TypeVar("U")
+
     # TODO replace with better (graph-based resolution)
+    # TODO maybe rename to merge?
     def resolve(self, other: "Parameter") -> "Parameter":
         from faebryk.library.Constant import Constant
+        from faebryk.library.Operation import Operation
         from faebryk.library.Range import Range
         from faebryk.library.Set import Set
         from faebryk.library.TBD import TBD
 
-        if isinstance(self, TBD):
-            return other
-        if isinstance(other, TBD):
-            return self
-
         def _is_pair(type1: type[T], type2: type[U]) -> Optional[tuple[T, U]]:
-            if isinstance(self, type1) and isinstance(other, type2):
-                return self, other
-            if isinstance(other, type1) and isinstance(self, type2):
-                return other, self
-            return None
+            return is_type_pair(self, other, type1, type2)
+
+        # Specific pairs
 
         if pair := _is_pair(Constant, Constant):
             if len({p.value for p in pair}) != 1:
@@ -579,6 +573,14 @@ class Parameter(FaebrykLibObject):
             if any(any(not p.contains(v) for p in pair) for v in (min_, max_)):
                 raise Parameter.ResolutionException("conflicting ranges")
             return Range(min_, max_)
+
+        # Generic pairs
+
+        if pair := _is_pair(Parameter, Operation):
+            try:
+                return pair[0].resolve(pair[1].execute())
+            except Operation.ExecutionException as e:
+                raise Parameter.ResolutionException("operation failed") from e
 
         if pair := _is_pair(Parameter, TBD):
             return pair[0]
@@ -601,6 +603,61 @@ class Parameter(FaebrykLibObject):
             return Set(out)
 
         raise NotImplementedError
+
+    def op(self, other: "Parameter", op: Callable) -> "Parameter":
+        from faebryk.library.Constant import Constant
+        from faebryk.library.Operation import Operation
+        from faebryk.library.Range import Range
+        from faebryk.library.Set import Set
+        from faebryk.library.TBD import TBD
+
+        def _is_pair(
+            type1: type[T], type2: type[U], op: Callable
+        ) -> Optional[tuple[T, U, Callable]]:
+            if isinstance(self, type1) and isinstance(other, type2):
+                return self, other, op
+            if isinstance(self, type2) and isinstance(other, type1):
+                return other, self, lambda p1, p2: op(p2, p1)
+
+            return None
+
+        if pair := _is_pair(Constant, Constant):
+            return Constant(op(pair[0].value, pair[1].value))
+
+        if pair := _is_pair(Range, Range):
+            return Range(op(pair[0].min, pair[1].min), op(pair[0].max, pair[1].max))
+
+        if pair := _is_pair(Constant, Range):
+            sop = pair[2]
+            return Range(
+                sop(pair[0].value, pair[1].min), sop(pair[0].value, pair[1].max)
+            )
+
+        if pair := _is_pair(Parameter, Operation):
+            sop = pair[2]
+            return Operation(pair[:2], sop)
+
+        if pair := _is_pair(Parameter, TBD):
+            sop = pair[2]
+            return Operation(pair[:2], sop)
+
+        if pair := _is_pair(Parameter, Set):
+            sop = pair[2]
+            return Set(nested.op(pair[0], sop) for nested in pair[1].params)
+
+        raise NotImplementedError
+
+    def __add__(self, other):
+        return self.op(other, lambda a, b: a + b)
+
+    def __sub__(self, other):
+        return self.op(other, lambda a, b: a - b)
+
+    def __mul__(self, other):
+        return self.op(other, lambda a, b: a * b)
+
+    def __truediv__(self, other):
+        return self.op(other, lambda a, b: a / b)
 
     @staticmethod
     def resolve_all(params: "Sequence[Parameter]"):

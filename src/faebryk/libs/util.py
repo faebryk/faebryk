@@ -4,7 +4,17 @@
 
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Callable, Generic, Iterable, Iterator, List, Type, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+)
 
 
 class lazy:
@@ -222,3 +232,18 @@ def cast_assert(t: type[T], obj) -> T:
 
 def times(cnt: int, lamb: Callable[[], T]) -> list[T]:
     return [lamb() for _ in range(cnt)]
+
+
+T = TypeVar("T")
+U = TypeVar("U")
+
+
+@staticmethod
+def is_type_pair(
+    param1: Any, param2: Any, type1: type[T], type2: type[U]
+) -> Optional[tuple[T, U]]:
+    if isinstance(param1, type1) and isinstance(param2, type2):
+        return param1, param2
+    if isinstance(param2, type1) and isinstance(param1, type2):
+        return param2, param1
+    return None

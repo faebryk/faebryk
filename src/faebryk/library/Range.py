@@ -26,6 +26,9 @@ class Range(Parameter):
     def contains(self, value_to_check: typing.Any) -> bool:
         return self.min <= value_to_check <= self.max
 
+    def as_tuple(self) -> typing.Tuple[typing.Any, typing.Any]:
+        return (self.min, self.max)
+
     @classmethod
     def from_center(cls, center: typing.Any, delta: typing.Any) -> "Range":
         return cls(center - delta, center + delta)

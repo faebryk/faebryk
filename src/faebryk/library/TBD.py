@@ -13,3 +13,6 @@ class TBD(Parameter):
             return True
 
         return False
+
+    def __hash__(self) -> int:
+        return super().__hash__()

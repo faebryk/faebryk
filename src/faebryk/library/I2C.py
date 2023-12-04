@@ -26,13 +26,13 @@ class I2C(ModuleInterface):
 
         self.NODEs = NODES(self)
 
+        class PARAMS(ModuleInterface.PARAMS()):
+            frequency = TBD()
+
+        self.PARAMs = PARAMS(self)
+
         ref = ElectricLogic.connect_all_module_references(self)
         self.add_trait(has_single_electric_reference_defined(ref))
-
-        self.frequency = TBD()
-
-    def set_frequency(self, frequency: Parameter):
-        self.frequency = frequency
 
     def terminate(self, resistors: tuple[Resistor, Resistor]):
         # TODO: https://www.ti.com/lit/an/slva689/slva689.pdf
@@ -43,19 +43,14 @@ class I2C(ModuleInterface):
     def _on_connect(self, other: "I2C"):
         super()._on_connect(other)
 
-        if self.frequency == other.frequency:
-            return
-
         try:
-            frequency = self.frequency.resolve(other.frequency)
-        except Parameter.ResolutionException:
-            raise Parameter.ResolutionException(
+            self.frequency.merge(other.frequency)
+        except Parameter.MergeException:
+            raise Parameter.MergeException(
                 "Cannot resolve frequencies of\n"
                 + f"\t {self}({self.frequency}) and\n"
                 + f"\t {other}({other.frequency})"
             )
-        other.set_frequency(frequency)
-        self.set_frequency(frequency)
 
     class SpeedMode(IntEnum):
         low_speed = 10 * k

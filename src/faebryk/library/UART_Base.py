@@ -1,7 +1,7 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from faebryk.core.core import ModuleInterface, Parameter
+from faebryk.core.core import ModuleInterface
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.has_single_electric_reference_defined import (
     has_single_electric_reference_defined,
@@ -19,20 +19,15 @@ class UART_Base(ModuleInterface):
 
         self.NODEs = NODES(self)
 
+        class PARAMS(ModuleInterface.PARAMS()):
+            baud = TBD()
+
+        self.PARAMs = PARAMS(self)
+
         ref = ElectricLogic.connect_all_module_references(self)
         self.add_trait(has_single_electric_reference_defined(ref))
-
-        self.baud = TBD()
-
-    def set_baud(self, baud: Parameter):
-        self.baud = baud
 
     def _on_connect(self, other: "UART_Base"):
         super()._on_connect(other)
 
-        if self.baud == other.baud:
-            return
-
-        baud = self.baud.resolve(other.baud)
-        other.set_baud(baud)
-        self.set_baud(baud)
+        self.PARAMs.baud.merge(other.PARAMs.baud)

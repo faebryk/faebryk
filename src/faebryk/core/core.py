@@ -8,7 +8,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Callable, Generic, Iterable, Optional, Sequence, Type, TypeVar
 
-from faebryk.libs.util import Holder, NotNone, cast_assert, is_type_pair
+from faebryk.libs.util import Holder, NotNone, cast_assert, is_type_pair, unique_ref
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -363,7 +363,7 @@ class GraphInterface(FaebrykLibObject):
             linkcls = LinkDirect
         link = linkcls([other, self])
 
-        assert link not in self.connections
+        assert link not in self.connections, f"{link}"
         assert link not in other.connections
         self.connections.append(link)
         other.connections.append(link)
@@ -533,19 +533,27 @@ class Node(FaebrykLibObject):
         return f"{str(self)}(@{hex(id(self))})"
 
 
-class Parameter(FaebrykLibObject):
-    class ResolutionException(Exception):
+class Parameter(Node):
+    class MergeException(Exception):
         ...
+
+    @classmethod
+    def GIFS(cls):
+        class GIFS(Node.GIFS()):
+            narrowed_by = GraphInterface()
+            narrows = GraphInterface()
+
+        return GIFS
 
     def __init__(self) -> None:
         super().__init__()
 
+        self.GIFs = Parameter.GIFS()(self)
+
     T = TypeVar("T")
     U = TypeVar("U")
 
-    # TODO replace with better (graph-based resolution)
-    # TODO maybe rename to merge?
-    def resolve(self, other: "Parameter") -> "Parameter":
+    def _merge(self, other: "Parameter") -> "Parameter":
         from faebryk.library.Constant import Constant
         from faebryk.library.Operation import Operation
         from faebryk.library.Range import Range
@@ -555,32 +563,35 @@ class Parameter(FaebrykLibObject):
         def _is_pair(type1: type[T], type2: type[U]) -> Optional[tuple[T, U]]:
             return is_type_pair(self, other, type1, type2)
 
+        if self == other:
+            return self
+
         # Specific pairs
 
         if pair := _is_pair(Constant, Constant):
             if len({p.value for p in pair}) != 1:
-                raise Parameter.ResolutionException("conflicting constants")
+                raise Parameter.MergeException("conflicting constants")
             return pair[0]
 
         if pair := _is_pair(Constant, Range):
             if not pair[1].contains(pair[0].value):
-                raise Parameter.ResolutionException("constant not in range")
+                raise Parameter.MergeException("constant not in range")
             return pair[0]
 
         if pair := _is_pair(Range, Range):
             min_ = max(p.min for p in pair)
             max_ = min(p.max for p in pair)
             if any(any(not p.contains(v) for p in pair) for v in (min_, max_)):
-                raise Parameter.ResolutionException("conflicting ranges")
+                raise Parameter.MergeException("conflicting ranges")
             return Range(min_, max_)
 
         # Generic pairs
 
         if pair := _is_pair(Parameter, Operation):
             try:
-                return pair[0].resolve(pair[1].execute())
-            except Operation.ExecutionException as e:
-                raise Parameter.ResolutionException("operation failed") from e
+                return pair[0].merge(pair[1].execute())
+            except Operation.OperationNotExecutable as e:
+                raise Parameter.MergeException("operation failed") from e
 
         if pair := _is_pair(Parameter, TBD):
             return pair[0]
@@ -589,21 +600,41 @@ class Parameter(FaebrykLibObject):
             out = set()
             for set_other in pair[1].params:
                 try:
-                    out.add(set_other.resolve(pair[0]))
-                except Parameter.ResolutionException as e:
+                    out.add(set_other.merge(pair[0]))
+                except Parameter.MergeException as e:
                     # TODO remove
                     logger.warn(f"Not resolvable: {pair[0]} {set_other}: {e.args[0]}")
                     pass
             if len(out) == 1:
                 return next(iter(out))
             if len(out) == 0:
-                raise Parameter.ResolutionException(
+                raise Parameter.MergeException(
                     f"parameter |{pair[0]}| not resolvable with set |{pair[1]}|"
                 )
             return Set(out)
 
         raise NotImplementedError
 
+    def _narrowed(self, other: "Parameter"):
+        if self is other:
+            return
+
+        if self.GIFs.narrowed_by.is_connected(other.GIFs.narrows):
+            return
+        self.GIFs.narrowed_by.connect(other.GIFs.narrows)
+
+    def merge(self, other: "Parameter") -> "Parameter":
+        self_narrowed = self.get_most_narrow()
+        other_narrowed = other.get_most_narrow()
+
+        out = self_narrowed._merge(other_narrowed)
+
+        self_narrowed._narrowed(out)
+        other_narrowed._narrowed(out)
+
+        return out
+
+    # TODO: replace with graph-based
     def op(self, other: "Parameter", op: Callable) -> "Parameter":
         from faebryk.library.Constant import Constant
         from faebryk.library.Operation import Operation
@@ -657,17 +688,35 @@ class Parameter(FaebrykLibObject):
     def __truediv__(self, other):
         return self.op(other, lambda a, b: a / b)
 
+    def get_most_narrow(self):
+        narrowers = {
+            narrower
+            for narrower_gif in self.GIFs.narrowed_by.get_direct_connections()
+            if (narrower := narrower_gif.node) is not self
+        }
+        if not narrowers:
+            return self
+
+        narrowest_next = unique_ref(
+            narrower.get_most_narrow() for narrower in narrowers
+        )
+
+        assert (
+            len(narrowest_next) == 1
+        ), f"Ambiguous narrowest {narrowest_next} for {self}"
+        return next(iter(narrowest_next))
+
     @staticmethod
     def resolve_all(params: "Sequence[Parameter]"):
         from faebryk.library.TBD import TBD
 
-        params_set = set(params)
+        params_set = list(params)
         if not params_set:
             return TBD()
         it = iter(params_set)
         most_specific = next(it)
         for param in it:
-            most_specific = most_specific.resolve(param)
+            most_specific = most_specific.merge(param)
 
         return most_specific
 
@@ -732,9 +781,19 @@ class ModuleInterface(Node):
 
         return GIFS
 
+    @classmethod
+    def PARAMS(cls):
+        class PARAMS(Module.NodesCls(Parameter)):
+            # workaround to help pylance
+            def get_all(self) -> list[Parameter]:
+                return [cast_assert(Parameter, i) for i in super().get_all()]
+
+        return PARAMS
+
     def __init__(self) -> None:
         super().__init__()
         self.GIFs = ModuleInterface.GIFS()(self)
+        self.PARAMs = ModuleInterface.PARAMS()(self)
 
     def _connect_siblings_and_connections(
         self, other: ModuleInterface, linkcls: type[Link]
@@ -920,11 +979,21 @@ class Module(Node):
 
         return IFS
 
+    @classmethod
+    def PARAMS(cls):
+        class PARAMS(Module.NodesCls(Parameter)):
+            # workaround to help pylance
+            def get_all(self) -> list[Parameter]:
+                return [cast_assert(Parameter, i) for i in super().get_all()]
+
+        return PARAMS
+
     def __init__(self) -> None:
         super().__init__()
 
         self.GIFs = Module.GIFS()(self)
         self.IFs = Module.IFS()(self)
+        self.PARAMs = Module.PARAMS()(self)
 
 
 TF = TypeVar("TF", bound="Footprint")

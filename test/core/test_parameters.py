@@ -6,13 +6,14 @@ import unittest
 from operator import add
 from typing import TypeVar
 
-from faebryk.core.core import Parameter
+from faebryk.core.core import Module, Parameter
 from faebryk.core.core import logger as core_logger
 from faebryk.library.Constant import Constant
 from faebryk.library.Operation import Operation
 from faebryk.library.Range import Range
 from faebryk.library.Set import Set
 from faebryk.library.TBD import TBD
+from faebryk.library.UART_Base import UART_Base
 
 logger = logging.getLogger(__name__)
 core_logger.setLevel(logger.getEffectiveLevel())
@@ -85,6 +86,50 @@ class TestParameters(unittest.TestCase):
             ).value,
             2,
         )
+
+    def test_modules(self):
+        T = TypeVar("T")
+
+        def assertIsInstance(obj, cls: type[T]) -> T:
+            self.assertIsInstance(obj, cls)
+            assert isinstance(obj, cls)
+            return obj
+
+        class Modules(Module):
+            def __init__(self) -> None:
+                super().__init__()
+
+                class NODES(super().NODES()):
+                    UART_A = UART_Base()
+                    UART_B = UART_Base()
+                    UART_C = UART_Base()
+
+                self.NODEs = NODES(self)
+
+        m = Modules()
+
+        UART_A = m.NODEs.UART_A
+        UART_B = m.NODEs.UART_B
+        UART_C = m.NODEs.UART_C
+
+        UART_A.connect(UART_B)
+
+        UART_A.PARAMs.baud.merge(Constant(9600))
+
+        for uart in [UART_A, UART_B]:
+            self.assertEqual(
+                assertIsInstance(uart.PARAMs.baud.get_most_narrow(), Constant).value,
+                9600,
+            )
+
+        UART_C.PARAMs.baud.merge(Range(1200, 115200))
+        UART_A.connect(UART_C)
+
+        for uart in [UART_A, UART_B, UART_C]:
+            self.assertEqual(
+                assertIsInstance(uart.PARAMs.baud.get_most_narrow(), Constant).value,
+                9600,
+            )
 
 
 if __name__ == "__main__":

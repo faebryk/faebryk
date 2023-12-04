@@ -21,10 +21,10 @@ class Set(Parameter):
         )
 
     def __str__(self) -> str:
-        return f"{type(self).__name__}({str(self.params)})"
+        return super().__str__() + f"({self.params})"
 
     def __repr__(self):
-        return str(self)  # + "@" + hex(id(self))
+        return super().__repr__() + f"({self.params!r})"
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Set):

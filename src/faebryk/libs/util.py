@@ -58,6 +58,10 @@ def unique(it, key):
     return out
 
 
+def unique_ref(it):
+    return unique(it, id)
+
+
 def get_dict(obj, key, default):
     if key not in obj:
         obj[key] = default()
@@ -181,7 +185,8 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
                 return
 
             raise Exception(
-                f"Invalid property added for {name=} {value=} of type {type(value)}, expected {_type} or iterable thereof"
+                f"Invalid property added for {name=} {value=} of type {type(value)},"
+                + f"expected {_type} or iterable thereof"
             )
 
         def get_all(self) -> list[T]:

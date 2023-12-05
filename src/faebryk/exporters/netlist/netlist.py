@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from faebryk.core.core import Module
 from faebryk.core.util import get_all_nodes_graph
 from faebryk.library.has_footprint import has_footprint
-from faebryk.library.has_type_description import has_type_description
+from faebryk.library.has_overriden_name import has_overriden_name
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +45,7 @@ def make_t2_netlist_from_graph(G):
 
     t2_nets = [
         Net(
-            properties={
-                "name": net.get_trait(has_type_description).get_type_description()
-            },
+            properties={"name": net.get_trait(has_overriden_name).get_name()},
             vertices=[
                 Vertex(
                     component=t.get_kicad_obj(),

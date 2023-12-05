@@ -102,7 +102,7 @@ def get_footprint(partno: str, get_model: bool = True):
     return fp
 
 
-def attach_footprint_manually(component: Module, fp: KicadFootprint, partno: int):
+def attach_footprint_manually(component: Module, fp: KicadFootprint, partno: str):
     if not component.has_trait(has_descriptive_properties):
         component.add_trait(has_defined_descriptive_properties({}))
     component.get_trait(has_descriptive_properties).add_properties({"LCSC": partno})

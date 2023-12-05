@@ -569,7 +569,7 @@ class Parameter(Node):
         # Specific pairs
 
         if pair := _is_pair(Constant, Constant):
-            if len({p.value for p in pair}) != 1:
+            if pair[0].value != pair[1].value:
                 raise Parameter.MergeException("conflicting constants")
             return pair[0]
 
@@ -622,6 +622,15 @@ class Parameter(Node):
         if self.GIFs.narrowed_by.is_connected(other.GIFs.narrows):
             return
         self.GIFs.narrowed_by.connect(other.GIFs.narrows)
+
+    def is_mergeable_with(self, other: "Parameter") -> bool:
+        try:
+            self.get_most_narrow()._merge(other.get_most_narrow())
+            return True
+        except Parameter.MergeException:
+            return False
+        except NotImplementedError:
+            return False
 
     def merge(self, other: "Parameter") -> "Parameter":
         self_narrowed = self.get_most_narrow()
@@ -688,11 +697,22 @@ class Parameter(Node):
     def __truediv__(self, other):
         return self.op(other, lambda a, b: a / b)
 
+    def __int__(self):
+        from faebryk.library.Constant import Constant
+
+        p = self.get_most_narrow()
+
+        if not isinstance(p, Constant):
+            raise ValueError()
+
+        return int(p.value)
+
     def get_most_narrow(self):
         narrowers = {
             narrower
             for narrower_gif in self.GIFs.narrowed_by.get_direct_connections()
             if (narrower := narrower_gif.node) is not self
+            and isinstance(narrower, Parameter)
         }
         if not narrowers:
             return self

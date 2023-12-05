@@ -4,144 +4,98 @@
 from math import sqrt
 
 from faebryk.core.core import Module, Parameter
-from faebryk.core.util import unit_map
 from faebryk.library.can_attach_to_footprint_symmetrically import (
     can_attach_to_footprint_symmetrically,
 )
 from faebryk.library.can_bridge_defined import can_bridge_defined
-from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
-from faebryk.library.has_defined_resistance import has_defined_resistance
-from faebryk.library.has_resistance import has_resistance
-from faebryk.library.has_type_description import has_type_description
+from faebryk.library.has_type_description_unit_map import has_type_description_unit_map
+from faebryk.library.TBD import TBD
 from faebryk.libs.util import times
 
 
 class Resistor(Module):
-    def _setup_traits(self):
-        self.add_trait(can_attach_to_footprint_symmetrically())
+    def __init__(self, resistance: Parameter | None = None):
+        super().__init__()
 
-    def _setup_interfaces(self):
         class _IFs(super().IFS()):
             unnamed = times(2, Electrical)
 
         self.IFs = _IFs(self)
         self.add_trait(can_bridge_defined(*self.IFs.unnamed))
 
-    def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls)
-        self._setup_traits()
-        return self
+        class PARAMS(super().PARAMS()):
+            resistance = TBD()
 
-    def __init__(self, resistance: Parameter):
-        super().__init__()
-        self._setup_interfaces()
-        self.set_resistance(resistance)
+        self.PARAMs = PARAMS(self)
+        if resistance:
+            self.PARAMs.resistance.merge(resistance)
 
-    def set_resistance(self, resistance: Parameter):
-        self.add_trait(has_defined_resistance(resistance))
+        self.add_trait(can_attach_to_footprint_symmetrically())
+        self.add_trait(
+            has_type_description_unit_map(
+                self.PARAMs.resistance,
+                ["µΩ", "mΩ", "Ω", "kΩ", "MΩ", "GΩ"],
+                start="Ω",
+            )
+        )
 
-        if type(resistance) is not Constant:
-            # TODO this is a bit ugly
-            # it might be that there was another more abstract valid trait
-            # but this challenges the whole trait overriding mechanism
-            # might have to make a trait stack thats popped or so
-            self.del_trait(has_type_description)
-            return
+    def get_voltage_drop_by_current_resistance(self, current_A: Parameter) -> Parameter:
+        return current_A * self.PARAMs.resistance
 
-        class _has_type_description(has_type_description.impl()):
-            @staticmethod
-            def get_type_description():
-                assert isinstance(
-                    self.get_trait(has_resistance).get_resistance(), Constant
-                )
-                resistance = self.get_trait(has_resistance).get_resistance()
-                assert isinstance(resistance, Constant)
-                return unit_map(
-                    resistance.value,
-                    ["µΩ", "mΩ", "Ω", "kΩ", "MΩ", "GΩ"],
-                    start="Ω",
-                ).encode("utf-8")
+    def get_voltage_drop_by_power_resistance(self, power_W: Parameter) -> Parameter:
+        return sqrt(power_W * self.PARAMs.resistance)
 
-        self.add_trait(_has_type_description())
-
-    def set_voltage_drop_by_current_resistance(self, current_A: Constant) -> Constant:
-        resistance = self.get_trait(has_resistance).get_resistance()
-        assert isinstance(resistance, Constant)
-        voltage_drop = Constant(current_A.value * resistance.value)
-        return Constant(voltage_drop)
-
-    def set_voltage_drop_by_power_resistance(self, power_W: Constant) -> Constant:
-        resistance = self.get_trait(has_resistance).get_resistance()
-        assert isinstance(resistance, Constant)
-        voltage_drop = Constant(sqrt(resistance.value * power_W.value))
-        return Constant(voltage_drop)
-
+    @staticmethod
     def set_voltage_drop_by_power_current(
-        self, power_W: Constant, current_A: Constant
-    ) -> Constant:
-        voltage_drop = Constant(power_W.value / current_A)
-        return Constant(voltage_drop)
+        power_W: Parameter, current_A: Parameter
+    ) -> Parameter:
+        return power_W / current_A
 
-    def set_current_flow_by_voltage_resistance(
-        self, voltage_drop_V: Constant
-    ) -> Constant:
-        resistance = self.get_trait(has_resistance).get_resistance()
-        assert isinstance(resistance, Constant)
-        current_flow = Constant(voltage_drop_V.value / resistance.value)
-        return Constant(current_flow)
+    def get_current_flow_by_voltage_resistance(
+        self, voltage_drop_V: Parameter
+    ) -> Parameter:
+        return voltage_drop_V / self.PARAMs.resistance
 
-    def set_current_flow_by_power_resistance(self, power_W: Constant) -> Constant:
-        resistance = self.get_trait(has_resistance).get_resistance()
-        assert isinstance(resistance, Constant)
-        current_flow = Constant(sqrt(power_W.value / resistance.value))
-        return Constant(current_flow)
+    def get_current_flow_by_power_resistance(self, power_W: Parameter) -> Parameter:
+        return sqrt(power_W / self.PARAMs.resistance)
 
-    def set_current_flow_by_voltage_power(
-        self, voltage_drop_V: Constant, power_W: Constant
-    ) -> Constant:
-        current_flow = Constant(power_W.value / voltage_drop_V.value)
-        return Constant(current_flow)
+    @staticmethod
+    def get_current_flow_by_voltage_power(
+        voltage_drop_V: Parameter, power_W: Parameter
+    ) -> Parameter:
+        return power_W / voltage_drop_V
 
     def set_resistance_by_voltage_current(
-        self, voltage_drop_V: Constant, current_A: Constant
-    ) -> Constant:
-        resistance = Constant(voltage_drop_V.value / current_A.value)
-        self.add_trait(has_defined_resistance(resistance))
-        return resistance
+        self, voltage_drop_V: Parameter, current_A: Parameter
+    ) -> Parameter:
+        self.PARAMs.resistance.merge(voltage_drop_V / current_A)
+        return self.PARAMs.resistance.get_most_narrow()
 
     def set_resistance_by_voltage_power(
-        self, voltage_drop_V: Constant, power_W: Constant
-    ) -> Constant:
-        resistance: Constant = Constant(pow(voltage_drop_V.value, 2) / power_W.value)
-        self.add_trait(has_defined_resistance(resistance))
-        return Constant(resistance)
+        self, voltage_drop_V: Parameter, power_W: Parameter
+    ) -> Parameter:
+        self.PARAMs.resistance.merge(pow(voltage_drop_V, 2) / power_W)
+        return self.PARAMs.resistance.get_most_narrow()
 
     def set_resistance_by_power_current(
-        self, current_A: Constant, power_W: Constant
-    ) -> Constant:
-        resistance: Constant = Constant(power_W.value / pow(current_A.value, 2))
-        self.add_trait(has_defined_resistance(resistance))
-        return Constant(resistance)
+        self, current_A: Parameter, power_W: Parameter
+    ) -> Parameter:
+        self.PARAMs.resistance.merge(power_W / pow(current_A, 2))
+        return self.PARAMs.resistance.get_most_narrow()
 
-    def set_power_dissipation_by_voltage_resistance(
-        self, voltage_drop_V: Constant
-    ) -> Constant:
-        resistance = self.get_trait(has_resistance).get_resistance()
-        assert isinstance(resistance, Constant)
-        energy_dissipation = Constant(pow(voltage_drop_V.value, 2) / resistance)
-        return Constant(energy_dissipation)
+    def get_power_dissipation_by_voltage_resistance(
+        self, voltage_drop_V: Parameter
+    ) -> Parameter:
+        return pow(voltage_drop_V, 2) / self.PARAMs.resistance
 
-    def set_power_dissipation_by_current_resistance(
-        self, current_A: Constant
-    ) -> Constant:
-        resistance = self.get_trait(has_resistance).get_resistance()
-        assert isinstance(resistance, Constant)
-        energy_dissipation = Constant(pow(current_A.value, 2) * resistance)
-        return Constant(energy_dissipation)
+    def get_power_dissipation_by_current_resistance(
+        self, current_A: Parameter
+    ) -> Parameter:
+        return pow(current_A, 2) * self.PARAMs.resistance
 
-    def set_power_dissipation_by_voltage_current(
-        self, voltage_drop_V: Constant, current_A
-    ) -> Constant:
-        energy_dissipation = Constant(voltage_drop_V.value * current_A.value)
-        return Constant(energy_dissipation)
+    @staticmethod
+    def get_power_dissipation_by_voltage_current(
+        voltage_drop_V: Parameter, current_A
+    ) -> Parameter:
+        return voltage_drop_V * current_A

@@ -12,6 +12,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    SupportsInt,
     Type,
     TypeVar,
 )
@@ -85,10 +86,10 @@ def get_key(haystack: dict[T, U], needle: U) -> T:
     return find(haystack.items(), lambda x: x[1] == needle)[0]
 
 
-def find(haystack: Iterable[T], needle: Callable) -> T:
+def find(haystack: Iterable[T], needle: Callable[[T], bool]) -> T:
     results = list(filter(needle, haystack))
     if len(results) != 1:
-        raise ValueError()
+        raise KeyError()
     return results[0]
 
 
@@ -191,7 +192,7 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
 
         def get_all(self) -> list[T]:
             # check for illegal list modifications
-            for name in dir(self):
+            for name in sorted(dir(self)):
                 value = getattr(self, name)
                 if name.startswith("_"):
                     continue
@@ -235,8 +236,8 @@ def cast_assert(t: type[T], obj) -> T:
     return obj
 
 
-def times(cnt: int, lamb: Callable[[], T]) -> list[T]:
-    return [lamb() for _ in range(cnt)]
+def times(cnt: SupportsInt, lamb: Callable[[], T]) -> list[T]:
+    return [lamb() for _ in range(int(cnt))]
 
 
 T = TypeVar("T")

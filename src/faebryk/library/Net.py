@@ -6,7 +6,7 @@ import logging
 from faebryk.core.core import Footprint, Module
 from faebryk.core.util import get_connected_mifs, get_parent_of_type
 from faebryk.library.Electrical import Electrical
-from faebryk.library.has_type_description import has_type_description
+from faebryk.library.has_overriden_name import has_overriden_name
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +20,8 @@ class Net(Module):
 
         self.IFs = _IFs(self)
 
-        class _(has_type_description.impl()):
-            def get_type_description(_self):
+        class _(has_overriden_name.impl()):
+            def get_name(_self):
                 from faebryk.exporters.netlist.graph import (
                     can_represent_kicad_footprint,
                 )

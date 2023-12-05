@@ -3,7 +3,7 @@
 
 import logging
 import math
-from typing import Callable, Iterable, TypeVar, cast
+from typing import Callable, Iterable, Sequence, TypeVar, cast
 
 import networkx as nx
 
@@ -27,7 +27,9 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-def unit_map(value: int | float, units, start=None, base=1000):
+def unit_map(
+    value: int | float, units: Sequence[str], start: str | None = None, base: int = 1000
+):
     if start is None:
         start_idx = 0
     else:
@@ -73,6 +75,10 @@ def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     )
 
     return out
+
+
+def get_all_modules(node: Node) -> list[Module]:
+    return [n for n in get_all_nodes(node) if isinstance(n, Module)]
 
 
 def get_all_nodes_graph(G: nx.Graph):
@@ -136,8 +142,8 @@ def get_parent(node: Node, filter_expr: Callable):
 T = TypeVar("T")
 
 
-def get_parent_of_type(node: Node, parent_type: type[T]) -> T:
-    return get_parent(node, lambda p: isinstance(p, parent_type))
+def get_parent_of_type(node: Node, parent_type: type[T]) -> T | None:
+    return cast(parent_type, get_parent(node, lambda p: isinstance(p, parent_type)))
 
 
 def connect_interfaces_via_chain(

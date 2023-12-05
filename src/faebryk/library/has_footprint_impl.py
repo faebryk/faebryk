@@ -20,5 +20,5 @@ class has_footprint_impl(has_footprint.impl()):
     def get_footprint(self) -> Footprint:
         children = self.get_obj().GIFs.children.get_children()
         fps = [c for _, c in children if isinstance(c, Footprint)]
-        assert len(fps) == 1
+        assert len(fps) == 1, f"candidates: {fps}"
         return fps[0]

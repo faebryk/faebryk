@@ -1,14 +1,12 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from faebryk.core.core import Module, NodeTrait, Parameter
+from faebryk.core.core import Module, Parameter
 from faebryk.core.util import unit_map
+from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
-from faebryk.library.TBD import TBD
-from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.has_type_description import has_type_description
-from faebryk.libs.util import times
 
 
 class Diode(Module):
@@ -42,11 +40,11 @@ class Diode(Module):
 
     def _setup_interfaces(self):
         class _IFs(super().IFS()):
-            annode = Electrical()
+            anode = Electrical()
             cathode = Electrical()
 
         self.IFs = _IFs(self)
-        self.add_trait(can_bridge_defined(self.IFs.annode, self.IFs.cathode))
+        self.add_trait(can_bridge_defined(self.IFs.anode, self.IFs.cathode))
 
     def set_forward_voltage(self, forward_voltage: Parameter):
         self.forward_voltage = forward_voltage

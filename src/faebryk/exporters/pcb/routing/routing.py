@@ -18,7 +18,7 @@ from faebryk.exporters.pcb.routing.grid import (
     GridInvalidVertexException,
     OutCoord,
 )
-from faebryk.library.has_type_description import has_type_description
+from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.Net import Net
 from faebryk.libs.kicad.pcb import Footprint, GR_Circle, GR_Line, GR_Rect, Pad
 
@@ -83,8 +83,9 @@ class PCB_Router:
             for f in (min, max)
         )
         # use all available layers
-        rect = pad_rect[0], type(pad_rect[1])(
-            *pad_rect[1][:2], len(self.copper_layers) - 1
+        rect = (
+            pad_rect[0],
+            type(pad_rect[1])(*pad_rect[1][:2], len(self.copper_layers) - 1),
         )
 
         pcb_edge = transformer.get_edge()
@@ -133,7 +134,7 @@ class PCB_Router:
 
         # TODO add net picking heuristic
         for net in nets:
-            netname = net.get_trait(has_type_description).get_type_description()
+            netname = net.get_trait(has_overriden_name).get_name()
             try:
                 self.route_net(net)
             except GridInvalidVertexException as e:
@@ -164,7 +165,7 @@ class PCB_Router:
 
         assert net is not None
         pcb_net = transformer.get_net(net)
-        net_name = net.get_trait(has_type_description).get_type_description()
+        net_name = net.get_trait(has_overriden_name).get_name()
         mifs = net.get_connected_interfaces()
 
         # get pads

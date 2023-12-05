@@ -1,7 +1,7 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 
 from faebryk.core.core import Parameter
 from faebryk.library.is_representable_by_single_value_defined import (
@@ -9,14 +9,34 @@ from faebryk.library.is_representable_by_single_value_defined import (
 )
 from faebryk.libs.exceptions import FaebrykException
 
-T = TypeVar("T")
+X = TypeVar("X", bound="SupportsRangeOps")
+
+
+class SupportsRangeOps(Protocol):
+    def __add__(self, __value: X) -> X:
+        ...
+
+    def __sub__(self, __value: X) -> X:
+        ...
+
+    def __le__(self, __value: X) -> bool:
+        ...
+
+    def __lt__(self, __value: X) -> bool:
+        ...
+
+    def __ge__(self, __value: X) -> bool:
+        ...
+
+
+T = TypeVar("T", bound=SupportsRangeOps)
 
 
 class Range(Generic[T], Parameter):
-    def __init__(self, value_min: T, value_max: T) -> None:
+    def __init__(self, bound1: T, bound2: T) -> None:
         super().__init__()
-        self.min = value_min
-        self.max = value_max
+        self.min = min((bound1, bound2))
+        self.max = max((bound1, bound2))
 
     def pick(self, value_to_check: T):
         if not self.min <= value_to_check <= self.max:

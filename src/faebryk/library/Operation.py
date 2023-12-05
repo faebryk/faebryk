@@ -13,7 +13,7 @@ class Operation(Parameter):
     def __init__(
         self,
         operands: typing.Sequence[Parameter],
-        operation: typing.Callable[[typing.Any], Parameter],
+        operation: typing.Callable[..., Parameter],
     ) -> None:
         super().__init__()
         self.operands = operands

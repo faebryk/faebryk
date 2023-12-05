@@ -11,6 +11,7 @@ from faebryk.core.core import logger as core_logger
 from faebryk.library.Constant import Constant
 from faebryk.library.Operation import Operation
 from faebryk.library.Range import Range
+from faebryk.library.Resistor import Resistor
 from faebryk.library.Set import Set
 from faebryk.library.TBD import TBD
 from faebryk.library.UART_Base import UART_Base
@@ -130,6 +131,12 @@ class TestParameters(unittest.TestCase):
                 assertIsInstance(uart.PARAMs.baud.get_most_narrow(), Constant).value,
                 9600,
             )
+
+        resistor = Resistor()
+
+        assertIsInstance(
+            resistor.get_current_flow_by_voltage_resistance(Constant(0.5)), Operation
+        )
 
 
 if __name__ == "__main__":

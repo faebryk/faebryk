@@ -8,7 +8,6 @@ import pprint
 import random
 import re
 from operator import add
-from typing import List
 from typing import Any, TypeVar
 
 import numpy as np
@@ -25,7 +24,6 @@ from faebryk.core.graph import Graph
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
-from faebryk.library.has_type_description import has_type_description
 from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.Net import Net as FNet
 from faebryk.libs.kicad.pcb import (
@@ -109,7 +107,10 @@ class PCB_Transformer:
             assert (
                 fp_ref,
                 fp_name,
-            ) in footprints, f"Footprint ({fp_ref=}, {fp_name=}) not found in footprints dictionary. Did you import the latest NETLIST into KiCad?"
+            ) in footprints, (
+                f"Footprint ({fp_ref=}, {fp_name=}) not found in footprints dictionary."
+                f" Did you import the latest NETLIST into KiCad?"
+            )
             fp = footprints[(fp_ref, fp_name)]
 
             node.add_trait(self.has_linked_kicad_footprint_defined(fp))
@@ -163,13 +164,14 @@ class PCB_Transformer:
 
     def set_dimensions_complex(
         self,
-        points: List,
+        points: list,
         origin_x_mm: float = 0.0,
         origin_y_mm: float = 0.0,
         remove_existing_outline: bool = True,
     ):
         """
-        Create a board outline (edge cut) consisting out of points connected via straight lines
+        Create a board outline (edge cut) consisting out of
+        points connected via straight lines
         """
 
         # remove existing lines on Egde.cuts layer
@@ -280,7 +282,7 @@ class PCB_Transformer:
 
     def get_net(self, net: FNet) -> Net:
         nets = {pcb_net.name: pcb_net for pcb_net in self.pcb.nets}
-        return nets[net.get_trait(has_type_description).get_type_description()]
+        return nets[net.get_trait(has_overriden_name).get_name()]
 
     def get_edge(self) -> list[GR_Line.Coord]:
         def geo_to_lines(

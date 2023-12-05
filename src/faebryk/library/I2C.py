@@ -3,7 +3,7 @@
 import logging
 from enum import IntEnum
 
-from faebryk.core.core import ModuleInterface, Parameter
+from faebryk.core.core import ModuleInterface
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.has_single_electric_reference_defined import (
     has_single_electric_reference_defined,
@@ -43,14 +43,7 @@ class I2C(ModuleInterface):
     def _on_connect(self, other: "I2C"):
         super()._on_connect(other)
 
-        try:
-            self.frequency.merge(other.frequency)
-        except Parameter.MergeException:
-            raise Parameter.MergeException(
-                "Cannot resolve frequencies of\n"
-                + f"\t {self}({self.frequency}) and\n"
-                + f"\t {other}({other.frequency})"
-            )
+        self.PARAMs.frequency.merge(other.PARAMs.frequency)
 
     class SpeedMode(IntEnum):
         low_speed = 10 * k

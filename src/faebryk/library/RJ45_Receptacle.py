@@ -8,7 +8,9 @@ from faebryk.library.can_attach_to_footprint_via_pinmap import (
 from faebryk.library.DifferentialPair import (
     DifferentialPair,
 )
-from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.has_designator_prefix_defined import (
+    has_designator_prefix_defined,
+)
 from faebryk.libs.util import times
 
 
@@ -36,4 +38,4 @@ class RJ45_Receptacle(Module):
                 }
             )
         )
-        self.add_trait(has_defined_type_description("x"))
+        self.add_trait(has_designator_prefix_defined("P"))

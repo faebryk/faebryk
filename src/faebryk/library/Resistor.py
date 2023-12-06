@@ -4,12 +4,16 @@
 from math import sqrt
 
 from faebryk.core.core import Module, Parameter
+from faebryk.core.util import unit_map
 from faebryk.library.can_attach_to_footprint_symmetrically import (
     can_attach_to_footprint_symmetrically,
 )
 from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Electrical import Electrical
-from faebryk.library.has_type_description_unit_map import has_type_description_unit_map
+from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
+from faebryk.library.has_simple_value_representation_based_on_param import (
+    has_simple_value_representation_based_on_param,
+)
 from faebryk.library.TBD import TBD
 from faebryk.libs.util import times
 
@@ -33,12 +37,12 @@ class Resistor(Module):
 
         self.add_trait(can_attach_to_footprint_symmetrically())
         self.add_trait(
-            has_type_description_unit_map(
+            has_simple_value_representation_based_on_param(
                 self.PARAMs.resistance,
-                ["µΩ", "mΩ", "Ω", "kΩ", "MΩ", "GΩ"],
-                start="Ω",
+                lambda p: unit_map(p, ["µΩ", "mΩ", "Ω", "kΩ", "MΩ", "GΩ"], start="Ω"),
             )
         )
+        self.add_trait(has_designator_prefix_defined("R"))
 
     def get_voltage_drop_by_current_resistance(self, current_A: Parameter) -> Parameter:
         return current_A * self.PARAMs.resistance

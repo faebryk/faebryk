@@ -11,7 +11,9 @@ from faebryk.library.can_attach_to_footprint_via_pinmap import (
 from faebryk.library.Capacitor import Capacitor
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
-from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.has_designator_prefix_defined import (
+    has_designator_prefix_defined,
+)
 from faebryk.library.I2C import I2C
 from faebryk.library.Resistor import Resistor
 from faebryk.library.SOIC import SOIC
@@ -70,7 +72,7 @@ class M24C08_FMN6TP(Module):
         self.IFs.data.terminate(tuple(self.NODEs.i2c_termination_resistors))
         self.IFs.power.decouple(self.NODEs.decoupling_cap)
 
-        self.add_trait(has_defined_type_description("U"))
+        self.add_trait(has_designator_prefix_defined("U"))
 
     def set_address(self, addr: int):
         assert addr < (1 << len(self.IFs.e))

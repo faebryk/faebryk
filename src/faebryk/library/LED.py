@@ -4,7 +4,9 @@
 from faebryk.core.core import Module, NodeTrait, Parameter
 from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
-from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.has_designator_prefix_defined import (
+    has_designator_prefix_defined,
+)
 from faebryk.library.TBD import TBD
 
 
@@ -15,8 +17,6 @@ class LED(Module):
             raise NotImplementedError
 
     def _setup_traits(self):
-        self.add_trait(has_defined_type_description("LED"))
-
         class _(self.has_calculatable_needed_series_resistance.impl()):
             @staticmethod
             def get_needed_series_resistance_ohm(input_voltage_V: float) -> Constant:
@@ -35,7 +35,7 @@ class LED(Module):
 
         self.add_trait(_())
 
-        self.add_trait(has_defined_type_description("D"))
+        self.add_trait(has_designator_prefix_defined("D"))
 
     def _setup_interfaces(self):
         class _IFs(super().IFS()):

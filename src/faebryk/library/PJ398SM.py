@@ -3,7 +3,9 @@
 
 from faebryk.core.core import Module
 from faebryk.library.Electrical import Electrical
-from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.has_designator_prefix_defined import (
+    has_designator_prefix_defined,
+)
 
 
 class PJ398SM(Module):
@@ -17,7 +19,7 @@ class PJ398SM(Module):
         self._setup_interfaces()
 
     def _setup_traits(self):
-        self.add_trait(has_defined_type_description("Connector"))
+        self.add_trait(has_designator_prefix_defined("P"))
 
     def _setup_interfaces(self):
         class _IFs(super().IFS()):

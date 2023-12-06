@@ -15,11 +15,11 @@ def to_faebryk_t2_netlist(kicad_netlist):
 
     netlist = parse_kicad_netlist(kicad_netlist)
 
-    components = {
+    components: dict[str, Component] = {
         comp["ref"]: Component(
             name=comp["ref"],
             value=comp["value"],
-            properties={"footprint": comp["footprint"]},
+            properties={"footprint": comp["footprint"]} | comp.get("properties", {}),
         )
         for comp in netlist["components"].values()
     }
@@ -40,7 +40,7 @@ def to_faebryk_t2_netlist(kicad_netlist):
         for net in netlist["nets"].values()
     ]
 
-    return t2_netlist
+    return t2_netlist, components
 
 
 def to_faebryk_t1_netlist_simple(t2_netlist):

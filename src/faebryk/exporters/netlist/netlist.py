@@ -46,14 +46,17 @@ def make_t2_netlist_from_graph(G):
     t2_nets = [
         Net(
             properties={"name": net.get_trait(has_overriden_name).get_name()},
-            vertices=[
-                Vertex(
-                    component=t.get_kicad_obj(),
-                    pin=t.get_pin_name(mif),
-                )
-                for mif, fp in net.get_fps().items()
-                if (t := fp.get_trait(can_represent_kicad_footprint)) is not None
-            ],
+            vertices=sorted(
+                [
+                    Vertex(
+                        component=t.get_kicad_obj(),
+                        pin=t.get_pin_name(mif),
+                    )
+                    for mif, fp in net.get_fps().items()
+                    if (t := fp.get_trait(can_represent_kicad_footprint)) is not None
+                ],
+                key=lambda v: (v.component.name, v.pin),
+            ),
         )
         for net in nets
     ]
@@ -63,10 +66,19 @@ def make_t2_netlist_from_graph(G):
         .get_footprint()
         .get_trait(can_represent_kicad_footprint)
         .get_kicad_obj()
-        for gif in G.G.nodes
-        if (n := gif.node).has_trait(has_footprint) and isinstance(n, Module)
+        for n in {
+            gif.node
+            for gif in G.G.nodes
+            if gif.node.has_trait(has_footprint) and isinstance(gif.node, Module)
+        }
     }
 
-    assert all(vertex.component in comps for net in t2_nets for vertex in net.vertices)
+    not_found = [
+        vertex.component
+        for net in t2_nets
+        for vertex in net.vertices
+        if vertex.component.name not in {c.name for c in comps}
+    ]
+    assert not not_found, f"Could not match: {not_found}"
 
     return {"nets": t2_nets, "comps": comps}

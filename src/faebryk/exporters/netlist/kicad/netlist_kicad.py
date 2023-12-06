@@ -5,6 +5,7 @@ import itertools
 import logging
 
 import faebryk.libs.kicad.sexp as sexp
+from faebryk.libs.util import duplicates
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +292,9 @@ def from_faebryk_t2_netlist(t2_netlist):
         import random
 
         return hex(random.randrange(1 << 31))
+
+    dupes = duplicates(pre_comps, lambda comp: comp.name)
+    assert not dupes, f"Duplicate comps {dupes}"
 
     comps = [
         _defaulted_comp(

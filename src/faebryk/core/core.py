@@ -707,6 +707,16 @@ class Parameter(Node):
 
         return int(p.value)
 
+    def __float__(self):
+        from faebryk.library.Constant import Constant
+
+        p = self.get_most_narrow()
+
+        if not isinstance(p, Constant):
+            raise ValueError()
+
+        return float(p.value)
+
     def get_most_narrow(self):
         narrowers = {
             narrower

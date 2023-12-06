@@ -12,7 +12,7 @@ class KicadFootprint(Footprint):
     def __init__(self, kicad_identifier: str, pin_names: list[str]) -> None:
         super().__init__()
 
-        unique_pin_names = set(pin_names)
+        unique_pin_names = sorted(set(pin_names))
 
         class _IFS(Footprint.IFS()):
             pins = times(len(unique_pin_names), Electrical)

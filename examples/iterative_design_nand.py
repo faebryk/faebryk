@@ -28,7 +28,9 @@ from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
-from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.has_simple_value_representation_defined import (
+    has_simple_value_representation_defined,
+)
 from faebryk.library.KicadFootprint import KicadFootprint
 from faebryk.library.LED import LED
 from faebryk.library.Logic import Logic
@@ -211,7 +213,7 @@ def App():
                     "Battery:BatteryHolder_ComfortableElectronic_CH273-2450_1x2450", 2
                 )
             )
-            node.add_trait(has_defined_type_description("B"))
+            node.add_trait(has_simple_value_representation_defined("B"))
 
         if isinstance(node, Resistor):
             node.get_trait(can_attach_to_footprint).attach(

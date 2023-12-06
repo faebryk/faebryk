@@ -3,7 +3,7 @@
 
 import logging
 import math
-from typing import Callable, Iterable, Sequence, TypeVar, cast
+from typing import Callable, Iterable, Sequence, SupportsFloat, TypeVar, cast
 
 import networkx as nx
 
@@ -28,8 +28,12 @@ T = TypeVar("T")
 
 
 def unit_map(
-    value: int | float, units: Sequence[str], start: str | None = None, base: int = 1000
+    value: SupportsFloat,
+    units: Sequence[str],
+    start: str | None = None,
+    base: int = 1000,
 ):
+    value = float(value)
     if start is None:
         start_idx = 0
     else:
@@ -87,6 +91,10 @@ def get_all_nodes_graph(G: nx.Graph):
         for gif in G.nodes
         if isinstance(gif, GraphInterfaceSelf) and (n := gif.node) is not None
     }
+
+
+def get_all_highest_parents_graph(G: nx.Graph):
+    return {n for n in get_all_nodes_graph(G) if n.GIFs.parent.get_parent() is None}
 
 
 def get_all_connected(gif: GraphInterface) -> list[tuple[GraphInterface, Link]]:

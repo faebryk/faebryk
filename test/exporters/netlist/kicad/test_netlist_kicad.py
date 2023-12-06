@@ -14,11 +14,13 @@ from faebryk.library.can_attach_to_footprint_symmetrically import (
 )
 from faebryk.library.Electrical import Electrical
 from faebryk.library.has_defined_kicad_ref import has_defined_kicad_ref
-from faebryk.library.has_defined_type_description import has_defined_type_description
 from faebryk.library.has_kicad_footprint_equal_ifs_defined import (
     has_kicad_footprint_equal_ifs_defined,
 )
 from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
+from faebryk.library.has_simple_value_representation_defined import (
+    has_simple_value_representation_defined,
+)
 from faebryk.libs.util import times
 
 logger = logging.getLogger(__name__)
@@ -45,7 +47,7 @@ def test_netlist_graph():
 
     for r in [resistor1, resistor2]:
         # value
-        r.add_trait(has_defined_type_description("R"))
+        r.add_trait(has_simple_value_representation_defined("R"))
         # interfaces
         r.IFs = _RIFs(r)
         # footprint

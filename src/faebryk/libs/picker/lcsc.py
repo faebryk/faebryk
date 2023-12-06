@@ -17,7 +17,6 @@ from faebryk.library.can_attach_to_footprint import can_attach_to_footprint
 from faebryk.library.has_defined_descriptive_properties import (
     has_defined_descriptive_properties,
 )
-from faebryk.library.has_descriptive_properties import has_descriptive_properties
 from faebryk.library.KicadFootprint import KicadFootprint
 from faebryk.libs.picker.picker import Part, Supplier
 
@@ -104,10 +103,7 @@ def get_footprint(partno: str, get_model: bool = True):
 
 
 def attach_footprint_manually(component: Module, fp: KicadFootprint, partno: str):
-    if not component.has_trait(has_descriptive_properties):
-        component.add_trait(has_defined_descriptive_properties({}))
-    component.get_trait(has_descriptive_properties).add_properties({"LCSC": partno})
-
+    has_defined_descriptive_properties.add_properties_to(component, {"LCSC": partno})
     component.get_trait(can_attach_to_footprint).attach(fp)
 
 

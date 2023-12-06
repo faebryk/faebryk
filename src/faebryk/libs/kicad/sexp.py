@@ -71,7 +71,7 @@ def gensexp(obj):
 
     if not _expandable(obj):
         strrepr = str(obj)
-        if re.search("[ ()]", strrepr) is not None:
+        if re.search(r"[ ()\[\]]", strrepr) is not None:
             strrepr = f'"{strrepr}"'
         return strrepr
 

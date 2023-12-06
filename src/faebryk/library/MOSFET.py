@@ -6,7 +6,9 @@ from enum import Enum
 from faebryk.core.core import Module
 from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Electrical import Electrical
-from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.has_designator_prefix_defined import (
+    has_designator_prefix_defined,
+)
 
 
 class MOSFET(Module):
@@ -34,7 +36,7 @@ class MOSFET(Module):
         self._setup_interfaces()
 
     def _setup_traits(self):
-        self.add_trait(has_defined_type_description("Q"))
+        self.add_trait(has_designator_prefix_defined("Q"))
 
     def _setup_interfaces(self):
         class _IFs(super().IFS()):

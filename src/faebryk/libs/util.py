@@ -63,6 +63,10 @@ def unique_ref(it):
     return unique(it, id)
 
 
+def duplicates(it, key):
+    return {k: v for k, v in groupby(it, key).items() if len(v) > 1}
+
+
 def get_dict(obj, key, default):
     if key not in obj:
         obj[key] = default()

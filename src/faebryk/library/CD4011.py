@@ -5,13 +5,17 @@ from faebryk.core.core import Module
 from faebryk.library.Electrical import Electrical
 from faebryk.library.ElectricNAND import ElectricNAND
 from faebryk.library.ElectricPower import ElectricPower
-from faebryk.library.has_defined_type_description import has_defined_type_description
+from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
+from faebryk.library.has_simple_value_representation_defined import (
+    has_simple_value_representation_defined,
+)
 from faebryk.libs.util import times
 
 
 class CD4011(Module):
     def _setup_traits(self):
-        self.add_trait(has_defined_type_description("cd4011"))
+        self.add_trait(has_simple_value_representation_defined("cd4011"))
+        self.add_trait(has_designator_prefix_defined("U"))
 
     @classmethod
     def NODES(cls):

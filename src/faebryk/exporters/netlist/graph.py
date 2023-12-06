@@ -8,18 +8,23 @@ import networkx as nx
 from faebryk.core.core import (
     FootprintTrait,
     LinkDirect,
-    Node,
+    Module,
 )
 from faebryk.core.graph import Graph
 from faebryk.core.util import get_all_nodes_graph, get_connected_mifs
 from faebryk.exporters.netlist.netlist import Component
 from faebryk.library.Electrical import Electrical
+from faebryk.library.has_defined_descriptive_properties import (
+    has_defined_descriptive_properties,
+)
 from faebryk.library.has_descriptive_properties import has_descriptive_properties
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
-from faebryk.library.has_type_description import has_type_description
+from faebryk.library.has_simple_value_representation import (
+    has_simple_value_representation,
+)
 from faebryk.library.Net import Net
 
 logger = logging.getLogger(__name__)
@@ -41,9 +46,12 @@ class can_represent_kicad_footprint(FootprintTrait):
         ...
 
 
-def get_or_set_name_and_value_of_node(c: Node):
-    # TODO rename that trait
-    value = c.get_trait(has_type_description).get_type_description()
+def get_or_set_name_and_value_of_node(c: Module):
+    value = (
+        c.get_trait(has_simple_value_representation).get_value()
+        if c.has_trait(has_simple_value_representation)
+        else type(c).__name__
+    )
 
     if not c.has_trait(has_overriden_name):
         c.add_trait(
@@ -56,13 +64,17 @@ def get_or_set_name_and_value_of_node(c: Node):
             )
         )
 
+    has_defined_descriptive_properties.add_properties_to(
+        c, {"faebryk_name": c.get_full_name()}
+    )
+
     return c.get_trait(has_overriden_name).get_name(), value
 
 
 class can_represent_kicad_footprint_via_attached_component(
     can_represent_kicad_footprint.impl()
 ):
-    def __init__(self, component: Node, graph: nx.Graph) -> None:
+    def __init__(self, component: Module, graph: nx.Graph) -> None:
         """
         graph has to be electrically closed
         """
@@ -157,7 +169,7 @@ def attach_nets_and_kicad_info(g: Graph):
         # TODO maybe nicer to just look for footprints
         # and get their respective components instead
         for n in get_all_nodes_graph(Gclosed)
-        if n.has_trait(has_footprint)
+        if n.has_trait(has_footprint) and isinstance(n, Module)
     }
 
     logger.info(f"Found {len(node_fps)} components with footprints")
@@ -166,7 +178,6 @@ def attach_nets_and_kicad_info(g: Graph):
 
     # add trait/info to footprints
     for n, fp in node_fps.items():
-        fp = n.get_trait(has_footprint).get_footprint()
         if fp.has_trait(can_represent_kicad_footprint):
             continue
         fp.add_trait(can_represent_kicad_footprint_via_attached_component(n, Gclosed))
@@ -177,4 +188,5 @@ def attach_nets_and_kicad_info(g: Graph):
             if not isinstance(mif, Electrical):
                 continue
             add_or_get_net(mif)
+
     g.update()

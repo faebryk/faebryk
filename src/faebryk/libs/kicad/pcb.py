@@ -50,7 +50,10 @@ class Node:
     def get_prop(self, key: str | list[str], recursive=False) -> List["Node"]:
         if isinstance(key, str):
             key = [key]
-        func = lambda n: len(n) > 0 and n[0] in ([Symbol(k) for k in key])
+
+        def func(n):
+            return len(n) > 0 and n[0] in ([Symbol(k) for k in key])
+
         if recursive:
             return self.get_recursive(func)
         return self.get([func])
@@ -386,6 +389,10 @@ class Footprint(Node):
     @property
     def name(self) -> str:
         return self.node[1]
+
+    @name.setter
+    def name(self, value: str):
+        self.node[1] = value
 
     def __repr__(self) -> str:
         return (

@@ -4,10 +4,14 @@
 import logging
 import re
 from collections import defaultdict
+from pathlib import Path
 from typing import cast
 
 from faebryk.core.graph import Graph
-from faebryk.core.util import get_all_highest_parents_graph, get_all_nodes_graph
+from faebryk.core.util import (
+    get_all_highest_parents_graph,
+    get_all_nodes_graph,
+)
 from faebryk.exporters.netlist.netlist import Component
 from faebryk.library.has_designator import has_designator
 from faebryk.library.has_designator_defined import has_designator_defined
@@ -120,3 +124,33 @@ def load_designators_from_netlist(graph: Graph, t2_netlist_comps: dict[str, Comp
     }
     if nomatch:
         logger.info(f"Could not match: {nomatch}")
+
+
+def replace_faebryk_names_with_designators_in_kicad_pcb(graph: Graph, pcbfile: Path):
+    from faebryk.libs.kicad.pcb import PCB
+
+    logger.info("Load PCB")
+    pcb = PCB.load(pcbfile)
+    pcb.dump(pcbfile.with_suffix(".bak"))
+
+    pattern = re.compile(r"^(.*)\[[^\]]*\]$")
+    translation = {
+        n.get_full_name(): n.get_trait(has_overriden_name).get_name()
+        for n in get_all_nodes_graph(graph.G)
+        if n.has_trait(has_overriden_name)
+    }
+
+    for fp in pcb.footprints:
+        ref = fp.reference.text
+        m = pattern.match(ref)
+        if not m:
+            logger.warning(f"Could not match {ref}")
+            continue
+        name = m.group(1)
+        if name not in translation:
+            logger.warning(f"Could not translate {name}")
+            continue
+        logger.info(f"Translating {name} to {translation[name]}")
+        fp.reference.text = translation[name]
+
+    pcb.dump(pcbfile)

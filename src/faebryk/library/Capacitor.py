@@ -5,7 +5,7 @@ import logging
 from enum import IntEnum, auto
 
 from faebryk.core.core import Module, Parameter
-from faebryk.core.util import unit_map
+from faebryk.core.util import as_unit
 from faebryk.library.can_attach_to_footprint_symmetrically import (
     can_attach_to_footprint_symmetrically,
 )
@@ -61,7 +61,7 @@ class Capacitor(Module):
         self.add_trait(
             has_simple_value_representation_based_on_param(
                 self.PARAMs.capacitance,
-                lambda p: unit_map(p, ["µF", "mF", "F", "KF", "MF", "GF"], start="F"),
+                lambda p: as_unit(p, "F"),
             )
         )
         self.add_trait(can_attach_to_footprint_symmetrically())

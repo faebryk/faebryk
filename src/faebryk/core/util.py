@@ -27,34 +27,60 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
+def as_scientific(value: SupportsFloat, base=10):
+    if value == 0:
+        return 0, 0
+    exponent = math.floor(math.log(abs(value), base))
+    mantissa = value / (base**exponent)
+
+    return mantissa, exponent
+
+
 def unit_map(
     value: SupportsFloat,
     units: Sequence[str],
     start: str | None = None,
     base: int = 1000,
+    allow_out_of_bounds: bool = False,
 ):
     value = float(value)
-    if start is None:
-        start_idx = 0
-    else:
-        start_idx = units.index(start)
+    start_idx = units.index(start) if start is not None else 0
 
-    cur = base ** ((-start_idx) + 1)
-    ptr = 0
-    while value >= cur:
-        cur *= base
-        ptr += 1
-    form_value = round(integer_base(value, base=base), int(math.log(base, 10)))
-    out = f"{form_value}{units[ptr]}"
+    mantissa, exponent = as_scientific(value, base=base)
+
+    available_exponent = max(min(exponent + start_idx, len(units) - 1), 0) - start_idx
+    exponent_difference = exponent - available_exponent
+
+    if not allow_out_of_bounds and exponent_difference:
+        raise ValueError(f"Value {value} with {exponent=} out of bounds for {units=}")
+
+    effective_mantissa = mantissa * (base**exponent_difference)
+    round_digits = round(math.log(base, 10) * (1 - exponent_difference))
+    # print(f"{exponent_difference=}, {effective_mantissa=}, {round_digits=}")
+
+    idx = available_exponent + start_idx
+    rounded_mantissa = round(effective_mantissa, round_digits)
+    if rounded_mantissa == math.floor(rounded_mantissa):
+        rounded_mantissa = math.floor(rounded_mantissa)
+
+    out = f"{rounded_mantissa}{units[idx]}"
+
     return out
 
 
-def integer_base(value: int | float, base=1000):
-    while value < 1:
-        value *= base
-    while value >= base:
-        value /= base
-    return value
+def get_unit_prefix(value: SupportsFloat, base: int = 1000):
+    if base == 1000:
+        units = ["f", "p", "n", "µ", "m", "", "k", "M", "G", "T", "P", "E"]
+    elif base == 1024:
+        units = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei"]
+    else:
+        raise NotImplementedError(f"Unsupported {base=}")
+
+    return unit_map(value, units, start="", base=base, allow_out_of_bounds=True)
+
+
+def as_unit(value: SupportsFloat, unit: str, base: int = 1000):
+    return get_unit_prefix(value, base=base) + unit
 
 
 def is_type_set_subclasses(type_subclasses: set[type], types: set[type]) -> bool:

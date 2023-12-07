@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.core.core import Module, Parameter
-from faebryk.core.util import unit_map
+from faebryk.core.util import as_unit
 from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Electrical import Electrical
 from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
@@ -33,11 +33,7 @@ class Diode(Module):
         self.add_trait(
             has_simple_value_representation_based_on_param(
                 self.PARAMs.forward_voltage,
-                lambda p: unit_map(
-                    p.value,
-                    ["µV", "mV", "V", "kV", "MV", "GV"],
-                    start="V",
-                ),
+                lambda p: as_unit(p, "V"),
             )
         )
         self.add_trait(has_designator_prefix_defined("D"))

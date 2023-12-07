@@ -4,7 +4,7 @@
 from math import sqrt
 
 from faebryk.core.core import Module, Parameter
-from faebryk.core.util import unit_map
+from faebryk.core.util import as_unit
 from faebryk.library.can_attach_to_footprint_symmetrically import (
     can_attach_to_footprint_symmetrically,
 )
@@ -39,7 +39,7 @@ class Resistor(Module):
         self.add_trait(
             has_simple_value_representation_based_on_param(
                 self.PARAMs.resistance,
-                lambda p: unit_map(p, ["µΩ", "mΩ", "Ω", "kΩ", "MΩ", "GΩ"], start="Ω"),
+                lambda p: as_unit(p, "Ω"),
             )
         )
         self.add_trait(has_designator_prefix_defined("R"))

@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 class Supplier(ABC):
     @abstractmethod
-    def attach(self, component: Module, part: "Part"): ...
+    def attach(
+        self, component: Module, part: "Part", partid: "PartIdentifier | None" = None
+    ): ...
 
 
 @dataclass
@@ -30,12 +32,20 @@ class Part:
 
 
 @dataclass
+class PartIdentifier:
+    manufacturer: str
+    partno: str
+    datasheet: str
+
+
+@dataclass
 class PickerOption:
     part: Part
     params: dict[str, Parameter] | None = None
     filter: Callable[[Module], bool] | None = None
     pinmap: dict[str, Electrical] | None = None
     info: dict[str, str] | None = None
+    partid: PartIdentifier | None = None
 
 
 class PickError(Exception): ...
@@ -85,7 +95,7 @@ def pick_module_by_params(module: Module, options: Iterable[PickerOption]):
     if option.pinmap:
         module.add_trait(can_attach_to_footprint_via_pinmap(option.pinmap))
 
-    option.part.supplier.attach(module, option.part)
+    option.part.supplier.attach(module, option.part, option.partid)
     module.add_trait(has_part_picked_defined(option.part))
 
     # Merge params from footprint option

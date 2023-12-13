@@ -1,65 +1,45 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from faebryk.core.core import Module, NodeTrait, Parameter
-from faebryk.library.Constant import Constant
+
+from faebryk.core.core import Parameter
+from faebryk.library.Diode import Diode
 from faebryk.library.Electrical import Electrical
-from faebryk.library.has_designator_prefix_defined import (
-    has_designator_prefix_defined,
-)
+from faebryk.library.Resistor import Resistor
 from faebryk.library.TBD import TBD
 
 
-class LED(Module):
-    class has_calculatable_needed_series_resistance(NodeTrait):
-        @staticmethod
-        def get_needed_series_resistance_ohm(input_voltage_V: float) -> Constant:
-            raise NotImplementedError
-
-    def _setup_traits(self):
-        class _(self.has_calculatable_needed_series_resistance.impl()):
-            @staticmethod
-            def get_needed_series_resistance_ohm(input_voltage_V: float) -> Constant:
-                assert isinstance(self.voltage_V, Constant)
-                assert isinstance(self.current_A, Constant)
-                return LED.needed_series_resistance_ohm(
-                    input_voltage_V, self.voltage_V.value, self.current_A.value
-                )
-
-            def is_implemented(self):
-                obj = self.get_obj()
-                assert isinstance(obj, LED)
-                return isinstance(obj.voltage_V, Constant) and isinstance(
-                    obj.current_A, Constant
-                )
-
-        self.add_trait(_())
-
-        self.add_trait(has_designator_prefix_defined("D"))
-
-    def _setup_interfaces(self):
-        class _IFs(super().IFS()):
-            anode = Electrical()
-            cathode = Electrical()
-
-        self.IFs = _IFs(self)
-
-    def __new__(cls):
-        self = super().__new__(cls)
-        self._setup_traits()
-        return self
-
+class LED(Diode):
     def __init__(self) -> None:
         super().__init__()
-        self._setup_interfaces()
-        self.set_forward_parameters(TBD(), TBD())
 
-    def set_forward_parameters(self, voltage_V: Parameter, current_A: Parameter):
-        self.voltage_V = voltage_V
-        self.current_A = current_A
+        class _PARAMs(type(super().PARAMS())):
+            brightness = TBD[float]()
+            max_brightness = TBD[float]()
 
-    @staticmethod
-    def needed_series_resistance_ohm(
-        input_voltage_V: float, forward_voltage_V: float, forward_current_A: float
-    ) -> Constant:
-        return Constant(int((input_voltage_V - forward_voltage_V) / forward_current_A))
+        self.PARAMs = _PARAMs(self)
+
+        self.PARAMs.current.merge(
+            self.PARAMs.brightness
+            / self.PARAMs.max_brightness
+            * self.PARAMs.max_current
+        )
+
+    def set_intensity(self, intensity: Parameter[float]) -> None:
+        self.PARAMs.brightness.merge(intensity * self.PARAMs.max_brightness)
+
+    def connect_via_current_limiting_resistor(
+        self,
+        input_voltage: Parameter[float],
+        resistor: Resistor,
+        target: Electrical,
+        low_side: bool,
+    ):
+        if low_side:
+            self.IFs.cathode.connect_via(resistor, target)
+        else:
+            self.IFs.anode.connect_via(resistor, target)
+
+        resistor.PARAMs.resistance.merge(
+            self.get_needed_series_resistance_for_current_limit(input_voltage),
+        )

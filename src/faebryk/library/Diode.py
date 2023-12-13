@@ -13,15 +13,15 @@ from faebryk.library.TBD import TBD
 
 
 class Diode(Module):
-    def __init__(self, forward_voltage: Parameter):
+    def __init__(self):
         super().__init__()
 
-        class _PARAMs(Diode.PARAMS()):
-            forward_voltage = TBD()
+        class _PARAMs(super().PARAMS()):
+            forward_voltage = TBD[float]()
+            max_current = TBD[float]()
+            current = TBD[float]()
 
         self.PARAMs = _PARAMs(self)
-
-        self.PARAMs.forward_voltage.merge(forward_voltage)
 
         class _IFs(super().IFS()):
             anode = Electrical()
@@ -37,3 +37,8 @@ class Diode(Module):
             )
         )
         self.add_trait(has_designator_prefix_defined("D"))
+
+    def get_needed_series_resistance_for_current_limit(
+        self, input_voltage_V: Parameter[float]
+    ) -> Parameter[float]:
+        return (input_voltage_V - self.PARAMs.forward_voltage) / self.PARAMs.current

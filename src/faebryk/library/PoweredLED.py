@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.core.core import Module
+from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.LED import LED
 from faebryk.library.Resistor import Resistor
-from faebryk.library.TBD import TBD
-from faebryk.library.can_bridge_defined import can_bridge_defined
 
 
 class PoweredLED(Module):
@@ -19,7 +18,7 @@ class PoweredLED(Module):
         self.IFs = _IFs(self)
 
         class _NODEs(Module.NODES()):
-            current_limiting_resistor = Resistor(TBD())
+            current_limiting_resistor = Resistor()
             led = LED()
 
         self.NODEs = _NODEs(self)

@@ -4,7 +4,7 @@
 import logging
 from enum import IntEnum, auto
 
-from faebryk.core.core import Module, Parameter
+from faebryk.core.core import Module
 from faebryk.core.util import as_unit
 from faebryk.library.can_attach_to_footprint_symmetrically import (
     can_attach_to_footprint_symmetrically,
@@ -32,12 +32,7 @@ class Capacitor(Module):
         X8R = auto()
         C0G = auto()
 
-    def __init__(
-        self,
-        capacitance: Parameter,
-        rated_voltage: Parameter,
-        temperature_coefficient: Parameter,
-    ):
+    def __init__(self):
         super().__init__()
 
         class _IFs(Module.IFS()):
@@ -46,15 +41,11 @@ class Capacitor(Module):
         self.IFs = _IFs(self)
 
         class _PARAMs(Module.PARAMS()):
-            capacitance = TBD()
-            rated_voltage = TBD()
-            temperature_coefficient = TBD()
+            capacitance = TBD[float]()
+            rated_voltage = TBD[float]()
+            temperature_coefficient = TBD[Capacitor.TemperatureCoefficient]()
 
         self.PARAMs = _PARAMs(self)
-
-        self.PARAMs.capacitance.merge(capacitance)
-        self.PARAMs.rated_voltage.merge(rated_voltage)
-        self.PARAMs.temperature_coefficient.merge(temperature_coefficient)
 
         self.add_trait(can_bridge_defined(*self.IFs.unnamed))
 

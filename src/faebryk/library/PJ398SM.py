@@ -9,22 +9,14 @@ from faebryk.library.has_designator_prefix_defined import (
 
 
 class PJ398SM(Module):
-    def __new__(cls):
-        self = super().__new__(cls)
-        self._setup_traits()
-        return self
-
     def __init__(self) -> None:
         super().__init__()
-        self._setup_interfaces()
 
-    def _setup_traits(self):
-        self.add_trait(has_designator_prefix_defined("P"))
-
-    def _setup_interfaces(self):
-        class _IFs(super().IFS()):
+        class _IFs(Module.IFS()):
             tip = Electrical()
             sleeve = Electrical()
             switch = Electrical()
 
         self.IFs = _IFs(self)
+
+        self.add_trait(has_designator_prefix_defined("P"))

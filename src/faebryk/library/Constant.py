@@ -8,11 +8,11 @@ from faebryk.library.is_representable_by_single_value_defined import (
     is_representable_by_single_value_defined,
 )
 
-T = TypeVar("T")
+PV = TypeVar("PV")
 
 
-class Constant(Generic[T], Parameter):
-    def __init__(self, value: T) -> None:
+class Constant(Generic[PV], Parameter[PV]):
+    def __init__(self, value: PV) -> None:
         super().__init__()
         self.value = value
         self.add_trait(is_representable_by_single_value_defined(self.value))

@@ -1,12 +1,14 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from typing import Iterable
+from typing import Generic, Iterable, TypeVar
 
 from faebryk.core.core import Parameter
 
+PV = TypeVar("PV")
 
-class Set(Parameter):
+
+class Set(Generic[PV], Parameter[PV]):
     def __init__(self, params: Iterable[Parameter]) -> None:
         super().__init__()
         self.params = Set.flatten(set(params))

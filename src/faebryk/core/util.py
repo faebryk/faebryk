@@ -17,6 +17,7 @@ from faebryk.core.core import (
     Node,
     Parameter,
 )
+from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
 from faebryk.library.Range import Range
@@ -328,3 +329,19 @@ def get_parameter_max(param: Parameter):
     if isinstance(param, Set):
         return max(map(get_parameter_max, param.params))
     raise ValueError(f"Can't get max for {param}")
+
+
+def reversed_bridge(bridge: Node):
+    from faebryk.library.can_bridge import can_bridge
+
+    class _reversed_bridge(Node):
+        def __init__(self) -> None:
+            super().__init__()
+
+            bridge_trait = bridge.get_trait(can_bridge)
+            if_in = bridge_trait.get_in()
+            if_out = bridge_trait.get_out()
+
+            self.add_trait(can_bridge_defined(if_out, if_in))
+
+    return _reversed_bridge()

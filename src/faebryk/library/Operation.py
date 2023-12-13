@@ -2,18 +2,21 @@
 # SPDX-License-Identifier: MIT
 
 import typing
+from typing import Generic, TypeVar
 
 from faebryk.core.core import Parameter
 
+PV = TypeVar("PV")
 
-class Operation(Parameter):
+
+class Operation(Generic[PV], Parameter[PV]):
     class OperationNotExecutable(Exception):
         ...
 
     def __init__(
         self,
-        operands: typing.Sequence[Parameter],
-        operation: typing.Callable[..., Parameter],
+        operands: typing.Sequence[Parameter[PV]],
+        operation: typing.Callable[..., Parameter[PV]],
     ) -> None:
         super().__init__()
         self.operands = operands

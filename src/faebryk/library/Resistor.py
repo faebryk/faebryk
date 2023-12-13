@@ -19,7 +19,7 @@ from faebryk.libs.util import times
 
 
 class Resistor(Module):
-    def __init__(self, resistance: Parameter | None = None):
+    def __init__(self):
         super().__init__()
 
         class _IFs(super().IFS()):
@@ -29,11 +29,9 @@ class Resistor(Module):
         self.add_trait(can_bridge_defined(*self.IFs.unnamed))
 
         class PARAMS(super().PARAMS()):
-            resistance = TBD()
+            resistance = TBD[float]()
 
         self.PARAMs = PARAMS(self)
-        if resistance:
-            self.PARAMs.resistance.merge(resistance)
 
         self.add_trait(can_attach_to_footprint_symmetrically())
         self.add_trait(

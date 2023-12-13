@@ -51,9 +51,24 @@ class Range(Generic[T], Parameter):
     def as_tuple(self) -> tuple[T, T]:
         return (self.min, self.max)
 
+    def as_center_tuple(self) -> tuple[T, T]:
+        return (self.min + self.max) / 2, (self.max - self.min) / 2
+
     @classmethod
-    def from_center(cls, center: T, delta: T) -> "Range":
-        return cls(center - delta, center + delta)
+    def from_center(cls, center: T, delta: T, delta_r: T | None = None) -> "Range":
+        if delta_r is None:
+            delta_r = delta
+        return cls(center - delta, center + delta_r)
+
+    @classmethod
+    def lower_bound(cls, lower) -> "Range":
+        # TODO range should take params as bounds
+        return cls(lower, 1 << 32)
+
+    @classmethod
+    def upper_bound(cls, upper) -> "Range":
+        # TODO range should take params as bounds
+        return cls(0, upper)
 
     def __str__(self) -> str:
         return super().__str__() + f"({self.min} -> {self.max})"

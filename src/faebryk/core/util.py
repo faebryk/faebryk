@@ -36,6 +36,11 @@ def as_scientific(value: SupportsFloat, base=10):
     return mantissa, exponent
 
 
+def round_to_least_signficant_decimal(value: SupportsFloat):
+    f = round(float(value), 8)
+    return str(f).rstrip("0").rstrip(".")
+
+
 def unit_map(
     value: SupportsFloat,
     units: Sequence[str],
@@ -56,7 +61,6 @@ def unit_map(
 
     effective_mantissa = mantissa * (base**exponent_difference)
     round_digits = round(math.log(base, 10) * (1 - exponent_difference))
-    # print(f"{exponent_difference=}, {effective_mantissa=}, {round_digits=}")
 
     idx = available_exponent + start_idx
     rounded_mantissa = round(effective_mantissa, round_digits)
@@ -83,6 +87,25 @@ def as_unit(value: SupportsFloat, unit: str, base: int = 1000):
     return get_unit_prefix(value, base=base) + unit
 
 
+def as_unit_with_tolerance(param: Range | Constant, unit: str, base: int = 1000):
+    if isinstance(param, Constant):
+        return as_unit(param.value, unit, base=base) + " ± 0%"
+    (center, delta) = param.as_center_tuple()
+    delta_percent = delta / center * 100
+
+    return (
+        as_unit(center, unit, base=base)
+        + f" ± {round_to_least_signficant_decimal(delta_percent)}%"
+    )
+
+
+def is_type_set_subclasses(type_subclasses: set[type], types: set[type]) -> bool:
+    hits = {t: any(issubclass(s, t) for s in type_subclasses) for t in types}
+    return all(hits.values()) and all(
+        any(issubclass(s, t) for t in types) for s in hits
+    )
+
+
 def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     if order_types is None:
         order_types = []
@@ -96,9 +119,9 @@ def get_all_nodes(node: Node, order_types=None) -> list[Node]:
 
     out = sorted(
         out,
-        key=lambda x: order_types.index(type(x))
-        if type(x) in order_types
-        else len(order_types),
+        key=lambda x: (
+            order_types.index(type(x)) if type(x) in order_types else len(order_types)
+        ),
     )
 
     return out
@@ -241,7 +264,7 @@ def get_mif_tree(
 
 def format_mif_tree(tree: dict[ModuleInterface, dict[ModuleInterface, dict]]) -> str:
     def str_tree(
-        tree: dict[ModuleInterface, dict[ModuleInterface, dict]]
+        tree: dict[ModuleInterface, dict[ModuleInterface, dict]],
     ) -> dict[str, dict]:
         def get_name(k: ModuleInterface):
             # get_parent never none, since k gotten from parent

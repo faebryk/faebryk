@@ -18,8 +18,10 @@ from faebryk.library.has_designator_defined import has_designator_defined
 from faebryk.library.has_designator_prefix import has_designator_prefix
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
-from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
-from faebryk.libs.util import get_key, groupby
+from faebryk.library.has_overriden_name_defined import (
+    has_overriden_name_defined,
+)
+from faebryk.libs.util import duplicates, get_key, groupby
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +52,7 @@ def attach_random_designators(graph: Graph):
 
     def _get_first_hole(used: list[int]):
         for i in range(len(used)):
-            if i + 1 != used[i]:
+            if i + 1 not in used:
                 return i + 1
         return len(used) + 1
 
@@ -73,7 +75,8 @@ def attach_random_designators(graph: Graph):
 
     assert len({n.get_trait(has_designator).get_designator() for n in nodes}) == len(
         nodes
-    )
+    ), "Duplicate designators: "
+    f"{duplicates(nodes, lambda n: n.get_trait(has_designator).get_designator())}"
 
 
 def override_names_with_designators(graph: Graph):

@@ -4,22 +4,29 @@
 from math import sqrt
 
 from faebryk.core.core import Module, Parameter
-from faebryk.core.util import as_unit
+from faebryk.core.util import (
+    as_unit,
+    as_unit_with_tolerance,
+)
 from faebryk.library.can_attach_to_footprint_symmetrically import (
     can_attach_to_footprint_symmetrically,
 )
 from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Electrical import Electrical
 from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
-from faebryk.library.has_simple_value_representation_based_on_param import (
-    has_simple_value_representation_based_on_param,
+from faebryk.library.has_simple_value_representation_based_on_params import (
+    has_simple_value_representation_based_on_params,
 )
 from faebryk.library.TBD import TBD
 from faebryk.libs.util import times
 
 
 class Resistor(Module):
-    def __init__(self, resistance: Parameter | None = None):
+    def __init__(
+        self,
+        resistance: Parameter | None = None,
+        rated_power: Parameter | None = None,
+    ):
         super().__init__()
 
         class _IFs(super().IFS()):
@@ -30,16 +37,23 @@ class Resistor(Module):
 
         class PARAMS(super().PARAMS()):
             resistance = TBD()
+            rated_power = TBD()
 
         self.PARAMs = PARAMS(self)
         if resistance:
             self.PARAMs.resistance.merge(resistance)
+        if rated_power:
+            self.PARAMs.rated_power.merge(rated_power)
 
         self.add_trait(can_attach_to_footprint_symmetrically())
         self.add_trait(
-            has_simple_value_representation_based_on_param(
-                self.PARAMs.resistance,
-                lambda p: as_unit(p, "Ω"),
+            has_simple_value_representation_based_on_params(
+                (
+                    self.PARAMs.resistance,
+                    self.PARAMs.rated_power,
+                ),
+                lambda ps: f"{as_unit_with_tolerance(ps[0], 'Ω')} "
+                f"{as_unit(ps[1].max, 'W')}",
             )
         )
         self.add_trait(has_designator_prefix_defined("R"))
@@ -103,3 +117,13 @@ class Resistor(Module):
         voltage_drop_V: Parameter, current_A
     ) -> Parameter:
         return voltage_drop_V * current_A
+
+    def set_rated_power_by_voltage_resistance(self, voltage_drop_V: Parameter):
+        self.PARAMs.rated_power.merge(
+            self.get_power_dissipation_by_voltage_resistance(voltage_drop_V)
+        )
+
+    def set_rated_power_by_current_resistance(self, current_A: Parameter):
+        self.PARAMs.rated_power.merge(
+            self.get_power_dissipation_by_current_resistance(current_A)
+        )

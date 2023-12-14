@@ -18,7 +18,7 @@ from faebryk.library.has_defined_descriptive_properties import (
     has_defined_descriptive_properties,
 )
 from faebryk.library.KicadFootprint import KicadFootprint
-from faebryk.libs.picker.picker import Part, Supplier
+from faebryk.libs.picker.picker import Part, PartIdentifier, Supplier
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +102,19 @@ def get_footprint(partno: str, get_model: bool = True):
     return fp
 
 
+def attach_part_identifier(component: Module, partid: PartIdentifier):
+    if partid.datasheet:
+        has_defined_descriptive_properties.add_properties_to(
+            component, {"Datasheet": partid.datasheet}
+        )
+    has_defined_descriptive_properties.add_properties_to(
+        component, {"Manufacturer": partid.manufacturer}
+    )
+    has_defined_descriptive_properties.add_properties_to(
+        component, {"Partnumber": partid.partno}
+    )
+
+
 def attach_footprint_manually(component: Module, fp: KicadFootprint, partno: str):
     has_defined_descriptive_properties.add_properties_to(component, {"LCSC": partno})
     component.get_trait(can_attach_to_footprint).attach(fp)
@@ -113,9 +126,11 @@ def attach_footprint(component: Module, partno: str, get_model: bool = True):
 
 
 class LCSC(Supplier):
-    def attach(self, module: Module, part: Part):
+    def attach(self, module: Module, part: Part, partid: PartIdentifier = None):
         assert isinstance(part, LCSC_Part)
         attach_footprint(component=module, partno=part.partno)
+        if partid:
+            attach_part_identifier(component=module, partid=partid)
 
 
 class LCSC_Part(Part):

@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
-from faebryk.core.core import Module, Parameter
+from faebryk.core.core import Module, ModuleTrait, Parameter
 from faebryk.library.can_attach_to_footprint_via_pinmap import (
     can_attach_to_footprint_via_pinmap,
 )
@@ -38,7 +38,26 @@ class PickerOption:
     info: dict[str, str] | None = None
 
 
+class has_part_picked(ModuleTrait):
+    @abstractmethod
+    def get_part(self) -> Part:
+        ...
+
+
+class has_part_picked_defined(has_part_picked.impl()):
+    def __init__(self, part: Part):
+        super().__init__()
+        self.part = part
+
+    def get_part(self) -> Part:
+        return self.part
+
+
 def pick_module_by_params(module: Module, options: Iterable[PickerOption]):
+    if module.has_trait(has_part_picked):
+        logger.debug(f"Ignoring already picked module: {module}")
+        return
+
     params = {
         NotNone(p.get_parent())[1]: p.get_most_narrow() for p in module.PARAMs.get_all()
     }
@@ -64,6 +83,7 @@ def pick_module_by_params(module: Module, options: Iterable[PickerOption]):
         module.add_trait(can_attach_to_footprint_via_pinmap(option.pinmap))
 
     option.part.supplier.attach(module, option.part)
+    module.add_trait(has_part_picked_defined(option.part))
 
     # Merge params from footprint option
     for k, v in (option.params or {}).items():

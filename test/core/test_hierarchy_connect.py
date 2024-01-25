@@ -13,47 +13,10 @@ from faebryk.library.has_single_electric_reference_defined import (
     has_single_electric_reference_defined,
 )
 from faebryk.library.UART_Base import UART_Base
-from faebryk.libs.util import times
+from faebryk.libs.util import print_stack, times
 
 logger = logging.getLogger(__name__)
 core_logger.setLevel(logger.getEffectiveLevel())
-
-
-# TODO move somewhere else
-def print_stack(stack):
-    from colorama import Fore
-
-    for frame_info in stack:
-        frame = frame_info[0]
-        if "venv" in frame_info.filename:
-            continue
-        if "faebryk" not in frame_info.filename:
-            continue
-        # if frame_info.function not in ["_connect_across_hierarchies"]:
-        #    continue
-        yield (
-            f"{Fore.RED} Frame in {frame_info.filename} at line {frame_info.lineno}:"
-            f"{Fore.BLUE} {frame_info.function} {Fore.RESET}"
-        )
-
-        def pretty_val(value):
-            if isinstance(value, dict):
-                import pprint
-
-                return (
-                    ("\n" if len(value) > 1 else "")
-                    + pprint.pformat(
-                        {pretty_val(k): pretty_val(v) for k, v in value.items()},
-                        indent=2,
-                        width=120,
-                    )
-                ).replace("\n", f"\n    {Fore.RESET}")
-            elif isinstance(value, type):
-                return f"<class {value.__name__}>"
-            return value
-
-        for name, value in frame.f_locals.items():
-            yield f"  {Fore.GREEN}{name}{Fore.RESET} = {pretty_val(value)}"
 
 
 class TestHierarchy(unittest.TestCase):
@@ -71,14 +34,14 @@ class TestHierarchy(unittest.TestCase):
                 bus1 = self.IFs.bus1
                 bus2 = self.IFs.bus2
 
-                bus1.NODEs.rx.NODEs.signal.connect(bus2.NODEs.rx.NODEs.signal)
-                bus1.NODEs.tx.NODEs.signal.connect(bus2.NODEs.tx.NODEs.signal)
-                bus1.NODEs.rx.NODEs.reference.connect(bus2.NODEs.rx.NODEs.reference)
+                bus1.IFs.rx.IFs.signal.connect(bus2.IFs.rx.IFs.signal)
+                bus1.IFs.tx.IFs.signal.connect(bus2.IFs.tx.IFs.signal)
+                bus1.IFs.rx.IFs.reference.connect(bus2.IFs.rx.IFs.reference)
 
         app = UARTBuffer()
 
-        self.assertTrue(app.IFs.bus1.NODEs.rx.is_connected_to(app.IFs.bus2.NODEs.rx))
-        self.assertTrue(app.IFs.bus1.NODEs.tx.is_connected_to(app.IFs.bus2.NODEs.tx))
+        self.assertTrue(app.IFs.bus1.IFs.rx.is_connected_to(app.IFs.bus2.IFs.rx))
+        self.assertTrue(app.IFs.bus1.IFs.tx.is_connected_to(app.IFs.bus2.IFs.tx))
         self.assertTrue(app.IFs.bus1.is_connected_to(app.IFs.bus2))
 
     def test_bridge(self):
@@ -102,7 +65,7 @@ class TestHierarchy(unittest.TestCase):
                     zip(self.IFs.ins, self.IFs.ins_l),
                     zip(self.IFs.outs, self.IFs.outs_l),
                 ):
-                    lo.NODEs.signal.connect(el)
+                    lo.IFs.signal.connect(el)
 
                 for l1, l2 in zip(self.IFs.ins_l, self.IFs.outs_l):
                     l1.connect(
@@ -132,10 +95,10 @@ class TestHierarchy(unittest.TestCase):
                 bus2 = self.IFs.bus2
                 buf = self.NODEs.buf
 
-                bus1.NODEs.tx.NODEs.signal.connect(buf.IFs.ins[0])
-                bus1.NODEs.rx.NODEs.signal.connect(buf.IFs.ins[1])
-                bus2.NODEs.tx.NODEs.signal.connect(buf.IFs.outs[0])
-                bus2.NODEs.rx.NODEs.signal.connect(buf.IFs.outs[1])
+                bus1.IFs.tx.IFs.signal.connect(buf.IFs.ins[0])
+                bus1.IFs.rx.IFs.signal.connect(buf.IFs.ins[1])
+                bus2.IFs.tx.IFs.signal.connect(buf.IFs.outs[0])
+                bus2.IFs.rx.IFs.signal.connect(buf.IFs.outs[1])
 
         import faebryk.core.core as c
 
@@ -147,7 +110,7 @@ class TestHierarchy(unittest.TestCase):
             link = mif1.is_connected_to(mif2)
             err = ""
             if link and c.LINK_TB:
-                err = "\n" + ("\n".join(print_stack(link.tb)))
+                err = "\n" + print_stack(link.tb)
             self.assertFalse(link, err)
 
         bus1 = app.IFs.bus1
@@ -157,12 +120,12 @@ class TestHierarchy(unittest.TestCase):
         # Check that the two buffer sides are not connected electrically
         _assert_no_link(buf.IFs.ins[0], buf.IFs.outs[0])
         _assert_no_link(buf.IFs.ins[1], buf.IFs.outs[1])
-        _assert_no_link(bus1.NODEs.rx.NODEs.signal, bus2.NODEs.rx.NODEs.signal)
-        _assert_no_link(bus1.NODEs.tx.NODEs.signal, bus2.NODEs.tx.NODEs.signal)
+        _assert_no_link(bus1.IFs.rx.IFs.signal, bus2.IFs.rx.IFs.signal)
+        _assert_no_link(bus1.IFs.tx.IFs.signal, bus2.IFs.tx.IFs.signal)
 
         # Check that the two buffer sides are connected logically
-        self.assertTrue(bus1.NODEs.rx.is_connected_to(bus2.NODEs.rx))
-        self.assertTrue(bus1.NODEs.tx.is_connected_to(bus2.NODEs.tx))
+        self.assertTrue(bus1.IFs.rx.is_connected_to(bus2.IFs.rx))
+        self.assertTrue(bus1.IFs.tx.is_connected_to(bus2.IFs.tx))
         self.assertTrue(bus1.is_connected_to(bus2))
 
 

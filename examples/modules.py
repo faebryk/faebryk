@@ -72,11 +72,11 @@ class LED_Indicator(Module):
 
         # fabric
         self.NODEs.led.IFs.cathode.connect_via(
-            self.NODEs.current_limiting_resistor, self.IFs.input_power.NODEs.lv
+            self.NODEs.current_limiting_resistor, self.IFs.input_power.IFs.lv
         )
         self.NODEs.led.IFs.anode.connect(self.NODEs.switch.IFs.drain)
 
-        self.NODEs.switch.IFs.source.connect(self.IFs.input_power.NODEs.hv)
+        self.NODEs.switch.IFs.source.connect(self.IFs.input_power.IFs.hv)
         self.NODEs.switch.IFs.gate.connect(self.IFs.input_control)
 
 
@@ -96,10 +96,10 @@ class LogicSwitch(Module):
         self.NODEs = _NODES(self)
 
         # fabric
-        self.IFs.input_power.NODEs.hv.connect_via(
+        self.IFs.input_power.IFs.hv.connect_via(
             self.NODEs.switch, self.IFs.output_control
         )
-        self.IFs.input_power.NODEs.lv.connect_via(
+        self.IFs.input_power.IFs.lv.connect_via(
             self.NODEs.pull_down_resistor, self.IFs.output_control
         )
 
@@ -154,7 +154,7 @@ class App(Module):
             if isinstance(node, Battery):
                 node.add_trait(
                     can_attach_to_footprint_via_pinmap(
-                        {"1": node.IFs.power.NODEs.hv, "2": node.IFs.power.NODEs.lv}
+                        {"1": node.IFs.power.IFs.hv, "2": node.IFs.power.IFs.lv}
                     )
                 ).attach(
                     KicadFootprint.with_simple_names(

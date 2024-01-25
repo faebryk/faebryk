@@ -10,8 +10,8 @@ class USB2_0(ModuleInterface):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        class _NODEs(ModuleInterface.NODES()):
+        class IFS(ModuleInterface.IFS()):
             d = DifferentialPair()
             buspower = ElectricPower()
 
-        self.NODEs = _NODEs(self)
+        self.IFs = IFS(self)

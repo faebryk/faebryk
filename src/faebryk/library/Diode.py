@@ -13,15 +13,19 @@ from faebryk.library.TBD import TBD
 
 
 class Diode(Module):
-    def __init__(self):
-        super().__init__()
-
+    @classmethod
+    def PARAMS(cls):
         class _PARAMs(super().PARAMS()):
             forward_voltage = TBD[float]()
             max_current = TBD[float]()
             current = TBD[float]()
 
-        self.PARAMs = _PARAMs(self)
+        return _PARAMs
+
+    def __init__(self):
+        super().__init__()
+
+        self.PARAMs = self.PARAMS()(self)
 
         class _IFs(super().IFS()):
             anode = Electrical()

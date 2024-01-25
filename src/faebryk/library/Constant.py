@@ -31,3 +31,31 @@ class Constant(Generic[PV], Parameter[PV]):
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+    def __le__(self, other) -> bool:
+        if isinstance(other, Constant):
+            return self.value <= other.value
+        if not isinstance(other, Parameter):
+            return self.value <= other
+        raise NotImplementedError()
+
+    def __lt__(self, other) -> bool:
+        if isinstance(other, Constant):
+            return self.value < other.value
+        if not isinstance(other, Parameter):
+            return self.value < other
+        raise NotImplementedError()
+
+    def __ge__(self, other) -> bool:
+        if isinstance(other, Constant):
+            return self.value >= other.value
+        if not isinstance(other, Parameter):
+            return self.value >= other
+        raise NotImplementedError()
+
+    def __gt__(self, other) -> bool:
+        if isinstance(other, Constant):
+            return self.value > other.value
+        if not isinstance(other, Parameter):
+            return self.value > other
+        raise NotImplementedError()

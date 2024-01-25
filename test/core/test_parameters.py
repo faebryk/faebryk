@@ -62,10 +62,18 @@ class TestParameters(unittest.TestCase):
         )
 
         # Operation
-        self.assertEqual(
-            assertIsInstance(ONE + TBD(), Operation).operands, (ONE, TBD())
-        )
-        self.assertEqual(assertIsInstance(ONE + TBD(), Operation).operation(1, 2), 3)
+        token = TBD()
+        op = assertIsInstance(ONE + token, Operation)
+        op2 = assertIsInstance(op + 10, Operation)
+
+        self.assertEqual(op.operands, (ONE, TBD()))
+        self.assertEqual(op.operation(1, 2), 3)
+
+        token.merge(Constant(2))
+        self.assertEqual(op.get_most_narrow(), Constant(3))
+
+        self.assertEqual(op + 5, Constant(8))
+        self.assertEqual(op2.get_most_narrow(), Constant(13))
 
     def test_resolution(self):
         T = TypeVar("T")

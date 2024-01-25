@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from abc import abstractmethod
+from typing import Sequence, TypeVar
 
 from faebryk.core.core import Module, NodeTrait, TraitImpl
 from faebryk.core.util import specialize_interface
@@ -9,6 +10,8 @@ from faebryk.library.Constant import Constant
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.Logic import Logic
 from faebryk.libs.util import times
+
+T = TypeVar("T", bound=Logic)
 
 
 class LogicGate(Module):
@@ -26,11 +29,17 @@ class LogicGate(Module):
         for f in functions:
             self.add_trait(f)
 
-    def op(self, *ins: Logic):
-        assert len(ins) == len(self.IFs.inputs)
-        for in_if_mod, in_if in zip(self.IFs.inputs, ins):
+    @staticmethod
+    def op_(
+        ins1: Sequence[Logic], ins2: Sequence[Logic], out: Sequence[T]
+    ) -> Sequence[T]:
+        assert len(ins1) == len(ins2)
+        for in_if_mod, in_if in zip(ins1, ins2):
             in_if_mod.connect(in_if)
-        return self.IFs.outputs
+        return out
+
+    def op(self, *ins: Logic):
+        return self.op_(ins, self.IFs.inputs, self.IFs.outputs)
 
 
 class ElectricLogicGate(LogicGate):
@@ -53,39 +62,59 @@ class ElectricLogicGate(LogicGate):
             specialize_interface(out_if_l, out_if_el)
 
 
-class can_logic_or(NodeTrait):
+class can_logic(NodeTrait):
+    @abstractmethod
+    def op(self, *ins: Logic) -> Logic:
+        ...
+
+
+class can_logic_or(can_logic):
     @abstractmethod
     def or_(self, *ins: Logic) -> Logic:
         ...
 
+    def op(self, *ins: Logic) -> Logic:
+        return self.or_(*ins)
 
-class can_logic_and(NodeTrait):
+
+class can_logic_and(can_logic):
     @abstractmethod
     def and_(self, *ins: Logic) -> Logic:
         ...
 
+    def op(self, *ins: Logic) -> Logic:
+        return self.and_(*ins)
 
-class can_logic_nor(NodeTrait):
+
+class can_logic_nor(can_logic):
     @abstractmethod
     def nor(self, *ins: Logic) -> Logic:
         ...
 
+    def op(self, *ins: Logic) -> Logic:
+        return self.nor(*ins)
 
-class can_logic_nand(NodeTrait):
+
+class can_logic_nand(can_logic):
     @abstractmethod
     def nand(self, *ins: Logic) -> Logic:
         ...
 
+    def op(self, *ins: Logic) -> Logic:
+        return self.nand(*ins)
 
-class can_logic_xor(NodeTrait):
+
+class can_logic_xor(can_logic):
     @abstractmethod
     def xor(self, *ins: Logic) -> Logic:
         ...
 
+    def op(self, *ins: Logic) -> Logic:
+        return self.xor(*ins)
+
 
 class can_logic_or_gate(can_logic_or.impl()):
-    def __init__(self) -> None:
-        super().__init__()
+    def on_obj_set(self) -> None:
         assert isinstance(self.get_obj(), LogicGate)
 
     def or_(self, *ins: Logic):
@@ -95,8 +124,7 @@ class can_logic_or_gate(can_logic_or.impl()):
 
 
 class can_logic_nor_gate(can_logic_nor.impl()):
-    def __init__(self) -> None:
-        super().__init__()
+    def on_obj_set(self) -> None:
         assert isinstance(self.get_obj(), LogicGate)
 
     def nor(self, *ins: Logic):
@@ -106,8 +134,7 @@ class can_logic_nor_gate(can_logic_nor.impl()):
 
 
 class can_logic_nand_gate(can_logic_nand.impl()):
-    def __init__(self) -> None:
-        super().__init__()
+    def on_obj_set(self) -> None:
         assert isinstance(self.get_obj(), LogicGate)
 
     def nand(self, *ins: Logic):
@@ -117,8 +144,7 @@ class can_logic_nand_gate(can_logic_nand.impl()):
 
 
 class can_logic_xor_gate(can_logic_xor.impl()):
-    def __init__(self) -> None:
-        super().__init__()
+    def on_obj_set(self) -> None:
         assert isinstance(self.get_obj(), LogicGate)
 
     def xor(self, *ins: Logic):

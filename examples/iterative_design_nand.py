@@ -125,7 +125,7 @@ def App():
 
     # alias
     power = power_source.IFs.power_out
-    gnd = Electrical().connect(power.NODEs.lv)
+    gnd = Electrical().connect(power.IFs.lv)
 
     # logic
     logic_in = Logic()
@@ -149,12 +149,10 @@ def App():
     e_in.pull_down(pull_down_resistor)
 
     e_out = specialize_interface(logic_out, ElectricLogic())
-    e_out.NODEs.signal.connect(led.IFs.anode)
+    e_out.IFs.signal.connect(led.IFs.anode)
 
-    specialize_interface(on, ElectricLogic()).connect_to_electric(power.NODEs.hv, power)
-    specialize_interface(off, ElectricLogic()).connect_to_electric(
-        power.NODEs.lv, power
-    )
+    specialize_interface(on, ElectricLogic()).connect_to_electric(power.IFs.hv, power)
+    specialize_interface(off, ElectricLogic()).connect_to_electric(power.IFs.lv, power)
 
     nxor = specialize_module(xor, XOR_with_NANDS())
 
@@ -206,7 +204,7 @@ def App():
         if isinstance(node, Battery):
             node.add_trait(
                 can_attach_to_footprint_via_pinmap(
-                    {"1": node.IFs.power.NODEs.hv, "2": node.IFs.power.NODEs.lv}
+                    {"1": node.IFs.power.IFs.hv, "2": node.IFs.power.IFs.lv}
                 )
             ).attach(
                 KicadFootprint.with_simple_names(

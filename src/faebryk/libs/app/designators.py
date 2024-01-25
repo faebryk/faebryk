@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+import pprint
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -19,7 +20,7 @@ from faebryk.library.has_designator_prefix import has_designator_prefix
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
-from faebryk.libs.util import get_key, groupby
+from faebryk.libs.util import duplicates, get_key, groupby
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +50,9 @@ def attach_random_designators(graph: Graph):
     )
 
     def _get_first_hole(used: list[int]):
+        s_used = sorted(used)
         for i in range(len(used)):
-            if i + 1 != used[i]:
+            if i + 1 != s_used[i]:
                 return i + 1
         return len(used) + 1
 
@@ -71,9 +73,11 @@ def attach_random_designators(graph: Graph):
 
         assigned[prefix].append(next_num)
 
-    assert len({n.get_trait(has_designator).get_designator() for n in nodes}) == len(
-        nodes
-    )
+    no_designator = {n for n in nodes if not n.has_trait(has_designator)}
+    assert not no_designator
+
+    dupes = duplicates(nodes, lambda n: n.get_trait(has_designator).get_designator())
+    assert not dupes, f"Duplcicate designators: {dupes}"
 
 
 def override_names_with_designators(graph: Graph):
@@ -123,7 +127,7 @@ def load_designators_from_netlist(graph: Graph, t2_netlist_comps: dict[str, Comp
         for d in (set(designators.values()) - {d for _, d in matched_nodes.values()})
     }
     if nomatch:
-        logger.info(f"Could not match: {nomatch}")
+        logger.info(f"Could not match: {pprint.pformat(nomatch, indent=4)}")
 
 
 def replace_faebryk_names_with_designators_in_kicad_pcb(graph: Graph, pcbfile: Path):

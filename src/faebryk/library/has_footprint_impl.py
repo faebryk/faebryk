@@ -3,7 +3,7 @@
 
 from abc import abstractmethod
 
-from faebryk.core.core import Footprint, LinkParent
+from faebryk.core.core import Footprint, LinkNamedParent
 from faebryk.library.has_footprint import has_footprint
 
 
@@ -14,7 +14,7 @@ class has_footprint_impl(has_footprint.impl()):
 
     def set_footprint(self, fp: Footprint):
         self.get_obj().GIFs.children.connect(
-            fp.GIFs.parent, LinkParent.curry("footprint")
+            fp.GIFs.parent, LinkNamedParent.curry("footprint")
         )
 
     def get_footprint(self) -> Footprint:

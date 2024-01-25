@@ -10,8 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class is_decoupled_nodes(is_decoupled.impl()):
-    def __init__(self) -> None:
-        super().__init__()
+    def on_obj_set(self) -> None:
         assert hasattr(self.get_obj().NODEs, "capacitor")
 
     def get_capacitor(self) -> Capacitor:

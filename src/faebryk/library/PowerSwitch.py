@@ -24,6 +24,8 @@ class can_switch_power_defined(can_switch_power.impl()):
         self.out_power = out_power
         self.in_logic = in_logic
 
+        out_power.PARAMs.voltage.merge(in_power.PARAMs.voltage)
+
     def get_logic_in(self) -> ElectricLogic:
         return self.in_logic
 

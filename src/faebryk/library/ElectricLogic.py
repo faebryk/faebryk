@@ -102,41 +102,38 @@ class ElectricLogic(Logic):
     def __init__(self) -> None:
         super().__init__()
 
-        class NODES(Logic.NODES()):
+        class IFS(Logic.NODES()):
             reference = ElectricPower()
             signal = Electrical()
 
-        self.NODEs = NODES(self)
+        self.IFs = IFS(self)
 
         class _can_be_surge_protected_defined(can_be_surge_protected_defined):
             def protect(_self):
-                return (
-                    super()
-                    .protect()
-                    .builder(
+                return [
+                    tvs.builder(
                         lambda t: t.PARAMs.reverse_working_voltage.merge(
-                            self.NODEs.reference.PARAMs.voltage
+                            self.IFs.reference.PARAMs.voltage
                         )
                     )
-                )
+                    for tvs in super().protect()
+                ]
 
-        self.add_trait(has_single_electric_reference_defined(self.NODEs.reference))
+        self.add_trait(has_single_electric_reference_defined(self.IFs.reference))
         self.add_trait(
-            _can_be_surge_protected_defined(
-                self.NODEs.reference.NODEs.lv, self.NODEs.signal
-            )
+            _can_be_surge_protected_defined(self.IFs.reference.IFs.lv, self.IFs.signal)
         )
         self.add_trait(
             can_be_pulled_defined(
-                self.NODEs.signal,
-                self.NODEs.reference.NODEs.lv,
-                self.NODEs.reference.NODEs.hv,
+                self.IFs.signal,
+                self.IFs.reference.IFs.lv,
+                self.IFs.reference.IFs.hv,
             )
         )
 
     def connect_to_electric(self, signal: Electrical, reference: ElectricPower):
-        self.NODEs.reference.connect(reference)
-        self.NODEs.signal.connect(signal)
+        self.IFs.reference.connect(reference)
+        self.IFs.signal.connect(signal)
         return self
 
     def connect_reference(self, reference: ElectricPower, invert: bool = False):
@@ -147,18 +144,18 @@ class ElectricLogic(Logic):
         #    inverted.NODEs.lv.connect(reference.NODEs.hv)
         #    inverted.NODEs.hv.connect(reference.NODEs.lv)
         #    reference = inverted
-        self.NODEs.reference.connect(reference)
+        self.IFs.reference.connect(reference)
 
     def connect_references(self, other: "ElectricLogic", invert: bool = False):
-        self.connect_reference(other.NODEs.reference, invert=invert)
+        self.connect_reference(other.IFs.reference, invert=invert)
 
     def set(self, on: bool):
-        r = self.NODEs.reference.NODEs
-        self.NODEs.signal.connect(r.hv if on else r.lv)
+        r = self.IFs.reference.IFs
+        self.IFs.signal.connect(r.hv if on else r.lv)
 
     @staticmethod
     def connect_all_references(ifs: Iterable["ElectricLogic"]) -> ElectricPower:
-        return connect_all_interfaces([x.NODEs.reference for x in ifs])
+        return connect_all_interfaces([x.IFs.reference for x in ifs])
 
     @staticmethod
     def connect_all_node_references(
@@ -173,7 +170,7 @@ class ElectricLogic(Logic):
             if x.has_trait(has_single_electric_reference)
         }
         if gnd_only:
-            return connect_all_interfaces({r.NODEs.lv for r in refs})
+            return connect_all_interfaces({r.IFs.lv for r in refs})
         return connect_all_interfaces(refs)
 
     @classmethod
@@ -182,7 +179,7 @@ class ElectricLogic(Logic):
     ) -> ElectricPower:
         return cls.connect_all_node_references(
             # TODO ugly
-            node.NODEs.get_all()
+            node.IFs.get_all()
             + (node.IFs.get_all() if isinstance(node, Module) else []),
             gnd_only=gnd_only,
         )

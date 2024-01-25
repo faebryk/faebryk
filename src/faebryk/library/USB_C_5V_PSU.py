@@ -43,9 +43,9 @@ class USB_C_5V_PSU(Module):
         )
 
         # configure as ufp with 5V@max3A
-        self.IFs.usb.NODEs.cc1.connect_via(
-            self.NODEs.configuration_resistors[0], self.IFs.power_out.NODEs.lv
+        self.IFs.usb.IFs.cc1.connect_via(
+            self.NODEs.configuration_resistors[0], self.IFs.power_out.IFs.lv
         )
-        self.IFs.usb.NODEs.cc2.connect_via(
-            self.NODEs.configuration_resistors[1], self.IFs.power_out.NODEs.lv
+        self.IFs.usb.IFs.cc2.connect_via(
+            self.NODEs.configuration_resistors[1], self.IFs.power_out.IFs.lv
         )

@@ -46,18 +46,18 @@ class PowerSwitchMOSFET(Module):
         self.IFs.logic_in.get_trait(can_be_pulled).pull(lowside and not normally_closed)
 
         # connect gate to logic
-        self.IFs.logic_in.NODEs.signal.connect(self.NODEs.mosfet.IFs.gate)
+        self.IFs.logic_in.IFs.signal.connect(self.NODEs.mosfet.IFs.gate)
 
         # passthrough non-switched side, bridge switched side
         if lowside:
-            self.IFs.power_in.NODEs.hv.connect(self.IFs.switched_power_out.NODEs.hv)
-            self.IFs.power_in.NODEs.lv.connect_via(
-                self.NODEs.mosfet, self.IFs.switched_power_out.NODEs.lv
+            self.IFs.power_in.IFs.hv.connect(self.IFs.switched_power_out.IFs.hv)
+            self.IFs.power_in.IFs.lv.connect_via(
+                self.NODEs.mosfet, self.IFs.switched_power_out.IFs.lv
             )
         else:
-            self.IFs.power_in.NODEs.lv.connect(self.IFs.switched_power_out.NODEs.lv)
-            self.IFs.power_in.NODEs.hv.connect_via(
-                self.NODEs.mosfet, self.IFs.switched_power_out.NODEs.hv
+            self.IFs.power_in.IFs.lv.connect(self.IFs.switched_power_out.IFs.lv)
+            self.IFs.power_in.IFs.hv.connect_via(
+                self.NODEs.mosfet, self.IFs.switched_power_out.IFs.hv
             )
 
         # TODO do more with logic

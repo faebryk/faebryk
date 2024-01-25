@@ -84,18 +84,15 @@ def as_unit(value: SupportsFloat, unit: str, base: int = 1000):
     return get_unit_prefix(value, base=base) + unit
 
 
-def is_type_set_subclasses(type_subclasses: set[type], types: set[type]) -> bool:
-    hits = {t: any(issubclass(s, t) for s in type_subclasses) for t in types}
-    return all(hits.values()) and all(
-        any(issubclass(s, t) for t in types) for s in hits
-    )
-
-
 def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     if order_types is None:
         order_types = []
 
     out: list[Node] = list(node.NODEs.get_all())
+    if isinstance(node, (Module, ModuleInterface)):
+        mifs = node.IFs.get_all()
+        out.extend(mifs)
+        out.extend([i for nested in mifs for i in get_all_nodes(nested)])
     out.extend([i for nested in out for i in get_all_nodes(nested)])
 
     out = sorted(
@@ -108,8 +105,8 @@ def get_all_nodes(node: Node, order_types=None) -> list[Node]:
     return out
 
 
-def get_all_modules(node: Node) -> list[Module]:
-    return [n for n in get_all_nodes(node) if isinstance(n, Module)]
+def get_all_modules(node: Node) -> set[Module]:
+    return {n for n in get_all_nodes(node) if isinstance(n, Module)}
 
 
 def get_all_nodes_graph(G: nx.Graph):
@@ -226,7 +223,7 @@ def zip_moduleinterfaces(
     # TODO check names?
     # TODO check types?
     for src_m, dst_m in zip(src, dst):
-        for src_i, dst_i in zip(src_m.NODEs.get_all(), dst_m.NODEs.get_all()):
+        for src_i, dst_i in zip(src_m.IFs.get_all(), dst_m.IFs.get_all()):
             assert isinstance(src_i, ModuleInterface)
             assert isinstance(dst_i, ModuleInterface)
             yield src_i, dst_i
@@ -235,7 +232,7 @@ def zip_moduleinterfaces(
 def get_mif_tree(
     obj: ModuleInterface | Module,
 ) -> dict[ModuleInterface, dict[ModuleInterface, dict]]:
-    mifs = obj.IFs.get_all() if isinstance(obj, Module) else obj.NODEs.get_all()
+    mifs = obj.IFs.get_all() if isinstance(obj, Module) else obj.IFs.get_all()
     assert all(isinstance(i, ModuleInterface) for i in mifs)
     mifs = cast(list[ModuleInterface], mifs)
 
@@ -272,25 +269,35 @@ def specialize_interface(
     general.connect(special)
 
     # Establish sibling relationship
-    general.GIFs.sibling.connect(special.GIFs.sibling)
+    general.GIFs.specialized.connect(special.GIFs.specializes)
 
     return special
 
 
 T = TypeVar("T", bound=Module)
+U = TypeVar("U", bound=Node)
 
 
 def specialize_module(
     general: Module,
     special: T,
     matrix: list[tuple[ModuleInterface, ModuleInterface]] | None = None,
+    attach_to: Node | None = None,
 ) -> T:
     logger.debug(f"Specializing Module {general} with {special}" + " " + "=" * 20)
 
-    if matrix is None:
+    def get_node_prop_matrix(sub_type: type[U]) -> list[tuple[U, U]]:
+        def _get_with_names(module: Module) -> dict[str, U]:
+            if sub_type is ModuleInterface:
+                holder = module.IFs
+            elif sub_type is Parameter:
+                holder = module.PARAMs
+            elif sub_type is Node:
+                holder = module.NODEs
+            else:
+                raise Exception()
 
-        def _get_with_names(module: Module) -> dict[str, ModuleInterface]:
-            return {NotNone(i.get_parent())[1]: i for i in module.IFs.get_all()}
+            return {NotNone(i.get_parent())[1]: i for i in holder.get_all()}
 
         s = _get_with_names(general)
         d = _get_with_names(special)
@@ -301,22 +308,37 @@ def specialize_module(
             if (dst_i := d.get(name)) is not None
         ]
 
+        return matrix
+
+    if matrix is None:
+        matrix = get_node_prop_matrix(ModuleInterface)
+
         # TODO add warning if not all src interfaces used
 
-    for src, dst in matrix:
-        assert src in general.IFs.get_all()
-        assert dst in special.IFs.get_all()
+    param_matrix = get_node_prop_matrix(Parameter)
 
+    for src, dst in matrix:
         specialize_interface(src, dst)
 
-    for t in general.traits:
-        # TODO needed?
-        if special.has_trait(t.trait):
-            continue
-        special.add_trait(t)
+    for src, dst in param_matrix:
+        dst.merge(src)
 
-    general.GIFs.sibling.connect(special.GIFs.sibling)
+    # TODO this cant work
+    # for t in general.traits:
+    #    # TODO needed?
+    #    if special.has_trait(t.trait):
+    #        continue
+    #    special.add_trait(t)
+
+    general.GIFs.specialized.connect(special.GIFs.specializes)
     logger.debug("=" * 120)
+
+    if attach_to:
+        attach_to.NODEs.extend_list("specialized", special)
+    else:
+        gen_parent = general.get_parent()
+        if gen_parent:
+            setattr(gen_parent[0].NODEs, f"{gen_parent[1]}_specialized", special)
 
     return special
 

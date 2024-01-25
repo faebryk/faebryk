@@ -6,9 +6,26 @@ from __future__ import annotations
 import inspect
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Generic, Iterable, Optional, Sequence, Type, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Iterable,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    cast,
+)
 
-from faebryk.libs.util import Holder, NotNone, cast_assert, is_type_pair, unique_ref
+from faebryk.libs.util import (
+    Holder,
+    NotNone,
+    cast_assert,
+    is_type_pair,
+    print_stack,
+    unique_ref,
+)
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -41,7 +58,8 @@ class TraitImpl(Generic[U], ABC):
     def __init__(self) -> None:
         super().__init__()
 
-        self._obj: U | None = None
+        if not hasattr(self, "_obj"):
+            self._obj: U | None = None
 
         found = False
         bases = type(self).__bases__
@@ -118,7 +136,7 @@ class FaebrykLibObject:
     def add_trait(self, trait: _TImpl) -> _TImpl:
         assert isinstance(trait, TraitImpl), ("not a traitimpl:", trait)
         assert isinstance(trait, Trait)
-        assert trait._obj is None, "trait already in use"
+        assert not hasattr(trait, "_obj") or trait._obj is None, "trait already in use"
         trait.set_obj(self)
 
         # Override existing trait if more specific or same
@@ -268,9 +286,8 @@ class LinkSibling(Link):
 
 
 class LinkParent(Link):
-    def __init__(self, name: str, interfaces: list[GraphInterface]) -> None:
+    def __init__(self, interfaces: list[GraphInterface]) -> None:
         super().__init__()
-        self.name = name
 
         assert all([isinstance(i, GraphInterfaceHierarchical) for i in interfaces])
         # TODO rethink invariant
@@ -278,13 +295,6 @@ class LinkParent(Link):
         assert len([i for i in interfaces if i.is_parent]) == 1  # type: ignore
 
         self.interfaces: list[GraphInterfaceHierarchical] = interfaces  # type: ignore
-
-    @classmethod
-    def curry(cls, name: str):
-        def curried(interfaces: list[GraphInterface]):
-            return LinkParent(name, interfaces)
-
-        return curried
 
     def get_connections(self):
         return self.interfaces
@@ -294,6 +304,19 @@ class LinkParent(Link):
 
     def get_child(self):
         return [i for i in self.interfaces if not i.is_parent][0]
+
+
+class LinkNamedParent(LinkParent):
+    def __init__(self, name: str, interfaces: list[GraphInterface]) -> None:
+        super().__init__(interfaces)
+        self.name = name
+
+    @classmethod
+    def curry(cls, name: str):
+        def curried(interfaces: list[GraphInterface]):
+            return cls(name, interfaces)
+
+        return curried
 
 
 class LinkDirect(Link):
@@ -413,7 +436,7 @@ class GraphInterfaceHierarchical(GraphInterface):
     def get_children(self) -> list[tuple[str, Node]]:
         assert self.is_parent
 
-        hier_conns = [c for c in self.connections if isinstance(c, LinkParent)]
+        hier_conns = [c for c in self.connections if isinstance(c, LinkNamedParent)]
         if len(hier_conns) == 0:
             return []
 
@@ -422,14 +445,14 @@ class GraphInterfaceHierarchical(GraphInterface):
     def get_parent(self) -> tuple[Node, str] | None:
         assert not self.is_parent
 
-        hier_conns = [c for c in self.connections if isinstance(c, LinkParent)]
+        hier_conns = [c for c in self.connections if isinstance(c, LinkNamedParent)]
         if len(hier_conns) == 0:
             return None
         # TODO reconsider this invariant
         assert len(hier_conns) == 1
 
         conn = hier_conns[0]
-        assert isinstance(conn, LinkParent)
+        assert isinstance(conn, LinkNamedParent)
         parent = conn.get_parent()
 
         return parent.node, conn.name
@@ -439,7 +462,7 @@ class GraphInterfaceSelf(GraphInterface):
     ...
 
 
-class GraphInterfaceModuleSibling(GraphInterface):
+class GraphInterfaceModuleSibling(GraphInterfaceHierarchical):
     ...
 
 
@@ -485,7 +508,9 @@ class Node(FaebrykLibObject):
             def handle_add(self, name: str, obj: Node.NT) -> None:
                 assert isinstance(obj, t)
                 parent: Node = self.get_parent()
-                obj.GIFs.parent.connect(parent.GIFs.children, LinkParent.curry(name))
+                obj.GIFs.parent.connect(
+                    parent.GIFs.children, LinkNamedParent.curry(name)
+                )
                 return super().handle_add(name, obj)
 
             def __init__(self, parent: Node) -> None:
@@ -534,7 +559,7 @@ class Node(FaebrykLibObject):
         return f"<{self.get_full_name(types=True)}>"
 
     def __repr__(self) -> str:
-        return f"{str(self)}(@{hex(id(self))})"
+        return f"<{self.get_full_name(types=True)}>(@{hex(id(self))})"
 
 
 PV = TypeVar("PV")
@@ -589,22 +614,26 @@ class Parameter(Generic[PV], Node):
             return pair[0]
 
         if pair := _is_pair(Range, Range):
+            # try:
             min_ = max(p.min for p in pair)
             max_ = min(p.max for p in pair)
+            # except Exception:
+            #    raise self.MergeException("range not resolvable")
             if any(any(not p.contains(v) for p in pair) for v in (min_, max_)):
                 raise self.MergeException("conflicting ranges")
             return Range(min_, max_)
 
         # Generic pairs
 
-        if pair := _is_pair(Parameter[PV], Operation):
-            try:
-                return pair[0].merge(pair[1].execute())
-            except Operation.OperationNotExecutable as e:
-                raise self.MergeException("operation failed") from e
-
         if pair := _is_pair(Parameter[PV], TBD):
             return pair[0]
+
+        # TODO remove as soon as possible
+        if pair := _is_pair(Parameter[PV], Operation):
+            # TODO make MergeOperation that inherits from Operation
+            # and return that instead, application can check if result is MergeOperation
+            # if it was checking mergeability
+            raise self.MergeException("cant merge range with operation")
 
         if pair := _is_pair(Parameter[PV], Set):
             out = set()
@@ -669,11 +698,14 @@ class Parameter(Generic[PV], Node):
         if not isinstance(other, Parameter):
             return self.op(Constant(other), op)
 
+        op1 = self.get_most_narrow()
+        op2 = other.get_most_narrow()
+
         def _is_pair(type1: type[T], type2: type[U]) -> Optional[tuple[T, U, Callable]]:
-            if isinstance(self, type1) and isinstance(other, type2):
-                return self, other, op
-            if isinstance(self, type2) and isinstance(other, type1):
-                return other, self, lambda p1, p2: op(p2, p1)
+            if isinstance(op1, type1) and isinstance(op2, type2):
+                return op1, op2, op
+            if isinstance(op1, type2) and isinstance(op2, type1):
+                return op2, op1, lambda p1, p2: op(p2, p1)
 
             return None
 
@@ -685,9 +717,7 @@ class Parameter(Generic[PV], Node):
 
         if pair := _is_pair(Constant, Range):
             sop = pair[2]
-            return Range(
-                sop(pair[0].value, pair[1].min), sop(pair[0].value, pair[1].max)
-            )
+            return Range(sop(pair[0], pair[1].min), sop(pair[0], pair[1].max))
 
         if pair := _is_pair(Parameter, Operation):
             sop = pair[2]
@@ -768,6 +798,32 @@ class Parameter(Generic[PV], Node):
 
         return most_specific
 
+    def __repr__(self) -> str:
+        narrowest = self.get_most_narrow()
+        if narrowest is self:
+            return super().__repr__()
+        # return f"{super().__repr__()} -> {repr(narrowest)}"
+        return repr(narrowest)
+
+    def get_narrowing_chain(self) -> list[Parameter]:
+        out: list[Parameter] = [self]
+        narrowers = {
+            narrower
+            for narrower_gif in self.GIFs.narrowed_by.get_direct_connections()
+            if (narrower := narrower_gif.node) is not self
+            and isinstance(narrower, Parameter)
+        }
+        if len(narrowers) > 1:
+            raise NotImplementedError()
+        for narrower in narrowers:
+            out += narrower.get_narrowing_chain()
+        return out
+
+    def get_narrowed_siblings(self) -> set[Parameter]:
+        out = {gif.node for gif in self.GIFs.narrows.get_direct_connections()}
+        assert all(isinstance(o, Parameter) for o in out)
+        return cast(set[Parameter], out)
+
 
 # -----------------------------------------------------------------------------
 
@@ -776,14 +832,18 @@ TMI = TypeVar("TMI", bound="ModuleInterface")
 
 
 def _resolve_link(links: Iterable[type[Link]]) -> type[Link]:
-    from faebryk.core.util import is_type_set_subclasses
+    from faebryk.libs.util import is_type_set_subclasses
 
     uniq = set(links)
+    assert uniq
+
     if len(uniq) == 1:
         return next(iter(uniq))
 
     if is_type_set_subclasses(uniq, {LinkDirect, _TLinkDirectShallow}):
-        return [u for u in uniq if issubclass(u, _TLinkDirectShallow)][0]
+        return [u for u in uniq if not issubclass(u, _TLinkDirectShallow)][0]
+        # TODO does this make sense?
+        # return [u for u in uniq if issubclass(u, _TLinkDirectShallow)][0]
 
     raise NotImplementedError()
 
@@ -815,19 +875,22 @@ _CONNECT_DEPTH = _LEVEL()
 
 class ModuleInterface(Node):
     @classmethod
-    def NODES(cls):
-        class NODES(Node.NODES()):
-            ...
-
-        return NODES
-
-    @classmethod
     def GIFS(cls):
         class GIFS(Node.GIFS()):
-            sibling = GraphInterfaceModuleSibling()
+            specializes = GraphInterface()
+            specialized = GraphInterface()
             connected = GraphInterfaceModuleConnection()
 
         return GIFS
+
+    @classmethod
+    def IFS(cls):
+        class IFS(Module.NodesCls(ModuleInterface)):
+            # workaround to help pylance
+            def get_all(self) -> list[ModuleInterface]:
+                return [cast_assert(ModuleInterface, i) for i in super().get_all()]
+
+        return IFS
 
     @classmethod
     def PARAMS(cls):
@@ -842,6 +905,7 @@ class ModuleInterface(Node):
         super().__init__()
         self.GIFs = ModuleInterface.GIFS()(self)
         self.PARAMs = ModuleInterface.PARAMS()(self)
+        self.IFs = ModuleInterface.IFS()(self)
 
     def _connect_siblings_and_connections(
         self, other: ModuleInterface, linkcls: type[Link]
@@ -883,8 +947,16 @@ class ModuleInterface(Node):
         cross_connect(s_con, d_con, "connections")
 
         # Connect to all siblings
-        s_sib = _get_connected_mifs(self.GIFs.sibling) | {self: linkcls}
-        d_sib = _get_connected_mifs(other.GIFs.sibling) | {other: linkcls}
+        s_sib = (
+            _get_connected_mifs(self.GIFs.specialized)
+            | _get_connected_mifs(self.GIFs.specializes)
+            | {self: linkcls}
+        )
+        d_sib = (
+            _get_connected_mifs(other.GIFs.specialized)
+            | _get_connected_mifs(other.GIFs.specializes)
+            | {other: linkcls}
+        )
         cross_connect(s_sib, d_sib, "siblings")
 
         return self
@@ -923,10 +995,14 @@ class ModuleInterface(Node):
             assert isinstance(b, ModuleInterface)
             return a.is_connected_to(b)
 
+        src_m_is = src_m.IFs.get_all()
+        dst_m_is = dst_m.IFs.get_all()
         connection_map = [
             (src_i, dst_i, _is_connected(src_i, dst_i))
-            for src_i, dst_i in zip(src_m.NODEs.get_all(), dst_m.NODEs.get_all())
+            for src_i, dst_i in zip(src_m_is, dst_m_is)
         ]
+
+        assert connection_map
 
         if not all(connected for _, _, connected in connection_map):
             return
@@ -946,10 +1022,15 @@ class ModuleInterface(Node):
         if existing_link:
             if isinstance(existing_link, linkcls):
                 return
-            if _resolve_link([type(existing_link), linkcls]) is type(existing_link):
+            resolved = _resolve_link([type(existing_link), linkcls])
+            if resolved is type(existing_link):
                 return
-            # TODO
-            raise NotImplementedError("Overriding existing links not implemented")
+            if LINK_TB:
+                print(print_stack(existing_link.tb))
+            raise NotImplementedError(
+                "Overriding existing links not implemented, tried to override "
+                + f"{existing_link} with {resolved}"
+            )
 
         # level 0 connect
         try:
@@ -1014,7 +1095,9 @@ class Module(Node):
     @classmethod
     def GIFS(cls):
         class GIFS(Node.GIFS()):
-            sibling = GraphInterfaceModuleSibling()
+            # TODO
+            specializes = GraphInterface()
+            specialized = GraphInterface()
 
         return GIFS
 
@@ -1042,6 +1125,25 @@ class Module(Node):
         self.GIFs = Module.GIFS()(self)
         self.IFs = Module.IFS()(self)
         self.PARAMs = Module.PARAMS()(self)
+
+    def get_most_special(self) -> Module:
+        specialers = {
+            specialer
+            for specialer_gif in self.GIFs.specialized.get_direct_connections()
+            if (specialer := specialer_gif.node) is not self
+            and isinstance(specialer, Module)
+        }
+        if not specialers:
+            return self
+
+        specialest_next = unique_ref(
+            specialer.get_most_special() for specialer in specialers
+        )
+
+        assert (
+            len(specialest_next) == 1
+        ), f"Ambiguous specialest {specialest_next} for {self}"
+        return next(iter(specialest_next))
 
 
 TF = TypeVar("TF", bound="Footprint")

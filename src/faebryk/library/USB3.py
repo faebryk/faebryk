@@ -11,12 +11,12 @@ class USB3(ModuleInterface):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        class _NODEs(ModuleInterface.NODES()):
+        class IFS(ModuleInterface.IFS()):
             usb2 = USB2_0()
             rx = DifferentialPair()
             tx = DifferentialPair()
             gnd_drain = Electrical()
 
-        self.NODEs = _NODEs(self)
+        self.IFs = IFS(self)
 
-        self.NODEs.gnd_drain.connect(self.NODEs.usb2.NODEs.buspower.NODEs.lv)
+        self.IFs.gnd_drain.connect(self.IFs.usb2.IFs.buspower.IFs.lv)

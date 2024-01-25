@@ -53,7 +53,7 @@ def App():
 
             self.add_trait(
                 can_attach_to_footprint_via_pinmap(
-                    {"1": self.IFs.power.NODEs.hv, "2": self.IFs.power.NODEs.lv}
+                    {"1": self.IFs.power.IFs.hv, "2": self.IFs.power.IFs.lv}
                 )
             ).attach(
                 KicadFootprint.with_simple_names(
@@ -77,8 +77,8 @@ def App():
     low = ElectricLogic()
 
     power.connect(battery.IFs.power)
-    power.NODEs.hv.connect(vcc)
-    power.NODEs.lv.connect(gnd)
+    power.IFs.hv.connect(vcc)
+    power.IFs.lv.connect(gnd)
 
     high.connect_to_electric(vcc, power)
     low.connect_to_electric(gnd, power)

@@ -40,14 +40,14 @@ class M24C08_FMN6TP(Module):
         self.add_trait(
             can_attach_to_footprint_via_pinmap(
                 {
-                    "1": x.e[0].NODEs.signal,
-                    "2": x.e[1].NODEs.signal,
-                    "3": x.e[2].NODEs.signal,
-                    "4": x.power.NODEs.lv,
-                    "5": x.data.NODEs.sda.NODEs.signal,
-                    "6": x.data.NODEs.scl.NODEs.signal,
-                    "7": x.nwc.NODEs.signal,
-                    "8": x.power.NODEs.hv,
+                    "1": x.e[0].IFs.signal,
+                    "2": x.e[1].IFs.signal,
+                    "3": x.e[2].IFs.signal,
+                    "4": x.power.IFs.lv,
+                    "5": x.data.IFs.sda.IFs.signal,
+                    "6": x.data.IFs.scl.IFs.signal,
+                    "7": x.nwc.IFs.signal,
+                    "8": x.power.IFs.hv,
                 }
             )
         ).attach(SOIC(8, size_xy_mm=(3.9, 4.9), pitch_mm=1.27))

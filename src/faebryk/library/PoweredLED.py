@@ -23,11 +23,11 @@ class PoweredLED(Module):
 
         self.NODEs = _NODEs(self)
 
-        self.IFs.power.NODEs.hv.connect(self.NODEs.led.IFs.anode)
-        self.IFs.power.NODEs.lv.connect_via(
-            self.NODEs.current_limiting_resistor, self.NODEs.led.IFs.cathode
+        self.IFs.power.IFs.hv.connect(self.NODEs.led.IFs.anode)
+        self.NODEs.led.connect_via_current_limiting_resistor_to_power(
+            self.NODEs.current_limiting_resistor,
+            self.IFs.power,
+            low_side=True,
         )
 
-        self.add_trait(
-            can_bridge_defined(self.IFs.power.NODEs.hv, self.IFs.power.NODEs.lv)
-        )
+        self.add_trait(can_bridge_defined(self.IFs.power.IFs.hv, self.IFs.power.IFs.lv))

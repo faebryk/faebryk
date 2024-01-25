@@ -19,11 +19,11 @@ class I2C(ModuleInterface):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        class NODES(ModuleInterface.NODES()):
+        class IFS(ModuleInterface.IFS()):
             scl = ElectricLogic()
             sda = ElectricLogic()
 
-        self.NODEs = NODES(self)
+        self.IFs = IFS(self)
 
         class PARAMS(ModuleInterface.PARAMS()):
             frequency = TBD()
@@ -36,8 +36,8 @@ class I2C(ModuleInterface):
     def terminate(self):
         # TODO: https://www.ti.com/lit/an/slva689/slva689.pdf
 
-        self.NODEs.sda.get_trait(can_be_pulled).pull(up=True)
-        self.NODEs.scl.get_trait(can_be_pulled).pull(up=True)
+        self.IFs.sda.get_trait(can_be_pulled).pull(up=True)
+        self.IFs.scl.get_trait(can_be_pulled).pull(up=True)
 
     def _on_connect(self, other: "I2C"):
         super()._on_connect(other)

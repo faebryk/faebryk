@@ -15,6 +15,7 @@ from typing import (
     SupportsInt,
     Type,
     TypeVar,
+    get_origin,
 )
 
 
@@ -153,6 +154,10 @@ class _wrapper(NotifiesOnPropertyChange, Generic[T, P]):
     def get_parent(self) -> P:
         raise NotImplementedError
 
+    @abstractmethod
+    def extend_list(self, list_name: str, *objs: T) -> None:
+        raise NotImplementedError
+
 
 def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
     _T = TypeVar("_T")
@@ -194,6 +199,17 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
                 + f"expected {_type} or iterable thereof"
             )
 
+        def extend_list(self, list_name: str, *objs: T) -> None:
+            if not hasattr(self, list_name):
+                setattr(self, list_name, [])
+            for obj in objs:
+                # emulate property setter
+                list_obj = getattr(self, list_name)
+                idx = len(list_obj)
+                list_obj.append(obj)
+                self._list.append(obj)
+                self.handle_add(f"{list_name}[{idx}]", obj)
+
         def get_all(self) -> list[T]:
             # check for illegal list modifications
             for name in sorted(dir(self)):
@@ -215,6 +231,9 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
 
         def get_parent(self) -> P:
             return self._parent
+
+        def repr(self):
+            return f"{type(self).__name__}({self._list})"
 
     return __wrapper[T, P]
 
@@ -252,8 +271,57 @@ U = TypeVar("U")
 def is_type_pair(
     param1: Any, param2: Any, type1: type[T], type2: type[U]
 ) -> Optional[tuple[T, U]]:
-    if isinstance(param1, type1) and isinstance(param2, type2):
+    o1 = get_origin(type1) or type1
+    o2 = get_origin(type2) or type2
+    if isinstance(param1, o1) and isinstance(param2, o2):
         return param1, param2
-    if isinstance(param2, type1) and isinstance(param1, type2):
+    if isinstance(param2, o1) and isinstance(param1, o2):
         return param2, param1
     return None
+
+
+def is_type_set_subclasses(type_subclasses: set[type], types: set[type]) -> bool:
+    hits = {t: any(issubclass(s, t) for s in type_subclasses) for t in types}
+    return all(hits.values()) and all(
+        any(issubclass(s, t) for t in types) for s in hits
+    )
+
+
+def _print_stack(stack):
+    from colorama import Fore
+
+    for frame_info in stack:
+        frame = frame_info[0]
+        if "venv" in frame_info.filename:
+            continue
+        if "faebryk" not in frame_info.filename:
+            continue
+        # if frame_info.function not in ["_connect_across_hierarchies"]:
+        #    continue
+        yield (
+            f"{Fore.RED} Frame in {frame_info.filename} at line {frame_info.lineno}:"
+            f"{Fore.BLUE} {frame_info.function} {Fore.RESET}"
+        )
+
+        def pretty_val(value):
+            if isinstance(value, dict):
+                import pprint
+
+                return (
+                    ("\n" if len(value) > 1 else "")
+                    + pprint.pformat(
+                        {pretty_val(k): pretty_val(v) for k, v in value.items()},
+                        indent=2,
+                        width=120,
+                    )
+                ).replace("\n", f"\n    {Fore.RESET}")
+            elif isinstance(value, type):
+                return f"<class {value.__name__}>"
+            return value
+
+        for name, value in frame.f_locals.items():
+            yield f"  {Fore.GREEN}{name}{Fore.RESET} = {pretty_val(value)}"
+
+
+def print_stack(stack):
+    return "\n".join(_print_stack(stack))

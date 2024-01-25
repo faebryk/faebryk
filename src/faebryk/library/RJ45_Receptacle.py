@@ -27,14 +27,14 @@ class RJ45_Receptacle(Module):
         self.add_trait(
             can_attach_to_footprint_via_pinmap(
                 {
-                    "1": self.IFs.twisted_pairs[0].NODEs.p,
-                    "2": self.IFs.twisted_pairs[0].NODEs.n,
-                    "3": self.IFs.twisted_pairs[1].NODEs.p,
-                    "4": self.IFs.twisted_pairs[1].NODEs.n,
-                    "5": self.IFs.twisted_pairs[2].NODEs.p,
-                    "6": self.IFs.twisted_pairs[2].NODEs.n,
-                    "7": self.IFs.twisted_pairs[3].NODEs.p,
-                    "8": self.IFs.twisted_pairs[3].NODEs.n,
+                    "1": self.IFs.twisted_pairs[0].IFs.p,
+                    "2": self.IFs.twisted_pairs[0].IFs.n,
+                    "3": self.IFs.twisted_pairs[1].IFs.p,
+                    "4": self.IFs.twisted_pairs[1].IFs.n,
+                    "5": self.IFs.twisted_pairs[2].IFs.p,
+                    "6": self.IFs.twisted_pairs[2].IFs.n,
+                    "7": self.IFs.twisted_pairs[3].IFs.p,
+                    "8": self.IFs.twisted_pairs[3].IFs.n,
                 }
             )
         )

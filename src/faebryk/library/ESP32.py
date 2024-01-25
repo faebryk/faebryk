@@ -27,30 +27,30 @@ class ESP_ADC(ModuleInterface):
     def __init__(self, channel_count: int) -> None:
         super().__init__()
 
-        class _NODES(ModuleInterface.NODES()):
+        class IFS(ModuleInterface.IFS()):
             CHANNELS = times(channel_count, Electrical)
 
-        self.NODEs = _NODES(self)
+        self.IFs = IFS(self)
 
 
 class ESP_SDIO(ModuleInterface):
     def __init__(self):
         super().__init__()
 
-        class _NODES(ModuleInterface.NODES()):
+        class IFS(ModuleInterface.IFS()):
             DATA = times(4, Electrical)
             CLK = Electrical()
             CMD = Electrical()
             GND = Electrical()
 
-        self.NODEs = _NODES(self)
+        self.IFs = IFS(self)
 
 
 class ESP32_EMAC(ModuleInterface):
     def __init__(self):
         super().__init__()
 
-        class _NODES(ModuleInterface.NODES()):
+        class IFS(ModuleInterface.IFS()):
             TXD = times(4, Electrical)
             RXD = times(4, Electrical)
             TX_CLK = Electrical()
@@ -67,14 +67,14 @@ class ESP32_EMAC(ModuleInterface):
             CRS_out = Electrical()
             COL_out = Electrical()
 
-        self.NODEs = _NODES(self)
+        self.IFs = IFS(self)
 
 
 class ESP32_SPI(ModuleInterface):
     def __init__(self):
         super().__init__()
 
-        class _NODES(ModuleInterface.NODES()):
+        class IFS(ModuleInterface.IFS()):
             D = Electrical()
             Q = Electrical()
             WP = Electrical()
@@ -85,7 +85,7 @@ class ESP32_SPI(ModuleInterface):
             CLK = Electrical()
             GND = Electrical()
 
-        self.NODEs = _NODES(self)
+        self.IFs = IFS(self)
 
 
 class ESP32(Module):
@@ -236,23 +236,23 @@ class ESP32(Module):
         self.add_trait(can_attach_to_footprint_via_pinmap(self.pinmap))
 
         # SPI0 is connected to SPI1 (Arbiter)
-        x.SPI[0].NODEs.Q.connect(x.SPI[1].NODEs.Q)
-        x.SPI[0].NODEs.D.connect(x.SPI[1].NODEs.D)
-        x.SPI[0].NODEs.HD.connect(x.SPI[1].NODEs.HD)
-        x.SPI[0].NODEs.WP.connect(x.SPI[1].NODEs.WP)
-        x.SPI[0].NODEs.CLK.connect(x.SPI[1].NODEs.CLK)
-        x.SPI[0].NODEs.CS.connect(x.SPI[1].NODES.CS)
+        x.SPI[0].IFs.Q.connect(x.SPI[1].IFs.Q)
+        x.SPI[0].IFs.D.connect(x.SPI[1].IFs.D)
+        x.SPI[0].IFs.HD.connect(x.SPI[1].IFs.HD)
+        x.SPI[0].IFs.WP.connect(x.SPI[1].IFs.WP)
+        x.SPI[0].IFs.CLK.connect(x.SPI[1].IFs.CLK)
+        x.SPI[0].IFs.CS.connect(x.SPI[1].NODES.CS)
 
-        x.POWER_RTC.NODEs.hv.connect(x.VDD3P3_RTC)
-        x.POWER_RTC.NODEs.lv.connect(x.GND)
-        x.POWER_CPU.NODEs.hv.connect(x.VDD3P3_CPU)
-        x.POWER_CPU.NODEs.lv.connect(x.GND)
-        x.POWER_SDIO.NODEs.hv.connect(x.VDD_SDIO)
-        x.POWER_SDIO.NODEs.lv.connect(x.GND)
-        x.POWER_ANALOG.NODEs.hv.connect(x.VDDA0)
-        x.POWER_ANALOG.NODEs.hv.connect(x.VDDA1)
-        x.POWER_ANALOG.NODEs.hv.connect(x.VDDA2)
-        x.POWER_ANALOG.NODEs.lv.connect(x.GND)
+        x.POWER_RTC.IFs.hv.connect(x.VDD3P3_RTC)
+        x.POWER_RTC.IFs.lv.connect(x.GND)
+        x.POWER_CPU.IFs.hv.connect(x.VDD3P3_CPU)
+        x.POWER_CPU.IFs.lv.connect(x.GND)
+        x.POWER_SDIO.IFs.hv.connect(x.VDD_SDIO)
+        x.POWER_SDIO.IFs.lv.connect(x.GND)
+        x.POWER_ANALOG.IFs.hv.connect(x.VDDA0)
+        x.POWER_ANALOG.IFs.hv.connect(x.VDDA1)
+        x.POWER_ANALOG.IFs.hv.connect(x.VDDA2)
+        x.POWER_ANALOG.IFs.lv.connect(x.GND)
 
         self.pinmux = ESP32_Pinmux(self)
 
@@ -367,12 +367,12 @@ def _matrix(esp32: ESP32):
             1 : Function(x.ADC[2].CHANNELS[5],           "ADC2_CH5",     None),                                             # noqa: E501
             2 : Function(x.TOUCH[5],                     "TOUCH5",       None),                                             # noqa: E501
             3 : Function(x.RTC_GPIO[15],                 "RTC_GPIO15",   None),                                             # noqa: E501
-            5 : Function(x.JTAG.NODEs.tdi.NODEs.signal,  "MTDI",         "I1"),                                             # noqa: E501
-            6 : Function(x.SPI[2].NODEs.Q,               "HSPIQ",        "I/O/T"),                                          # noqa: E501
+            5 : Function(x.JTAG.IFs.tdi.IFs.signal,  "MTDI",         "I1"),                                             # noqa: E501
+            6 : Function(x.SPI[2].IFs.Q,               "HSPIQ",        "I/O/T"),                                          # noqa: E501
             7 : Function(esp32.get_gpio(12),             "GPIO12",       "I/O/T"),                                          # noqa: E501
-            8 : Function(x.SDIO_HOST[1].NODEs.DATA[2],   "HS2_DATA2",    "I1/O/T"),                                         # noqa: E501
-            9 : Function(x.SDIO_SLAVE.NODEs.DATA[2],     "SD_DATA2",     "I1/O/T"),                                         # noqa: E501
-            10: Function(x.EMAC.NODEs.TXD[3],           "EMAC_TXD3",    "O")                                                # noqa: E501
+            8 : Function(x.SDIO_HOST[1].IFs.DATA[2],   "HS2_DATA2",    "I1/O/T"),                                         # noqa: E501
+            9 : Function(x.SDIO_SLAVE.IFs.DATA[2],     "SD_DATA2",     "I1/O/T"),                                         # noqa: E501
+            10: Function(x.EMAC.IFs.TXD[3],           "EMAC_TXD3",    "O")                                                # noqa: E501
         }),                                                                                                                 # noqa: E501
     ]
     # fmt: on

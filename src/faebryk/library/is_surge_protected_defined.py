@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from typing import Sequence
 
 from faebryk.library.is_surge_protected import is_surge_protected
 from faebryk.library.TVS import TVS
@@ -9,10 +10,10 @@ from faebryk.library.TVS import TVS
 logger = logging.getLogger(__name__)
 
 
-class is_surge_protected_nodes(is_surge_protected.impl()):
-    def __init__(self) -> None:
+class is_surge_protected_defined(is_surge_protected.impl()):
+    def __init__(self, tvss: Sequence[TVS]) -> None:
         super().__init__()
-        assert hasattr(self.get_obj().NODEs, "tvs")
+        self.tvss = tvss
 
-    def get_tvs(self) -> TVS:
-        return self.get_obj().NODEs.tvs
+    def get_tvs(self):
+        return self.tvss

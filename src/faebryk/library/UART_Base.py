@@ -13,11 +13,11 @@ class UART_Base(ModuleInterface):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        class NODES(ModuleInterface.NODES()):
+        class IFS(ModuleInterface.IFS()):
             rx = ElectricLogic()
             tx = ElectricLogic()
 
-        self.NODEs = NODES(self)
+        self.IFs = IFS(self)
 
         class PARAMS(ModuleInterface.PARAMS()):
             baud = TBD()

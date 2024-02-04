@@ -41,12 +41,10 @@ class TestParameters(unittest.TestCase):
 
         # Range
         R_ONE_TEN = Range(1, 10)
-        self.assertEqual(assertIsInstance(R_ONE_TEN + TWO, Range).as_tuple(), (3, 12))
+        self.assertEqual(assertIsInstance(R_ONE_TEN + TWO, Range), Range(3, 12))
 
         R_TWO_THREE = Range(2, 3)
-        self.assertEqual(
-            assertIsInstance(R_ONE_TEN + R_TWO_THREE, Range).as_tuple(), (3, 13)
-        )
+        self.assertEqual(assertIsInstance(R_ONE_TEN + R_TWO_THREE, Range), Range(3, 13))
 
         # Set
         S_FIVE_NINE = Set(set(Constant(x) for x in range(5, 10)))

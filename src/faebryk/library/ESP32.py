@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # TODO
-class ESP_ADC(ModuleInterface):
+class _ESP_ADC(ModuleInterface):
     def __init__(self, channel_count: int) -> None:
         super().__init__()
 
@@ -33,7 +33,7 @@ class ESP_ADC(ModuleInterface):
         self.IFs = IFS(self)
 
 
-class ESP_SDIO(ModuleInterface):
+class _ESP_SDIO(ModuleInterface):
     def __init__(self):
         super().__init__()
 
@@ -46,7 +46,7 @@ class ESP_SDIO(ModuleInterface):
         self.IFs = IFS(self)
 
 
-class ESP32_EMAC(ModuleInterface):
+class _ESP32_EMAC(ModuleInterface):
     def __init__(self):
         super().__init__()
 
@@ -70,7 +70,7 @@ class ESP32_EMAC(ModuleInterface):
         self.IFs = IFS(self)
 
 
-class ESP32_SPI(ModuleInterface):
+class _ESP32_SPI(ModuleInterface):
     def __init__(self):
         super().__init__()
 
@@ -153,8 +153,8 @@ class ESP32(Module):
 
             # High Level Functions
             I2C = times(2, I2C)
-            SDIO_SLAVE = ESP_SDIO()
-            SDIO_HOST = times(2, ESP_SDIO)
+            SDIO_SLAVE = _ESP_SDIO()
+            SDIO_HOST = times(2, _ESP_SDIO)
             UART = UART_Base()
             JTAG = JTAG()
             TOUCH = times(10, Electrical)
@@ -162,11 +162,11 @@ class ESP32(Module):
             RTC_GPIO = times(18, Electrical)
             ADC = [
                 None,
-                ESP_ADC(channel_count=8),
-                ESP_ADC(channel_count=10),
+                _ESP_ADC(channel_count=8),
+                _ESP_ADC(channel_count=10),
             ]
-            SPI = times(4, ESP32_SPI)
-            EMAC = ESP32_EMAC()
+            SPI = times(4, _ESP32_SPI)
+            EMAC = _ESP32_EMAC()
 
             # Power
             POWER_RTC = ElectricPower()
@@ -254,7 +254,7 @@ class ESP32(Module):
         x.POWER_ANALOG.IFs.hv.connect(x.VDDA2)
         x.POWER_ANALOG.IFs.lv.connect(x.GND)
 
-        self.pinmux = ESP32_Pinmux(self)
+        self.pinmux = _ESP32_Pinmux(self)
 
     def get_gpio(self, idx: int):
         filtered = [20, 24, 28, 29, 30, 31]
@@ -281,25 +281,25 @@ class _ESP32_D0WD(ESP32):
         )
 
 
-class ESP32_D0WD_V3(_ESP32_D0WD):
+class _ESP32_D0WD_V3(_ESP32_D0WD):
     # Dual core - No embedded flash/PSRAM
     ...
 
 
-class ESP32_D0WDR2_V3(_ESP32_D0WD):
+class _ESP32_D0WDR2_V3(_ESP32_D0WD):
     # Dual core - 2 MB PSRAM
     ...
 
 
 @dataclass(frozen=True)
-class Function:
+class _Function:
     interface: Electrical
     name: str
     type: "typing.Any"
 
 
 @dataclass(frozen=False)
-class Pad:
+class _Pad:
     no: int
     name: str
     interface: ModuleInterface
@@ -309,12 +309,12 @@ class Pad:
     after_reset: "typing.Any"
     drive_strenght: "typing.Any"
     #
-    functions: dict[int, Function]
+    functions: dict[int, _Function]
     #
-    current_function: Function | None = None
+    current_function: _Function | None = None
 
 
-class Mux(Module):
+class _Mux(Module):
     def __init__(self, input: Electrical, *outputs: Electrical) -> None:
         super().__init__()
 
@@ -339,53 +339,53 @@ def _matrix(esp32: ESP32):
     # fmt: off
     return [
         # Power
-        Pad(1,  "VDDA",         x.VDDA0,        "VDDA supply in",           None, None, None, {}),                          # noqa: E501
-        Pad(43, "VDDA",         x.VDDA1,        "VDDA supply in",           None, None, None, {}),                          # noqa: E501
-        Pad(46, "VDDA",         x.VDDA2,        "VDDA supply in",           None, None, None, {}),                          # noqa: E501
-        Pad(2,  "LNA_IN",       x.LNA_IN,       "VDD3P3",                   None, None, None, {}),                          # noqa: E501
-        Pad(3,  "VDD3P3",       x.VDD3P30,      "VDD3P3 supply in",         None, None, None, {}),                          # noqa: E501
-        Pad(4,  "VDD3P3",       x.VDD3P31,      "VDD3P3 supply in",         None, None, None, {}),                          # noqa: E501
-        Pad(19, "VDD3P3_RTC",   x.VDD3P3_RTC,   "VDD3P3_RTC supply in",     None, None, None, {}),                          # noqa: E501
-        Pad(26, "VDD_SDIO",     x.VDD_SDIO,     "VDD_SDIO supply out/in",   None, None, None, {}),                          # noqa: E501
-        Pad(37, "VDD3P3_CPU",   x.VDD3P3_CPU,   "VDD3P3_CPU supply in",     None, None, None, {}),                          # noqa: E501
-        Pad(5,  "SENSOR_VP",    x.SENSOR_VP,    "VDD3P3_RTC",               "oe=0,ie=0", "oe=0,ie=0", None, {               # noqa: E501
-            1 : Function(x.ADC[1].CHANNELS[0],           "ADC1_CH0",     None),                                             # noqa: E501
-            3 : Function(x.RTC_GPIO[0],                  "RTC_GPIO0",    None),                                             # noqa: E501
-            5 : Function(esp32.get_gpio(36),             "GPIO36",       "I"),                                              # noqa: E501
+        _Pad(1,  "VDDA",         x.VDDA0,        "VDDA supply in",           None, None, None, {}),                          # noqa: E501
+        _Pad(43, "VDDA",         x.VDDA1,        "VDDA supply in",           None, None, None, {}),                          # noqa: E501
+        _Pad(46, "VDDA",         x.VDDA2,        "VDDA supply in",           None, None, None, {}),                          # noqa: E501
+        _Pad(2,  "LNA_IN",       x.LNA_IN,       "VDD3P3",                   None, None, None, {}),                          # noqa: E501
+        _Pad(3,  "VDD3P3",       x.VDD3P30,      "VDD3P3 supply in",         None, None, None, {}),                          # noqa: E501
+        _Pad(4,  "VDD3P3",       x.VDD3P31,      "VDD3P3 supply in",         None, None, None, {}),                          # noqa: E501
+        _Pad(19, "VDD3P3_RTC",   x.VDD3P3_RTC,   "VDD3P3_RTC supply in",     None, None, None, {}),                          # noqa: E501
+        _Pad(26, "VDD_SDIO",     x.VDD_SDIO,     "VDD_SDIO supply out/in",   None, None, None, {}),                          # noqa: E501
+        _Pad(37, "VDD3P3_CPU",   x.VDD3P3_CPU,   "VDD3P3_CPU supply in",     None, None, None, {}),                          # noqa: E501
+        _Pad(5,  "SENSOR_VP",    x.SENSOR_VP,    "VDD3P3_RTC",               "oe=0,ie=0", "oe=0,ie=0", None, {               # noqa: E501
+            1 : _Function(x.ADC[1].CHANNELS[0],           "ADC1_CH0",     None),                                             # noqa: E501
+            3 : _Function(x.RTC_GPIO[0],                  "RTC_GPIO0",    None),                                             # noqa: E501
+            5 : _Function(esp32.get_gpio(36),             "GPIO36",       "I"),                                              # noqa: E501
         }),                                                                                                                 # noqa: E501
-        Pad(6,  "SENSOR_CAPP",  x.SENSOR_CAPP,  "VDD3P3_RTC",               "oe=0,ie=0", "oe=0,ie=0", None, {               # noqa: E501
-            1 : Function(x.ADC[1].CHANNELS[1],           "ADC1_CH1",     None),                                             # noqa: E501
-            3 : Function(x.RTC_GPIO[1],                  "RTC_GPIO1",    None),                                             # noqa: E501
-            5 : Function(esp32.get_gpio(37),             "GPIO37",       "I"),                                              # noqa: E501
+        _Pad(6,  "SENSOR_CAPP",  x.SENSOR_CAPP,  "VDD3P3_RTC",               "oe=0,ie=0", "oe=0,ie=0", None, {               # noqa: E501
+            1 : _Function(x.ADC[1].CHANNELS[1],           "ADC1_CH1",     None),                                             # noqa: E501
+            3 : _Function(x.RTC_GPIO[1],                  "RTC_GPIO1",    None),                                             # noqa: E501
+            5 : _Function(esp32.get_gpio(37),             "GPIO37",       "I"),                                              # noqa: E501
         }),                                                                                                                 # noqa: E501
-        Pad(7,  "SENSOR_CAPN",  x.SENSOR_CAPN,  "VDD3P3_RTC",               "oe=0,ie=0", "oe=0,ie=0", None, {               # noqa: E501
-            1 : Function(x.ADC[1].CHANNELS[2],           "ADC1_CH2",     None),                                             # noqa: E501
-            3 : Function(x.RTC_GPIO[2],                  "RTC_GPIO2",    None),                                             # noqa: E501
-            5 : Function(esp32.get_gpio(38),             "GPIO38",       "I"),                                              # noqa: E501
+        _Pad(7,  "SENSOR_CAPN",  x.SENSOR_CAPN,  "VDD3P3_RTC",               "oe=0,ie=0", "oe=0,ie=0", None, {               # noqa: E501
+            1 : _Function(x.ADC[1].CHANNELS[2],           "ADC1_CH2",     None),                                             # noqa: E501
+            3 : _Function(x.RTC_GPIO[2],                  "RTC_GPIO2",    None),                                             # noqa: E501
+            5 : _Function(esp32.get_gpio(38),             "GPIO38",       "I"),                                              # noqa: E501
         }),                                                                                                                 # noqa: E501
-        Pad(18, "MTDI",         x.MTDI,         "VDD3P3_RTC",               "oe=0,ie=1,wpd", "oe=0,ie=1,wpd", "2'd2", {     # noqa: E501
-            1 : Function(x.ADC[2].CHANNELS[5],           "ADC2_CH5",     None),                                             # noqa: E501
-            2 : Function(x.TOUCH[5],                     "TOUCH5",       None),                                             # noqa: E501
-            3 : Function(x.RTC_GPIO[15],                 "RTC_GPIO15",   None),                                             # noqa: E501
-            5 : Function(x.JTAG.IFs.tdi.IFs.signal,  "MTDI",         "I1"),                                             # noqa: E501
-            6 : Function(x.SPI[2].IFs.Q,               "HSPIQ",        "I/O/T"),                                          # noqa: E501
-            7 : Function(esp32.get_gpio(12),             "GPIO12",       "I/O/T"),                                          # noqa: E501
-            8 : Function(x.SDIO_HOST[1].IFs.DATA[2],   "HS2_DATA2",    "I1/O/T"),                                         # noqa: E501
-            9 : Function(x.SDIO_SLAVE.IFs.DATA[2],     "SD_DATA2",     "I1/O/T"),                                         # noqa: E501
-            10: Function(x.EMAC.IFs.TXD[3],           "EMAC_TXD3",    "O")                                                # noqa: E501
+        _Pad(18, "MTDI",         x.MTDI,         "VDD3P3_RTC",               "oe=0,ie=1,wpd", "oe=0,ie=1,wpd", "2'd2", {     # noqa: E501
+            1 : _Function(x.ADC[2].CHANNELS[5],           "ADC2_CH5",     None),                                             # noqa: E501
+            2 : _Function(x.TOUCH[5],                     "TOUCH5",       None),                                             # noqa: E501
+            3 : _Function(x.RTC_GPIO[15],                 "RTC_GPIO15",   None),                                             # noqa: E501
+            5 : _Function(x.JTAG.IFs.tdi.IFs.signal,  "MTDI",         "I1"),                                             # noqa: E501
+            6 : _Function(x.SPI[2].IFs.Q,               "HSPIQ",        "I/O/T"),                                          # noqa: E501
+            7 : _Function(esp32.get_gpio(12),             "GPIO12",       "I/O/T"),                                          # noqa: E501
+            8 : _Function(x.SDIO_HOST[1].IFs.DATA[2],   "HS2_DATA2",    "I1/O/T"),                                         # noqa: E501
+            9 : _Function(x.SDIO_SLAVE.IFs.DATA[2],     "SD_DATA2",     "I1/O/T"),                                         # noqa: E501
+            10: _Function(x.EMAC.IFs.TXD[3],           "EMAC_TXD3",    "O")                                                # noqa: E501
         }),                                                                                                                 # noqa: E501
     ]
     # fmt: on
 
 
-class ESP32_Pinmux(Module):
+class _ESP32_Pinmux(Module):
     def __init__(self, esp32: ESP32) -> None:
         default_function = 5
         self.matrix = _matrix(esp32)
 
         class _NODES(ModuleInterface.NODES()):
             MUXES = [
-                Mux(
+                _Mux(
                     esp32.pinmap[str(pad.interface)],
                     *[f.interface for f in pad.functions.values()],
                 )
@@ -399,7 +399,7 @@ class ESP32_Pinmux(Module):
                 continue
             self._mux(pad.functions[default_function], pad)
 
-    def _mux(self, function: Function, pad: Pad):
+    def _mux(self, function: _Function, pad: _Pad):
         if pad.current_function == function:
             return
 

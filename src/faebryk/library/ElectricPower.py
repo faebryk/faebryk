@@ -13,44 +13,42 @@ from faebryk.library.Range import Range
 from faebryk.library.TBD import TBD
 
 
-class can_be_decoupled_power(can_be_decoupled_defined):
-    def __init__(self) -> None:
-        ...
-
-    def on_obj_set(self):
-        super().__init__(hv=self.get_obj().IFs.hv, lv=self.get_obj().IFs.lv)
-
-    def decouple(self):
-        return (
-            super()
-            .decouple()
-            .builder(
-                lambda c: c.PARAMs.rated_voltage.merge(
-                    Range.lower_bound(self.get_obj().PARAMs.voltage * 2.0)
-                )
-            )
-        )
-
-
-class can_be_surge_protected_power(can_be_surge_protected_defined):
-    def __init__(self) -> None:
-        ...
-
-    def on_obj_set(self):
-        super().__init__(self.get_obj().IFs.lv, self.get_obj().IFs.hv)
-
-    def protect(self):
-        return [
-            tvs.builder(
-                lambda t: t.PARAMs.reverse_working_voltage.merge(
-                    self.get_obj().PARAMs.voltage
-                )
-            )
-            for tvs in super().protect()
-        ]
-
-
 class ElectricPower(Power):
+    class can_be_decoupled_power(can_be_decoupled_defined):
+        def __init__(self) -> None:
+            ...
+
+        def on_obj_set(self):
+            super().__init__(hv=self.get_obj().IFs.hv, lv=self.get_obj().IFs.lv)
+
+        def decouple(self):
+            return (
+                super()
+                .decouple()
+                .builder(
+                    lambda c: c.PARAMs.rated_voltage.merge(
+                        Range.lower_bound(self.get_obj().PARAMs.voltage * 2.0)
+                    )
+                )
+            )
+
+    class can_be_surge_protected_power(can_be_surge_protected_defined):
+        def __init__(self) -> None:
+            ...
+
+        def on_obj_set(self):
+            super().__init__(self.get_obj().IFs.lv, self.get_obj().IFs.hv)
+
+        def protect(self):
+            return [
+                tvs.builder(
+                    lambda t: t.PARAMs.reverse_working_voltage.merge(
+                        self.get_obj().PARAMs.voltage
+                    )
+                )
+                for tvs in super().protect()
+            ]
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -69,8 +67,8 @@ class ElectricPower(Power):
         #    self.NODEs.hv.PARAMs.potential - self.NODEs.lv.PARAMs.potential
         # )
 
-        self.add_trait(can_be_surge_protected_power())
-        self.add_trait(can_be_decoupled_power())
+        self.add_trait(ElectricPower.can_be_surge_protected_power())
+        self.add_trait(ElectricPower.can_be_decoupled_power())
 
         from faebryk.library.has_single_electric_reference_defined import (
             has_single_electric_reference_defined,

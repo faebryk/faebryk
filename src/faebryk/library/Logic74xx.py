@@ -6,6 +6,7 @@ from typing import Callable, Sequence
 
 from faebryk.core.core import Module
 from faebryk.library.ElectricLogic import ElectricLogic
+from faebryk.library.ElectricLogicGate import ElectricLogicGate
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.has_designator_prefix_defined import (
     has_designator_prefix_defined,
@@ -13,7 +14,6 @@ from faebryk.library.has_designator_prefix_defined import (
 from faebryk.library.has_single_electric_reference_defined import (
     has_single_electric_reference_defined,
 )
-from faebryk.library.LogicGate import ElectricLogicGate
 from faebryk.library.TBD import TBD
 
 

@@ -24,85 +24,82 @@ from faebryk.library.Logic import Logic
 from faebryk.library.Resistor import Resistor
 
 
-class has_pulls(NodeTrait):
-    @abstractmethod
-    def get_pulls(self) -> tuple[Resistor | None, Resistor | None]:
-        ...
-
-
-class has_pulls_defined(has_pulls.impl()):
-    def __init__(self, up: Resistor | None, down: Resistor | None) -> None:
-        super().__init__()
-        self.up = up
-        self.down = down
-
-    def get_pulls(self) -> tuple[Resistor | None, Resistor | None]:
-        return self.up, self.down
-
-
-class can_be_pulled(NodeTrait):
-    @abstractmethod
-    def pull(self, up: bool) -> Resistor:
-        ...
-
-
-class can_be_pulled_defined(can_be_pulled.impl()):
-    def __init__(self, signal: Electrical, ref: ElectricPower) -> None:
-        super().__init__()
-        self.ref = ref
-        self.signal = signal
-
-    def pull(self, up: bool):
-        obj = self.get_obj()
-
-        up_r, down_r = None, None
-        if obj.has_trait(has_pulls):
-            up_r, down_r = obj.get_trait(has_pulls).get_pulls()
-
-        if up and up_r:
-            return up_r
-        if not up and down_r:
-            return down_r
-
-        resistor = Resistor()
-        if up:
-            obj.NODEs.pull_up = resistor
-            up_r = resistor
-        else:
-            obj.NODEs.pull_down = resistor
-            down_r = resistor
-
-        self.signal.connect_via(resistor, self.ref.IFs.hv if up else self.ref.IFs.lv)
-
-        obj.add_trait(has_pulls_defined(up_r, down_r))
-        return resistor
-
-
-# class can_be_buffered(NodeTrait):
-#    @abstractmethod
-#    def buffer(self):
-#        ...
-#
-#
-# class can_be_buffered_defined(can_be_buffered.impl()):
-#    def __init__(self, signal: "ElectricLogic") -> None:
-#        super().__init__()
-#        self.signal = signal
-#
-#    def buffer(self):
-#        obj = self.get_obj()
-#
-#        if hasattr(obj.NODEs, "buffer"):
-#            return cast_assert(SignalBuffer, getattr(obj.NODEs, "buffer"))
-#
-#        buffer = SignalBuffer()
-#        obj.NODEs.buffer = buffer
-#        self.signal.connect(buffer.NODEs.logic_in)
-#
-#        return buffer.NODEs.logic_out
-
-
 class ElectricLogic(Logic):
+    class has_pulls(NodeTrait):
+        @abstractmethod
+        def get_pulls(self) -> tuple[Resistor | None, Resistor | None]:
+            ...
+
+    class has_pulls_defined(has_pulls.impl()):
+        def __init__(self, up: Resistor | None, down: Resistor | None) -> None:
+            super().__init__()
+            self.up = up
+            self.down = down
+
+        def get_pulls(self) -> tuple[Resistor | None, Resistor | None]:
+            return self.up, self.down
+
+    class can_be_pulled(NodeTrait):
+        @abstractmethod
+        def pull(self, up: bool) -> Resistor:
+            ...
+
+    class can_be_pulled_defined(can_be_pulled.impl()):
+        def __init__(self, signal: Electrical, ref: ElectricPower) -> None:
+            super().__init__()
+            self.ref = ref
+            self.signal = signal
+
+        def pull(self, up: bool):
+            obj = self.get_obj()
+
+            up_r, down_r = None, None
+            if obj.has_trait(ElectricLogic.has_pulls):
+                up_r, down_r = obj.get_trait(ElectricLogic.has_pulls).get_pulls()
+
+            if up and up_r:
+                return up_r
+            if not up and down_r:
+                return down_r
+
+            resistor = Resistor()
+            if up:
+                obj.NODEs.pull_up = resistor
+                up_r = resistor
+            else:
+                obj.NODEs.pull_down = resistor
+                down_r = resistor
+
+            self.signal.connect_via(
+                resistor, self.ref.IFs.hv if up else self.ref.IFs.lv
+            )
+
+            obj.add_trait(ElectricLogic.has_pulls_defined(up_r, down_r))
+            return resistor
+
+    # class can_be_buffered(NodeTrait):
+    #    @abstractmethod
+    #    def buffer(self):
+    #        ...
+    #
+    #
+    # class can_be_buffered_defined(can_be_buffered.impl()):
+    #    def __init__(self, signal: "ElectricLogic") -> None:
+    #        super().__init__()
+    #        self.signal = signal
+    #
+    #    def buffer(self):
+    #        obj = self.get_obj()
+    #
+    #        if hasattr(obj.NODEs, "buffer"):
+    #            return cast_assert(SignalBuffer, getattr(obj.NODEs, "buffer"))
+    #
+    #        buffer = SignalBuffer()
+    #        obj.NODEs.buffer = buffer
+    #        self.signal.connect(buffer.NODEs.logic_in)
+    #
+    #        return buffer.NODEs.logic_out
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -128,7 +125,7 @@ class ElectricLogic(Logic):
             _can_be_surge_protected_defined(self.IFs.reference.IFs.lv, self.IFs.signal)
         )
         self.add_trait(
-            can_be_pulled_defined(
+            ElectricLogic.can_be_pulled_defined(
                 self.IFs.signal,
                 self.IFs.reference,
             )
@@ -216,6 +213,7 @@ class ElectricLogic(Logic):
         assert not (signal and reference)
         assert not (lv and reference)
 
+        # TODO make custom LinkDirectShallow that also allows the specified params
         if signal:
             self.IFs.signal.connect(other.IFs.signal)
         if reference:

@@ -11,10 +11,10 @@ from faebryk.library.is_representable_by_single_value_defined import (
 )
 from faebryk.libs.exceptions import FaebrykException
 
-X = TypeVar("X", bound="SupportsRangeOps")
+X = TypeVar("X", bound="_SupportsRangeOps")
 
 
-class SupportsRangeOps(Protocol):
+class _SupportsRangeOps(Protocol):
     def __add__(self, __value: X) -> X:
         ...
 
@@ -31,7 +31,7 @@ class SupportsRangeOps(Protocol):
         ...
 
 
-PV = TypeVar("PV", bound=SupportsRangeOps)
+PV = TypeVar("PV", bound=_SupportsRangeOps)
 
 
 class Range(Generic[PV], Parameter[PV]):

@@ -932,16 +932,24 @@ class ModuleInterface(Node):
 
         return PARAMS
 
+    # TODO rename
     @classmethod
     def LinkDirectShallow(cls):
+        """
+        Make link that only connects up but not down
+        """
+
+        def test(node: Node):
+            return not any(isinstance(p[0], cls) for p in node.get_hierarchy()[:-1])
+
         class _LinkDirectShallowMif(
-            LinkDirectShallow(lambda link, gif: isinstance(gif.node, cls))
+            LinkDirectShallow(lambda link, gif: test(gif.node))
         ):
             ...
 
         return _LinkDirectShallowMif
 
-    _LinkDirectShallow: _TLinkDirectShallow | None = None
+    _LinkDirectShallow: type[_TLinkDirectShallow] | None = None
 
     def __init__(self) -> None:
         super().__init__()
@@ -961,6 +969,11 @@ class ModuleInterface(Node):
 
         # Already connected
         if self.is_connected_to(other):
+            return self
+
+        # if link is filtered, cancel here
+        self._connect_across_hierarchies(other, linkcls)
+        if not self.is_connected_to(other):
             return self
 
         logger.debug(f"MIF connection: {self} to {other}")

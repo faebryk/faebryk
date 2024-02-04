@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.core.core import Module
+from faebryk.library.can_switch_power_defined import can_switch_power_defined
 from faebryk.library.Constant import Constant
-from faebryk.library.ElectricLogic import ElectricLogic, can_be_pulled
+from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.MOSFET import MOSFET
-from faebryk.library.PowerSwitch import can_switch_power_defined
 from faebryk.library.Resistor import Resistor
 
 
@@ -43,7 +43,9 @@ class PowerSwitchMOSFET(Module):
         )
 
         # pull gate
-        self.IFs.logic_in.get_trait(can_be_pulled).pull(lowside and not normally_closed)
+        self.IFs.logic_in.get_trait(ElectricLogic.can_be_pulled).pull(
+            lowside and not normally_closed
+        )
 
         # connect gate to logic
         self.IFs.logic_in.IFs.signal.connect(self.NODEs.mosfet.IFs.gate)

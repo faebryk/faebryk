@@ -6,9 +6,8 @@ import unittest
 
 from faebryk.core.core import Module
 from faebryk.core.graph import Graph
-from faebryk.exporters.netlist.graph import make_t1_netlist_from_graph
 from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
-from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
+from faebryk.exporters.netlist.netlist import make_t2_netlist_from_graph
 from faebryk.library.can_attach_to_footprint_symmetrically import (
     can_attach_to_footprint_symmetrically,
 )
@@ -80,83 +79,16 @@ def test_netlist_graph():
         resistor2,
         *net_wrappers,
     ]
-    netlist = from_faebryk_t2_netlist(
-        make_t2_netlist_from_t1(make_t1_netlist_from_graph(Graph(comps)))
-    )
+    netlist = from_faebryk_t2_netlist(make_t2_netlist_from_graph(Graph(comps)))
 
-    _, netlist_t1 = test_netlist_t1()
-    success = netlist == netlist_t1
+    _, netlist_t2 = test_netlist_t2()
+    success = netlist == netlist_t2
     if not success:
-        logger.error("Graph != T1")
-        logger.error("T1: %s", netlist_t1)
+        logger.error("Graph != T2")
+        logger.error("T2: %s", netlist_t2)
         logger.error("Graph: %s", netlist)
 
     return success, netlist
-
-
-def test_netlist_t1():
-    from faebryk.exporters.netlist.kicad.netlist_kicad import from_faebryk_t2_netlist
-    from faebryk.exporters.netlist.netlist import make_t2_netlist_from_t1
-
-    gnd = {
-        "vertex": {
-            "name": "GND",
-            "real": False,
-            "neighbors": {1: []},
-        },
-        "pin": 1,
-    }
-
-    vcc = {
-        "vertex": {
-            "name": "+3V3",
-            "real": False,
-            "neighbors": {1: []},
-        },
-        "pin": 1,
-    }
-
-    resistor1 = {
-        "name": "R1",
-        "value": "R",
-        "properties": {
-            "footprint": "Resistor_SMD:R_0805_2012Metric",
-        },
-        "real": True,
-        "neighbors": {1: [], 2: []},
-    }
-
-    resistor2 = {
-        "name": "R2",
-        "value": "R",
-        "properties": {
-            "footprint": "Resistor_SMD:R_0805_2012Metric",
-        },
-        "real": True,
-        "neighbors": {1: [], 2: []},
-    }
-
-    resistor1["neighbors"][1].append(vcc)
-    resistor1["neighbors"][2].append(gnd)
-
-    resistor2["neighbors"][1].append(vcc)
-    resistor2["neighbors"][2].append(gnd)
-
-    t1_netlist = [resistor1, resistor2, gnd["vertex"], vcc["vertex"]]
-
-    t2_netlist = make_t2_netlist_from_t1(t1_netlist)
-    kicad_netlist = from_faebryk_t2_netlist(t2_netlist)
-
-    _, netlist_t2 = test_netlist_t2()
-    kicad_netlist_t2 = from_faebryk_t2_netlist(netlist_t2)
-
-    success = kicad_netlist == kicad_netlist_t2
-    if not success:
-        logger.error("T1 != T2")
-        logger.error("T2", kicad_netlist_t2)
-        logger.error("T1", kicad_netlist)
-
-    return success, kicad_netlist
 
 
 def test_netlist_t2():
@@ -229,7 +161,7 @@ def test_netlist_t2():
 def _test_netlist_manu():
     import itertools
 
-    import faebryk.exporters.netlist.kicad.sexp as sexp
+    import faebryk.libs.kicad.sexp as sexp
     from faebryk.exporters.netlist.kicad.netlist_kicad import (
         _defaulted_comp,
         _defaulted_netlist,
@@ -258,12 +190,16 @@ def _test_netlist_manu():
         value="R",
         footprint="Resistor_SMD:R_0805_2012Metric",
         tstamp=next(tstamp),
+        fields=[],
+        properties={},
     )
     resistor_comp2 = _defaulted_comp(
         ref="R2",
         value="R",
         footprint="Resistor_SMD:R_0805_2012Metric",
         tstamp=next(tstamp),
+        fields=[],
+        properties={},
     )
 
     device_nets = [
@@ -310,9 +246,6 @@ def _test_netlist_manu():
 class TestNetlist(unittest.TestCase):
     def test_netlist(self):
         ok, _ = test_netlist_t2()
-        self.assertTrue(ok)
-
-        ok, _ = test_netlist_t1()
         self.assertTrue(ok)
 
         ok, _ = test_netlist_graph()

@@ -1,17 +1,9 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from abc import abstractmethod
-
-from faebryk.library.can_bridge import can_bridge
+from faebryk.library.can_switch_power import can_switch_power
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
-
-
-class can_switch_power(can_bridge):
-    @abstractmethod
-    def get_logic_in(self) -> ElectricLogic:
-        ...
 
 
 class can_switch_power_defined(can_switch_power.impl()):

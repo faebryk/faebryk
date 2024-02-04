@@ -26,7 +26,7 @@ from faebryk.library.can_attach_to_footprint_via_pinmap import (
 )
 from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
-from faebryk.library.ElectricLogic import ElectricLogic
+from faebryk.library.ElectricLogic import ElectricLogic, can_be_pulled
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.has_simple_value_representation_defined import (
     has_simple_value_representation_defined,
@@ -34,7 +34,7 @@ from faebryk.library.has_simple_value_representation_defined import (
 from faebryk.library.KicadFootprint import KicadFootprint
 from faebryk.library.LED import LED
 from faebryk.library.Logic import Logic
-from faebryk.library.NAND import NAND
+from faebryk.library.LogicGate import NAND, can_logic_nand
 from faebryk.library.Resistor import Resistor
 from faebryk.library.SMDTwoPin import SMDTwoPin
 from faebryk.library.Switch import Switch
@@ -93,7 +93,7 @@ class XOR_with_NANDS(XOR):
         super().__init__()
 
         class NODES(Module.NODES()):
-            nands = times(4, lambda: NAND(2))
+            nands = times(4, lambda: NAND(Constant(2)))
 
         self.NODEs = NODES(self)
 
@@ -104,13 +104,13 @@ class XOR_with_NANDS(XOR):
         Q = self.IFs.output
 
         # ~(a&b)
-        q0 = G[0].nand(A, B)
+        q0 = G[0].get_trait(can_logic_nand).nand(A, B)
         # ~(a&~b)
-        q1 = G[1].nand(A, q0)
+        q1 = G[1].get_trait(can_logic_nand).nand(A, q0)
         # ~(~a&b)
-        q2 = G[2].nand(B, q0)
+        q2 = G[2].get_trait(can_logic_nand).nand(B, q0)
         # (a&~b) o| (~a&b)
-        q3 = G[3].nand(q1, q2)
+        q3 = G[3].get_trait(can_logic_nand).nand(q1, q2)
 
         Q.connect(q3)
 
@@ -135,7 +135,7 @@ def App():
     logic_out.connect(xor.xor(logic_in, on))
 
     # led
-    current_limiting_resistor = Resistor(resistance=TBD())
+    current_limiting_resistor = Resistor()
     led = LED()
     led.IFs.cathode.connect_via(current_limiting_resistor, gnd)
 
@@ -145,8 +145,7 @@ def App():
     logic_in.connect_via(switch, on)
 
     e_in = specialize_interface(logic_in, ElectricLogic())
-    pull_down_resistor = Resistor(TBD())
-    e_in.pull_down(pull_down_resistor)
+    pull_down_resistor = e_in.get_trait(can_be_pulled).pull(up=False)
 
     e_out = specialize_interface(logic_out, ElectricLogic())
     e_out.IFs.signal.connect(led.IFs.anode)
@@ -170,7 +169,6 @@ def App():
     app = Module()
     app.NODEs.components = [
         led,
-        pull_down_resistor,
         current_limiting_resistor,
         switch,
         battery,
@@ -178,22 +176,18 @@ def App():
     ]
 
     # parametrizing
-    pull_down_resistor.set_resistance(Constant(100_000))
+    pull_down_resistor.PARAMs.resistance.merge(Constant(100e3))
 
     for node in get_all_nodes(app):
         if isinstance(node, Battery):
             node.voltage = Constant(5)
 
         if isinstance(node, LED):
-            node.set_forward_parameters(
-                voltage_V=Constant(2.4), current_A=Constant(0.020)
-            )
+            node.PARAMs.forward_voltage.merge(Constant(2.4))
+            node.PARAMs.max_current.merge(Constant(0.020))
 
-    assert isinstance(battery.voltage, Constant)
-    current_limiting_resistor.set_resistance(
-        led.get_trait(
-            LED.has_calculatable_needed_series_resistance
-        ).get_needed_series_resistance_ohm(battery.voltage.value)
+    current_limiting_resistor.PARAMs.resistance.merge(
+        led.get_needed_series_resistance_for_current_limit(battery.voltage)
     )
 
     # packaging
@@ -227,7 +221,7 @@ def App():
 
     # packages single nands as explicit IC
     nand_ic = TI_CD4011BE()
-    for ic_nand, xor_nand in zip(nand_ic.NODEs.nands, nxor.NODEs.nands):
+    for ic_nand, xor_nand in zip(nand_ic.NODEs.gates, nxor.NODEs.nands):
         specialize_module(xor_nand, ic_nand)
 
     app.NODEs.nand_ic = nand_ic

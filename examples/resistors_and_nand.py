@@ -65,8 +65,8 @@ def App():
     battery = Battery()
 
     # functional components
-    resistor1 = Resistor(Constant(100))
-    resistor2 = Resistor(Constant(100))
+    resistor1 = Resistor().builder(lambda r: r.PARAMs.resistance.merge(Constant(100)))
+    resistor2 = Resistor().builder(lambda r: r.PARAMs.resistance.merge(Constant(100)))
     cd4011 = TI_CD4011BE()
 
     # aliases
@@ -86,8 +86,8 @@ def App():
     # connections
     connect_interfaces_via_chain(vcc, [resistor1, resistor2], gnd)
 
-    cd4011.NODEs.nands[0].IFs.inputs[0].connect(high)
-    cd4011.NODEs.nands[0].IFs.inputs[1].connect(low)
+    cd4011.NODEs.gates[0].IFs.inputs[0].connect(high)
+    cd4011.NODEs.gates[0].IFs.inputs[1].connect(low)
     cd4011.IFs.power.connect(battery.IFs.power)
 
     # make netlist exportable (packages, pinmaps)

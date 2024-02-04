@@ -7,7 +7,11 @@ from faebryk.library.can_be_surge_protected_defined import (
 )
 from faebryk.library.DifferentialPair import DifferentialPair
 from faebryk.library.Electrical import Electrical
+from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
+from faebryk.library.has_single_electric_reference_defined import (
+    has_single_electric_reference_defined,
+)
 from faebryk.library.Range import Range
 from faebryk.library.USB3 import USB3
 
@@ -40,6 +44,12 @@ class USB_C(ModuleInterface):
 
         self.IFs = IFS(self)
 
+        self.add_trait(
+            has_single_electric_reference_defined(
+                ElectricLogic.connect_all_module_references(self)
+            )
+        )
+
 
 class USB_C_PowerOnly(ModuleInterface):
     def __init__(self) -> None:
@@ -58,6 +68,12 @@ class USB_C_PowerOnly(ModuleInterface):
                 self.IFs.power.IFs.hv,
                 self.IFs.cc1,
                 self.IFs.cc2,
+            )
+        )
+
+        self.add_trait(
+            has_single_electric_reference_defined(
+                ElectricLogic.connect_all_module_references(self)
             )
         )
 

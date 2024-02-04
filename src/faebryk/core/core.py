@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 # Saves stack trace for each link for debugging
 # Can be enabled from test cases and apps, but very slow, so only for debug
 LINK_TB = False
+ID_REPR = False
 
 # 1st order classes -----------------------------------------------------------
 T = TypeVar("T", bound="FaebrykLibObject")
@@ -559,7 +560,8 @@ class Node(FaebrykLibObject):
         return f"<{self.get_full_name(types=True)}>"
 
     def __repr__(self) -> str:
-        return f"<{self.get_full_name(types=True)}>(@{hex(id(self))})"
+        id_str = f"(@{hex(id(self))})" if ID_REPR else ""
+        return f"<{self.get_full_name(types=True)}>{id_str}"
 
 
 PV = TypeVar("PV")
@@ -798,6 +800,12 @@ class Parameter(Generic[PV], Node):
 
         return most_specific
 
+    def __str__(self) -> str:
+        narrowest = self.get_most_narrow()
+        if narrowest is self:
+            return super().__str__()
+        return str(narrowest)
+
     def __repr__(self) -> str:
         narrowest = self.get_most_narrow()
         if narrowest is self:
@@ -831,7 +839,32 @@ class Parameter(Generic[PV], Node):
 TMI = TypeVar("TMI", bound="ModuleInterface")
 
 
-def _resolve_link(links: Iterable[type[Link]]) -> type[Link]:
+# The resolve functions are really weird
+# You have to look into where they are called to make sense of what they are doing
+# Chain resolve is for deciding what to do in a case like this
+# if1 -> link1 -> if2 -> link2 -> if3
+# This will then decide with which link if1 and if3 are connected
+def _resolve_link_transitive(links: Iterable[type[Link]]) -> type[Link]:
+    from faebryk.libs.util import is_type_set_subclasses
+
+    uniq = set(links)
+    assert uniq
+
+    if len(uniq) == 1:
+        return next(iter(uniq))
+
+    if is_type_set_subclasses(uniq, {_TLinkDirectShallow}):
+        # TODO this only works if the filter is identical
+        raise NotImplementedError()
+
+    if is_type_set_subclasses(uniq, {LinkDirect, _TLinkDirectShallow}):
+        return [u for u in uniq if issubclass(u, _TLinkDirectShallow)][0]
+
+    raise NotImplementedError()
+
+
+# This one resolves the case if1 -> link1 -> if2; if1 -> link2 -> if2
+def _resolve_link_duplicate(links: Iterable[type[Link]]) -> type[Link]:
     from faebryk.libs.util import is_type_set_subclasses
 
     uniq = set(links)
@@ -842,8 +875,6 @@ def _resolve_link(links: Iterable[type[Link]]) -> type[Link]:
 
     if is_type_set_subclasses(uniq, {LinkDirect, _TLinkDirectShallow}):
         return [u for u in uniq if not issubclass(u, _TLinkDirectShallow)][0]
-        # TODO does this make sense?
-        # return [u for u in uniq if issubclass(u, _TLinkDirectShallow)][0]
 
     raise NotImplementedError()
 
@@ -901,11 +932,24 @@ class ModuleInterface(Node):
 
         return PARAMS
 
+    @classmethod
+    def LinkDirectShallow(cls):
+        class _LinkDirectShallowMif(
+            LinkDirectShallow(lambda link, gif: isinstance(gif.node, cls))
+        ):
+            ...
+
+        return _LinkDirectShallowMif
+
+    _LinkDirectShallow: _TLinkDirectShallow | None = None
+
     def __init__(self) -> None:
         super().__init__()
         self.GIFs = ModuleInterface.GIFS()(self)
         self.PARAMs = ModuleInterface.PARAMS()(self)
         self.IFs = ModuleInterface.IFS()(self)
+        if not type(self)._LinkDirectShallow:
+            type(self)._LinkDirectShallow = type(self).LinkDirectShallow()
 
     def _connect_siblings_and_connections(
         self, other: ModuleInterface, linkcls: type[Link]
@@ -934,7 +978,7 @@ class ModuleInterface(Node):
                     # can happen while connection trees are resolving
                     if s is d:
                         continue
-                    link = _resolve_link([slink, dlink, linkcls])
+                    link = _resolve_link_transitive([slink, dlink, linkcls])
 
                     s._connect_across_hierarchies(d, linkcls=link)
 
@@ -1010,7 +1054,7 @@ class ModuleInterface(Node):
         # decide which LinkType to use here
         # depends on connections between src_i & dst_i
         # e.g. if any Shallow, we need to choose shallow
-        link = _resolve_link(
+        link = _resolve_link_transitive(
             [type(sublink) for _, _, sublink in connection_map if sublink]
         )
 
@@ -1022,7 +1066,7 @@ class ModuleInterface(Node):
         if existing_link:
             if isinstance(existing_link, linkcls):
                 return
-            resolved = _resolve_link([type(existing_link), linkcls])
+            resolved = _resolve_link_duplicate([type(existing_link), linkcls])
             if resolved is type(existing_link):
                 return
             if LINK_TB:
@@ -1041,11 +1085,22 @@ class ModuleInterface(Node):
         logger.debug(f"{' '*2*_CONNECT_DEPTH.inc()}Connect {self} to {other}")
         self._on_connect(other)
 
-        # level +1 (down) connect
-        self._try_connect_down(other, linkcls=linkcls)
+        con_depth_one = _CONNECT_DEPTH.value == 1
+        recursion_error = None
+        try:
+            # level +1 (down) connect
+            self._try_connect_down(other, linkcls=linkcls)
 
-        # level -1 (up) connect
-        self._try_connect_up(other)
+            # level -1 (up) connect
+            self._try_connect_up(other)
+
+        except RecursionError as e:
+            recursion_error = e
+            if not con_depth_one:
+                raise
+
+        if recursion_error:
+            raise Exception(f"Recursion error while connecting {self} to {other}")
 
         _CONNECT_DEPTH.dec()
 
@@ -1063,18 +1118,23 @@ class ModuleInterface(Node):
             linkcls = LinkDirect
         return self._connect_siblings_and_connections(other, linkcls=linkcls)
 
-    def connect_via(self, bridge: Node | Sequence[Node], other: Self | None = None):
+    def connect_via(
+        self, bridge: Node | Sequence[Node], other: Self | None = None, linkcls=None
+    ):
         from faebryk.library.can_bridge import can_bridge
 
         bridges = [bridge] if isinstance(bridge, Node) else bridge
         intf = self
         for sub_bridge in bridges:
             t = sub_bridge.get_trait(can_bridge)
-            intf.connect(t.get_in())
+            intf.connect(t.get_in(), linkcls=linkcls)
             intf = t.get_out()
 
         if other:
-            intf.connect(other)
+            intf.connect(other, linkcls=linkcls)
+
+    def connect_shallow(self, other: Self) -> Self:
+        return self.connect(other, linkcls=type(self)._LinkDirectShallow)
 
     def is_connected_to(self, other: ModuleInterface):
         return self.GIFs.connected.is_connected(other.GIFs.connected)

@@ -26,7 +26,8 @@ class Operation(Generic[PV], Parameter[PV]):
         self.operation = operation
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.operands!r})@{id(self):#x}"
+        return super().__repr__() + f"({self.operands!r})"
+        # return f"{type(self).__name__}({self.operands!r})@{id(self):#x}"
 
     def execute(self):
         operands = [o.get_most_narrow() for o in self.operands]

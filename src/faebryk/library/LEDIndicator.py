@@ -25,6 +25,5 @@ class LEDIndicator(Module):
 
         self.NODEs = _NODEs(self)
 
-        #
         self.IFs.power_in.connect_via(self.NODEs.power_switch, self.NODEs.led.IFs.power)
         self.NODEs.power_switch.IFs.logic_in.connect(self.IFs.logic_in)

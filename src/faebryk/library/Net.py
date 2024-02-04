@@ -60,3 +60,10 @@ class Net(Module):
             for mif in get_connected_mifs(self.IFs.part_of.GIFs.connected)
             if isinstance(mif, type(self.IFs.part_of))
         }
+
+    def __repr__(self) -> str:
+        up = super().__repr__()
+        if self.has_trait(has_overriden_name):
+            return f"{up}'{self.get_trait(has_overriden_name).get_name()}'"
+        else:
+            return up

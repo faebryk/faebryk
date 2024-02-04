@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+import pprint
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
-from faebryk.core.core import Module, ModuleTrait, Parameter
+from faebryk.core.core import Module, ModuleInterface, ModuleTrait, Parameter
 from faebryk.library.can_attach_to_footprint_via_pinmap import (
     can_attach_to_footprint_via_pinmap,
 )
@@ -76,7 +77,8 @@ def pick_module_by_params(module: Module, options: Iterable[PickerOption]):
         )
     except StopIteration:
         raise ValueError(
-            f"Could not find part for {module=} with params {params} in {options=}"
+            f"Could not find part for {module=} with params:\n"
+            f" {pprint.pformat(params, indent=4)}"
         )
 
     if option.pinmap:
@@ -93,3 +95,39 @@ def pick_module_by_params(module: Module, options: Iterable[PickerOption]):
 
     logger.debug(f"Attached {option.part.partno} to {module}")
     return option
+
+
+def pick_part_recursively(module: Module, pick: Callable[[Module], bool]):
+    assert isinstance(module, Module)
+
+    # pick only for most specialized module
+    module = module.get_most_special()
+
+    if module.has_trait(has_part_picked):
+        return
+
+    # pick mif module parts
+    def _get_mif_top_level_modules(mif: ModuleInterface):
+        return [n for n in mif.NODEs.get_all() if isinstance(n, Module)] + [
+            m for nmif in mif.IFs.get_all() for m in _get_mif_top_level_modules(nmif)
+        ]
+
+    for mif in module.IFs.get_all():
+        for mod in _get_mif_top_level_modules(mif):
+            pick_part_recursively(mod, pick)
+
+    # pick
+    picked = pick(module)
+    if picked:
+        return
+
+    # go level lower
+    children = module.NODEs.get_all()
+    if not children:
+        logger.warning(f"Module without pick: {module}")
+    for child in children:
+        if not isinstance(child, Module):
+            continue
+        if child is module:
+            continue
+        pick_part_recursively(child, pick)

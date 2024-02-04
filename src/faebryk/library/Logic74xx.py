@@ -5,9 +5,13 @@ from enum import Enum, auto
 from typing import Callable, Sequence
 
 from faebryk.core.core import Module
+from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.has_designator_prefix_defined import (
     has_designator_prefix_defined,
+)
+from faebryk.library.has_single_electric_reference_defined import (
+    has_single_electric_reference_defined,
 )
 from faebryk.library.LogicGate import ElectricLogicGate
 from faebryk.library.TBD import TBD
@@ -75,3 +79,9 @@ class Logic74xx(Module):
         self.PARAMs = _PARAMs(self)
 
         self.add_trait(has_designator_prefix_defined("U"))
+
+        self.add_trait(
+            has_single_electric_reference_defined(
+                ElectricLogic.connect_all_module_references(self)
+            )
+        )

@@ -152,7 +152,7 @@ def add_or_get_net(interface: Electrical):
         net.IFs.part_of.connect(interface)
         return net
     if len(nets) > 1:
-        raise Exception("Multiple nets interconnected")
+        raise Exception(f"Multiple nets interconnected: {nets}")
     return next(iter(nets))
 
 

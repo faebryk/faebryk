@@ -62,9 +62,12 @@ class LED_Indicator(Module):
 
         class _NODES(Module.NODES()):
             led = LED()
-            current_limiting_resistor = Resistor(TBD())
-            switch = MOSFET(
-                MOSFET.ChannelType.N_CHANNEL, MOSFET.SaturationType.ENHANCEMENT
+            current_limiting_resistor = Resistor()
+            switch = MOSFET().builder(
+                lambda m: (
+                    m.PARAMs.channel_type.merge(MOSFET.ChannelType.N_CHANNEL),
+                    m.PARAMs.saturation_type.merge(MOSFET.SaturationType.ENHANCEMENT),
+                )
             )
 
         self.IFs = _IFS(self)
@@ -90,7 +93,7 @@ class LogicSwitch(Module):
 
         class _NODES(Module.NODES()):
             switch = Switch(Electrical)()
-            pull_down_resistor = Resistor(TBD())
+            pull_down_resistor = Resistor()
 
         self.IFs = _IFS(self)
         self.NODEs = _NODES(self)
@@ -134,20 +137,19 @@ class App(Module):
                 node.voltage = Constant(5)
 
             if isinstance(node, LED):
-                node.set_forward_parameters(
-                    voltage_V=Constant(2.4), current_A=Constant(0.020)
-                )
+                node.PARAMs.forward_voltage.merge(Constant(2.4))
+                node.PARAMs.max_current.merge(Constant(0.020))
 
             if isinstance(node, LED_Indicator):
                 assert isinstance(self.NODEs.battery.voltage, Constant)
-                node.NODEs.current_limiting_resistor.set_resistance(
-                    node.NODEs.led.get_trait(
-                        LED.has_calculatable_needed_series_resistance
-                    ).get_needed_series_resistance_ohm(self.NODEs.battery.voltage.value)
+                node.NODEs.current_limiting_resistor.PARAMs.resistance.merge(
+                    node.NODEs.led.get_needed_series_resistance_for_current_limit(
+                        self.NODEs.battery.voltage
+                    )
                 )
 
             if isinstance(node, LogicSwitch):
-                node.NODEs.pull_down_resistor.set_resistance(Constant(100_000))
+                node.NODEs.pull_down_resistor.PARAMs.resistance.merge(Constant(100e3))
 
         # packaging
         for node in get_all_nodes(self):

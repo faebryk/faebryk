@@ -8,6 +8,9 @@ from faebryk.core.core import Module, NodeTrait, TraitImpl
 from faebryk.core.util import specialize_interface
 from faebryk.library.Constant import Constant
 from faebryk.library.ElectricLogic import ElectricLogic
+from faebryk.library.has_single_electric_reference_defined import (
+    has_single_electric_reference_defined,
+)
 from faebryk.library.Logic import Logic
 from faebryk.libs.util import times
 
@@ -60,6 +63,12 @@ class ElectricLogicGate(LogicGate):
             specialize_interface(in_if_l, in_if_el)
         for out_if_l, out_if_el in zip(self.IFs_logic.outputs, self.IFs.outputs):
             specialize_interface(out_if_l, out_if_el)
+
+        self.add_trait(
+            has_single_electric_reference_defined(
+                ElectricLogic.connect_all_module_references(self)
+            )
+        )
 
 
 class can_logic(NodeTrait):

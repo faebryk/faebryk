@@ -283,7 +283,7 @@ def is_type_pair(
 def is_type_set_subclasses(type_subclasses: set[type], types: set[type]) -> bool:
     hits = {t: any(issubclass(s, t) for s in type_subclasses) for t in types}
     return all(hits.values()) and all(
-        any(issubclass(s, t) for t in types) for s in hits
+        any(issubclass(s, t) for t in types) for s in type_subclasses
     )
 
 

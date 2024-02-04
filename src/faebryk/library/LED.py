@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: MIT
 
 
+from enum import Enum, auto
+
 from faebryk.core.core import Parameter
 from faebryk.library.Diode import Diode
 from faebryk.library.Electrical import Electrical
@@ -11,11 +13,19 @@ from faebryk.library.TBD import TBD
 
 
 class LED(Diode):
+    class Color(Enum):
+        RED = auto()
+        GREEN = auto()
+        BLUE = auto()
+        YELLOW = auto()
+        WHITE = auto()
+
     @classmethod
     def PARAMS(cls):
         class _PARAMs(super().PARAMS()):
             brightness = TBD[float]()
             max_brightness = TBD[float]()
+            color = TBD[cls.Color]()
 
         return _PARAMs
 

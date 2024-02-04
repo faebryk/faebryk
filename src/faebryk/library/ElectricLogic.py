@@ -2,9 +2,14 @@
 # SPDX-License-Identifier: MIT
 
 from abc import abstractmethod
-from typing import Iterable
+from typing import Iterable, Self
 
-from faebryk.core.core import Module, ModuleInterface, Node, NodeTrait
+from faebryk.core.core import (
+    Module,
+    ModuleInterface,
+    Node,
+    NodeTrait,
+)
 from faebryk.core.util import connect_all_interfaces
 from faebryk.library.can_be_surge_protected_defined import (
     can_be_surge_protected_defined,
@@ -42,10 +47,9 @@ class can_be_pulled(NodeTrait):
 
 
 class can_be_pulled_defined(can_be_pulled.impl()):
-    def __init__(self, signal: Electrical, lv: Electrical, hv: Electrical) -> None:
+    def __init__(self, signal: Electrical, ref: ElectricPower) -> None:
         super().__init__()
-        self.lv = lv
-        self.hv = hv
+        self.ref = ref
         self.signal = signal
 
     def pull(self, up: bool):
@@ -68,7 +72,7 @@ class can_be_pulled_defined(can_be_pulled.impl()):
             obj.NODEs.pull_down = resistor
             down_r = resistor
 
-        self.signal.connect_via(resistor, self.hv if up else self.lv)
+        self.signal.connect_via(resistor, self.ref.IFs.hv if up else self.ref.IFs.lv)
 
         obj.add_trait(has_pulls_defined(up_r, down_r))
         return resistor
@@ -126,8 +130,7 @@ class ElectricLogic(Logic):
         self.add_trait(
             can_be_pulled_defined(
                 self.IFs.signal,
-                self.IFs.reference.IFs.lv,
-                self.IFs.reference.IFs.hv,
+                self.IFs.reference,
             )
         )
 
@@ -155,7 +158,9 @@ class ElectricLogic(Logic):
 
     @staticmethod
     def connect_all_references(ifs: Iterable["ElectricLogic"]) -> ElectricPower:
-        return connect_all_interfaces([x.IFs.reference for x in ifs])
+        out = connect_all_interfaces([x.IFs.reference for x in ifs])
+        assert out
+        return out
 
     @staticmethod
     def connect_all_node_references(
@@ -168,18 +173,54 @@ class ElectricLogic(Logic):
             x.get_trait(has_single_electric_reference).get_reference()
             for x in nodes
             if x.has_trait(has_single_electric_reference)
-        }
+        } | {x for x in nodes if isinstance(x, ElectricPower)}
+        assert refs
+
         if gnd_only:
-            return connect_all_interfaces({r.IFs.lv for r in refs})
-        return connect_all_interfaces(refs)
+            connect_all_interfaces({r.IFs.lv for r in refs})
+            return next(iter(refs))
+
+        connect_all_interfaces(refs)
+        return next(iter(refs))
 
     @classmethod
     def connect_all_module_references(
         cls, node: Module | ModuleInterface, gnd_only=False
     ) -> ElectricPower:
         return cls.connect_all_node_references(
-            # TODO ugly
-            node.IFs.get_all()
-            + (node.IFs.get_all() if isinstance(node, Module) else []),
+            node.IFs.get_all() + node.NODEs.get_all(),
             gnd_only=gnd_only,
         )
+
+    # def connect_shallow(self, other: "ElectricLogic"):
+    #    self.connect(
+    #        other,
+    #        linkcls=self.LinkDirectShallowLogic,
+    #    )
+
+    def connect_via_bridge(
+        self, bridge: Module, up: bool, bridge_ref_to_signal: bool = False
+    ):
+        target = self.IFs.reference.IFs.hv if up else self.IFs.reference.IFs.lv
+        if bridge_ref_to_signal:
+            return target.connect_via(bridge, self.IFs.signal)
+        return self.IFs.signal.connect_via(bridge, target)
+
+    def connect_shallow(
+        self,
+        other: Self,
+        signal: bool = False,
+        reference: bool = False,
+        lv: bool = False,
+    ) -> Self:
+        assert not (signal and reference)
+        assert not (lv and reference)
+
+        if signal:
+            self.IFs.signal.connect(other.IFs.signal)
+        if reference:
+            self.IFs.reference.connect(other.IFs.reference)
+        if lv:
+            self.IFs.reference.IFs.lv.connect(other.IFs.reference.IFs.lv)
+
+        return super().connect_shallow(other)

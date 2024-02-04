@@ -3,11 +3,9 @@
 
 import logging
 import math
-from typing import Callable, Iterable, Sequence, SupportsFloat, TypeVar, cast
+from typing import Callable, Iterable, Sequence, SupportsFloat, Tuple, TypeVar, cast
 
 import networkx as nx
-
-# TODO this file should not exist
 from faebryk.core.core import (
     GraphInterface,
     GraphInterfaceSelf,
@@ -20,6 +18,7 @@ from faebryk.core.core import (
 from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
+from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
 from faebryk.library.Range import Range
 from faebryk.library.Set import Set
 from faebryk.libs.util import NotNone, cast_assert
@@ -190,7 +189,10 @@ def connect_interfaces_via_chain(
     last.connect(end)
 
 
-def connect_all_interfaces(interfaces: Iterable[ModuleInterface]):
+MIF = TypeVar("MIF", bound=ModuleInterface)
+
+
+def connect_all_interfaces(interfaces: Iterable[MIF]):
     interfaces = list(interfaces)
     if not interfaces:
         return
@@ -201,9 +203,7 @@ def connect_all_interfaces(interfaces: Iterable[ModuleInterface]):
     #        i.connect(j)
 
 
-def connect_to_all_interfaces(
-    source: ModuleInterface, targets: Iterable[ModuleInterface]
-):
+def connect_to_all_interfaces(source: MIF, targets: Iterable[MIF]):
     for i in targets:
         source.connect(i)
     return source
@@ -333,12 +333,16 @@ def specialize_module(
     general.GIFs.specialized.connect(special.GIFs.specializes)
     logger.debug("=" * 120)
 
-    if attach_to:
-        attach_to.NODEs.extend_list("specialized", special)
-    else:
-        gen_parent = general.get_parent()
-        if gen_parent:
-            setattr(gen_parent[0].NODEs, f"{gen_parent[1]}_specialized", special)
+    # Attach to new parent
+    has_parent = special.get_parent() is not None
+    assert not has_parent or attach_to is None
+    if not has_parent:
+        if attach_to:
+            attach_to.NODEs.extend_list("specialized", special)
+        else:
+            gen_parent = general.get_parent()
+            if gen_parent:
+                setattr(gen_parent[0].NODEs, f"{gen_parent[1]}_specialized", special)
 
     return special
 
@@ -367,3 +371,81 @@ def reversed_bridge(bridge: Node):
             self.add_trait(can_bridge_defined(if_out, if_in))
 
     return _reversed_bridge()
+
+
+def use_interface_names_as_net_names(node: Node, name: str | None = None):
+    from faebryk.library.Net import Net
+
+    if not name:
+        p = node.get_parent()
+        assert p
+        name = p[1]
+
+    name_prefix = node.get_full_name()
+
+    el_ifs = {n for n in get_all_nodes(node) if isinstance(n, Electrical)}
+
+    # for el_if in el_ifs:
+    #    print(el_if)
+    # print("=" * 80)
+
+    # performance
+    resolved: set[ModuleInterface] = set()
+
+    # get representative interfaces that determine the name of the Net
+    to_use: set[Electrical] = set()
+    for el_if in el_ifs:
+        # performance
+        if el_if in resolved:
+            continue
+
+        connections = el_if.get_direct_connections() | {el_if}
+
+        # skip ifs with Nets
+        if matched_nets := {  # noqa: F841
+            n
+            for c in connections
+            if (p := c.get_parent())
+            and isinstance(n := p[0], Net)
+            and n.IFs.part_of in connections
+        }:
+            # logger.warning(f"Skipped, attached to Net: {el_if}: {matched_nets!r}")
+            resolved.update(connections)
+            continue
+
+        group = {mif for mif in connections if mif in el_ifs}
+
+        # heuristic: choose shortest name
+        picked = min(group, key=lambda x: len(x.get_full_name()))
+        to_use.add(picked)
+
+        # for _el_if in group:
+        #    print(_el_if if _el_if is not picked else f"{_el_if} <-")
+        # print("-" * 80)
+
+        # performance
+        resolved.update(group)
+
+    nets: dict[str, Tuple[Net, Electrical]] = {}
+    for el_if in to_use:
+        net_name = f"{name}{el_if.get_full_name().removeprefix(name_prefix)}"
+
+        # name collision
+        if net_name in nets:
+            net, other_el = nets[net_name]
+            raise Exception(
+                f"{el_if} resolves to {net_name} but not connected"
+                + f"\nwhile attaching nets to {node}={name} (connected via {other_el})"
+                + "\n"
+                + "\nConnections\n\t"
+                + "\n\t".join(map(str, el_if.get_direct_connections()))
+                + f"\n{'-'*80}"
+                + "\nNet Connections\n\t"
+                + "\n\t".join(map(str, net.IFs.part_of.get_direct_connections()))
+            )
+
+        net = Net()
+        net.add_trait(has_overriden_name_defined(net_name))
+        net.IFs.part_of.connect(el_if)
+        logger.debug(f"Created {net_name} for {el_if}")
+        nets[net_name] = net, el_if

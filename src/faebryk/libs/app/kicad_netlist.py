@@ -26,7 +26,11 @@ def write_netlist(
         # use kicad designators & names
         if netlist_path.exists():
             load_designators_from_netlist(
-                G, to_faebryk_t2_netlist(netlist_path.read_text())[1]
+                G,
+                {
+                    c.name: c
+                    for c in to_faebryk_t2_netlist(netlist_path.read_text())["comps"]
+                },
             )
         attach_random_designators(G)
         override_names_with_designators(G)

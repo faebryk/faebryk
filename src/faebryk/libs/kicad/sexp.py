@@ -18,6 +18,8 @@ def prettify_sexp_string(raw: str) -> str:
             ...
         elif c == "\n":
             continue
+        elif c == " " and out[-1] == " ":
+            continue
         elif c == "(":
             if level != 0:
                 out += "\n" + " " * 4 * level

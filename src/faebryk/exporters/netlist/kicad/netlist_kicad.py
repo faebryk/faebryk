@@ -309,6 +309,15 @@ def from_faebryk_t2_netlist(t2_netlist):
         # sort because tstamp determined by pos
     ]
 
+    # check if all vertices have a component in pre_comps
+    # not sure if this is necessary
+    pre_comp_names = {comp.name for comp in pre_comps}
+    for net in netlist:
+        for vertex in net.vertices:
+            assert (
+                vertex.component.name in pre_comp_names
+            ), f"Missing {vertex.component}"
+
     nets = [
         _gen_net(
             code=next(net_code),

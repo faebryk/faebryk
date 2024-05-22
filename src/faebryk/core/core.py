@@ -450,7 +450,9 @@ class GraphInterfaceHierarchical(GraphInterface):
         if len(hier_conns) == 0:
             return None
         # TODO reconsider this invariant
-        assert len(hier_conns) == 1
+        assert (
+            len(hier_conns) == 1
+        ), f"Multiple parents: {[c.get_parent().node for c in hier_conns]}"
 
         conn = hier_conns[0]
         assert isinstance(conn, LinkNamedParent)

@@ -7,6 +7,7 @@ from faebryk.core.core import Footprint, Module
 from faebryk.core.util import get_connected_mifs, get_parent_of_type
 from faebryk.library.Electrical import Electrical
 from faebryk.library.has_overriden_name import has_overriden_name
+from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
 
 logger = logging.getLogger(__name__)
 
@@ -67,3 +68,9 @@ class Net(Module):
             return f"{up}'{self.get_trait(has_overriden_name).get_name()}'"
         else:
             return up
+
+    @classmethod
+    def with_name(cls, name: str) -> "Net":
+        n = cls()
+        n.add_trait(has_overriden_name_defined(name))
+        return n

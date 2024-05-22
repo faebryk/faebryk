@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 24.4.2
     hooks:
       - id: black
         # It is recommended to specify the latest version of Python
@@ -10,7 +10,7 @@ repos:
         language_version: python3.12
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.0.275
+    rev: v0.4.4
     hooks:
       - id: ruff
 

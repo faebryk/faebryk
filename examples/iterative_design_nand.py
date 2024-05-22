@@ -11,6 +11,7 @@ The goal of this sample is to show how faebryk can be used to iteratively
 Thus this is a netlist sample.
 Netlist samples can be run directly.
 """
+
 import logging
 
 import typer
@@ -26,7 +27,7 @@ from faebryk.library.can_attach_to_footprint_via_pinmap import (
 )
 from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
-from faebryk.library.ElectricLogic import ElectricLogic, can_be_pulled
+from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.has_simple_value_representation_defined import (
     has_simple_value_representation_defined,
@@ -34,7 +35,8 @@ from faebryk.library.has_simple_value_representation_defined import (
 from faebryk.library.KicadFootprint import KicadFootprint
 from faebryk.library.LED import LED
 from faebryk.library.Logic import Logic
-from faebryk.library.LogicGate import NAND, can_logic_nand
+from faebryk.library.LogicGates import LogicGates
+from faebryk.library.LogicOps import LogicOps
 from faebryk.library.Resistor import Resistor
 from faebryk.library.SMDTwoPin import SMDTwoPin
 from faebryk.library.Switch import Switch
@@ -68,32 +70,14 @@ class PowerSource(Module):
         self.IFs = IFS(self)
 
 
-class XOR(Module):
+class XOR_with_NANDS(LogicGates.XOR):
     def __init__(
         self,
     ):
-        super().__init__()
-
-        class IFS(Module.IFS()):
-            inputs = times(2, Logic)
-            output = Logic()
-
-        self.IFs = IFS(self)
-
-    def xor(self, in1: Logic, in2: Logic):
-        self.IFs.inputs[0].connect(in1)
-        self.IFs.inputs[1].connect(in2)
-        return self.IFs.output
-
-
-class XOR_with_NANDS(XOR):
-    def __init__(
-        self,
-    ):
-        super().__init__()
+        super().__init__(Constant(2))
 
         class NODES(Module.NODES()):
-            nands = times(4, lambda: NAND(Constant(2)))
+            nands = times(4, lambda: LogicGates.NAND(Constant(2)))
 
         self.NODEs = NODES(self)
 
@@ -101,16 +85,16 @@ class XOR_with_NANDS(XOR):
         B = self.IFs.inputs[1]
 
         G = self.NODEs.nands
-        Q = self.IFs.output
+        Q = self.IFs.outputs[0]
 
         # ~(a&b)
-        q0 = G[0].get_trait(can_logic_nand).nand(A, B)
+        q0 = G[0].get_trait(LogicOps.can_logic_nand).nand(A, B)
         # ~(a&~b)
-        q1 = G[1].get_trait(can_logic_nand).nand(A, q0)
+        q1 = G[1].get_trait(LogicOps.can_logic_nand).nand(A, q0)
         # ~(~a&b)
-        q2 = G[2].get_trait(can_logic_nand).nand(B, q0)
+        q2 = G[2].get_trait(LogicOps.can_logic_nand).nand(B, q0)
         # (a&~b) o| (~a&b)
-        q3 = G[3].get_trait(can_logic_nand).nand(q1, q2)
+        q3 = G[3].get_trait(LogicOps.can_logic_nand).nand(q1, q2)
 
         Q.connect(q3)
 
@@ -131,8 +115,8 @@ def App():
     logic_in = Logic()
     logic_out = Logic()
 
-    xor = XOR()
-    logic_out.connect(xor.xor(logic_in, on))
+    xor = LogicGates.XOR(Constant(2))
+    logic_out.connect(xor.get_trait(LogicOps.can_logic_xor).xor(logic_in, on))
 
     # led
     current_limiting_resistor = Resistor()
@@ -145,7 +129,7 @@ def App():
     logic_in.connect_via(switch, on)
 
     e_in = specialize_interface(logic_in, ElectricLogic())
-    pull_down_resistor = e_in.get_trait(can_be_pulled).pull(up=False)
+    pull_down_resistor = e_in.get_trait(ElectricLogic.can_be_pulled).pull(up=False)
 
     e_out = specialize_interface(logic_out, ElectricLogic())
     e_out.IFs.signal.connect(led.IFs.anode)

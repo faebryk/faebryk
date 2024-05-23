@@ -5,7 +5,7 @@ repos:
         name: Generate library init
         entry: tools/library/gen_F.py
         language: python
-        files: src/faebryk/library/_F.py
+        files: src/faebryk/library/.*.py
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
     rev: v0.4.4

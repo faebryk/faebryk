@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 DIR = Path(__file__).parent.parent.parent / "src" / "faebryk" / "library"
-OUT = DIR / "__init__.py"
+OUT = DIR / "_F.py"
 
 
 def main():
@@ -19,9 +19,7 @@ def main():
 
     module_files = glob.glob(str(DIR / "*.py"))
     module_files = [
-        os.path.basename(f)[:-3]
-        for f in module_files
-        if os.path.basename(f) != "__init__.py"
+        os.path.basename(f)[:-3] for f in module_files if os.path.basename(f) != "_F.py"
     ]
 
     print(f"Found {len(module_files)} modules")

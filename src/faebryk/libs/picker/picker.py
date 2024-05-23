@@ -5,7 +5,7 @@ import logging
 import pprint
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 
 from faebryk.core.core import Module, ModuleInterface, ModuleTrait, Parameter
 from faebryk.library.can_attach_to_footprint_via_pinmap import (
@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 class Supplier(ABC):
     @abstractmethod
-    def attach(self, component: Module, part: "Part"):
-        ...
+    def attach(self, component: Module, part: "Part"): ...
 
 
 @dataclass
@@ -39,10 +38,12 @@ class PickerOption:
     info: dict[str, str] | None = None
 
 
+class PickError(Exception): ...
+
+
 class has_part_picked(ModuleTrait):
     @abstractmethod
-    def get_part(self) -> Part:
-        ...
+    def get_part(self) -> Part: ...
 
 
 class has_part_picked_defined(has_part_picked.impl()):
@@ -76,7 +77,7 @@ def pick_module_by_params(module: Module, options: Iterable[PickerOption]):
             )
         )
     except StopIteration:
-        raise ValueError(
+        raise PickError(
             f"Could not find part for {module=} with params:\n"
             f" {pprint.pformat(params, indent=4)}"
         )
@@ -97,7 +98,7 @@ def pick_module_by_params(module: Module, options: Iterable[PickerOption]):
     return option
 
 
-def pick_part_recursively(module: Module, pick: Callable[[Module], bool]):
+def pick_part_recursively(module: Module, pick: Callable[[Module], Any]):
     assert isinstance(module, Module)
 
     # pick only for most specialized module
@@ -117,17 +118,38 @@ def pick_part_recursively(module: Module, pick: Callable[[Module], bool]):
             pick_part_recursively(mod, pick)
 
     # pick
-    picked = pick(module)
-    if picked:
+    pick(module)
+    if module.has_trait(has_part_picked):
+        return
+
+    # if module has been specialized during pick, try again
+    if module.get_most_special() != module:
+        pick_part_recursively(module, pick)
         return
 
     # go level lower
     children = module.NODEs.get_all()
-    if not children:
+
+    to_pick: set[Module] = {
+        c for c in children if isinstance(c, Module) and c is not module
+    }
+    failed: set[Module] = set()
+
+    if not to_pick:
         logger.warning(f"Module without pick: {module}")
-    for child in children:
-        if not isinstance(child, Module):
-            continue
-        if child is module:
-            continue
-        pick_part_recursively(child, pick)
+
+    # try repicking as long as progress is being made
+    while to_pick:
+        for child in to_pick:
+            try:
+                pick_part_recursively(child, pick)
+            except PickError as e:
+                # shortcut for better error
+                if len(to_pick) == 1:
+                    raise e
+                failed.add(child)
+        if to_pick == failed:
+            raise PickError(f"Could not pick parts for {module=}: {failed}")
+
+        to_pick = set(failed)
+        failed.clear()

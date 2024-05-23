@@ -6,10 +6,10 @@ This file contains a faebryk sample.
 Faebryk samples demonstrate the usage by building example systems.
 This particular sample creates a netlist with an led and a nand ic
     that creates some logic.
-The goal of this sample is to show how faebryk F.can be used to iteratively
+The goal of this sample is to show how faebryk can be used to iteratively
     expand the specifics of a design in multiple steps.
 Thus this is a netlist sample.
-Netlist samples F.can be run directly.
+Netlist samples can be run directly.
 """
 
 import logging

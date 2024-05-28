@@ -10,9 +10,6 @@ import logging
 import faebryk.library._F as F
 import typer
 from faebryk.core.core import Module
-from faebryk.library._F import Range
-
-# Boilerplate
 from faebryk.libs.experiments.buildutil import (
     tag_and_export_module_to_netlist,
 )
@@ -31,9 +28,11 @@ class App(Module):
 
         self.NODEs = _NODES(self)
 
+        self.NODEs.led.IFs.power.connect(self.NODEs.battery.IFs.power)
+
         # Parametrize
-        self.NODEs.battery.PARAMs.voltage.merge(Range.from_center(3, 0.5))
-        self.NODEs.led.NODEs.led.PARAMs.color.merge(F.LED.Color.GREEN)
+        self.NODEs.led.NODEs.led.PARAMs.color.merge(F.LED.Color.YELLOW)
+        self.NODEs.led.NODEs.led.PARAMs.brightness.merge(F.Range.lower_bound(30e-3))
 
 
 def main():

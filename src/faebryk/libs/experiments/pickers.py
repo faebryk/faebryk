@@ -11,6 +11,7 @@ import faebryk.library._F as F
 from faebryk.core.core import Module
 from faebryk.core.util import specialize_module
 from faebryk.library._F import Constant, Range
+from faebryk.libs.app.parameters import replace_tbd_with_any
 from faebryk.libs.picker.lcsc import LCSC_Part
 from faebryk.libs.picker.picker import (
     PickerOption,
@@ -118,6 +119,10 @@ def pick_resistor(resistor: F.Resistor):
         resistor,
         [
             PickerOption(
+                part=LCSC_Part(partno="C25111"),
+                params={"resistance": Constant(40.2)},
+            ),
+            PickerOption(
                 part=LCSC_Part(partno="C25076"),
                 params={"resistance": Constant(100)},
             ),
@@ -178,11 +183,6 @@ def pick_led(module: F.LED):
         module,
         [
             PickerOption(
-                part=LCSC_Part(partno="C2286"),
-                params={"color": Constant(F.LED.Color.RED)},
-                pinmap={"1": module.IFs.cathode, "2": module.IFs.anode},
-            ),
-            PickerOption(
                 part=LCSC_Part(partno="C72043"),
                 params={
                     "color": Constant(F.LED.Color.GREEN),
@@ -212,11 +212,6 @@ def pick_led(module: F.LED):
                 },
                 pinmap={"1": module.IFs.cathode, "2": module.IFs.anode},
             ),
-            PickerOption(
-                part=LCSC_Part(partno="C2290"),
-                params={"color": Constant(F.LED.Color.WHITE)},
-                pinmap={"2": module.IFs.cathode, "1": module.IFs.anode},
-            ),
         ],
     )
 
@@ -241,7 +236,9 @@ def pick_tvs(module: F.TVS):
 
 def pick_battery(module: F.Battery):
     if not isinstance(module, F.ButtonCell):
-        specialize_module(module, F.ButtonCell())
+        bcell = F.ButtonCell()
+        replace_tbd_with_any(bcell, recursive=False)
+        specialize_module(module, bcell)
         return
 
     pick_module_by_params(

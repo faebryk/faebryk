@@ -8,11 +8,11 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from faebryk.core.core import Module, ModuleInterface, ModuleTrait, Parameter
+from faebryk.library.ANY import ANY
 from faebryk.library.can_attach_to_footprint_via_pinmap import (
     can_attach_to_footprint_via_pinmap,
 )
 from faebryk.library.Electrical import Electrical
-from faebryk.library.TBD import TBD
 from faebryk.libs.util import NotNone
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ def pick_module_by_params(module: Module, options: Iterable[PickerOption]):
             filter(
                 lambda o: (not o.filter or o.filter(module))
                 and all(
-                    v.is_mergeable_with(params.get(k, TBD()))
+                    v.is_more_specific_than(params.get(k, ANY()))
                     for k, v in (o.params or {}).items()
                     if not k.startswith("_")
                 ),

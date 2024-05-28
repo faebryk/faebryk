@@ -10,6 +10,7 @@ from faebryk.core.graph import Graph
 from faebryk.exporters.visualize.graph import render_sidebyside
 from faebryk.libs.app.erc import simple_erc
 from faebryk.libs.app.kicad_netlist import write_netlist
+from faebryk.libs.app.parameters import replace_tbd_with_any
 from faebryk.libs.experiments.pickers import pick_parts_for_examples
 from faebryk.libs.picker.picker import pick_part_recursively
 
@@ -21,6 +22,8 @@ lcsc.BUILD_FOLDER = BUILD_DIR
 lcsc.LIB_FOLDER = BUILD_DIR / Path("kicad/libs")
 lcsc.MODEL_PATH = None
 
+logger = logging.getLogger(__name__)
+
 
 def tag_and_export_module_to_netlist(m: Module):
     """
@@ -30,6 +33,15 @@ def tag_and_export_module_to_netlist(m: Module):
     Exports the graph to a netlist.
     And writes it to ./build
     """
+
+    logger.info("Filling unspecified parameters")
+    import faebryk.libs.app.parameters as p_mod
+
+    lvl = p_mod.logger.getEffectiveLevel()
+    p_mod.logger.setLevel(logging.DEBUG)
+    replace_tbd_with_any(m, recursive=True)
+    p_mod.logger.setLevel(lvl)
+
     pick_part_recursively(m, pick_parts_for_examples)
     G = m.get_graph()
     simple_erc(G)

@@ -61,7 +61,11 @@ class App(Module):
 tag_and_export_module_to_netlist(App())
 ```
 
+<div align="center">
+
 ![](docs/img/demo.gif)
+
+</div>
 
 ---
 

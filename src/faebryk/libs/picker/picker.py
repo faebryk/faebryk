@@ -30,19 +30,19 @@ class Part:
     supplier: Supplier
 
 
+class DescriptiveProperties(StrEnum):
+    manufacturer = "Manufacturer"
+    partno = "Partnumber"
+    datasheet = "Datasheet"
+
+
 @dataclass
 class PickerOption:
     part: Part
     params: dict[str, Parameter] | None = None
     filter: Callable[[Module], bool] | None = None
     pinmap: dict[str, Electrical] | None = None
-    info: dict[str, str] | None = None
-
-
-class DescriptiveProperties(StrEnum):
-    manufacturer = "Manufacturer"
-    partno = "Partnumber"
-    datasheet = "Datasheet"
+    info: dict[str | DescriptiveProperties, str] | None = None
 
 
 class PickError(Exception): ...

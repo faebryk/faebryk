@@ -21,7 +21,7 @@ from faebryk.library.Electrical import Electrical
 from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
 from faebryk.library.Range import Range
 from faebryk.library.Set import Set
-from faebryk.libs.util import NotNone, cast_assert
+from faebryk.libs.util import NotNone, cast_assert, round_str
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -34,11 +34,6 @@ def as_scientific(value: SupportsFloat, base=10):
     mantissa = value / (base**exponent)
 
     return mantissa, exponent
-
-
-def round_to_least_signficant_decimal(value: SupportsFloat):
-    f = round(float(value), 8)
-    return str(f).rstrip("0").rstrip(".")
 
 
 def unit_map(
@@ -90,20 +85,10 @@ def as_unit(value: SupportsFloat, unit: str, base: int = 1000):
 def as_unit_with_tolerance(param: Range | Constant, unit: str, base: int = 1000):
     if isinstance(param, Constant):
         return as_unit(param.value, unit, base=base) + " ± 0%"
-    (center, delta) = param.as_center_tuple()
+    center, delta = param.as_center_tuple()
     delta_percent = delta / center * 100
 
-    return (
-        as_unit(center, unit, base=base)
-        + f" ± {round_to_least_signficant_decimal(delta_percent)}%"
-    )
-
-
-def is_type_set_subclasses(type_subclasses: set[type], types: set[type]) -> bool:
-    hits = {t: any(issubclass(s, t) for s in type_subclasses) for t in types}
-    return all(hits.values()) and all(
-        any(issubclass(s, t) for t in types) for s in hits
-    )
+    return f"{as_unit(center, unit, base=base)} ± {round_str(delta_percent)}%"
 
 
 def get_all_nodes(node: Node, order_types=None) -> list[Node]:

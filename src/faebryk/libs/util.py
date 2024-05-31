@@ -226,8 +226,7 @@ def Holder(_type: Type[T], _ptype: Type[P]) -> Type[_wrapper[T, P]]:
 
             return self._list
 
-        def handle_add(self, name: str, obj: T) -> None:
-            ...
+        def handle_add(self, name: str, obj: T) -> None: ...
 
         def get_parent(self) -> P:
             return self._parent
@@ -325,3 +324,12 @@ def _print_stack(stack):
 
 def print_stack(stack):
     return "\n".join(_print_stack(stack))
+
+
+# Get deepest values in nested dict:
+def flatten_dict(d: dict):
+    for k, v in d.items():
+        if isinstance(v, dict):
+            yield from flatten_dict(v)
+        else:
+            yield (k, v)

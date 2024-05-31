@@ -1,7 +1,7 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from typing import Callable, Sequence, TypeVar
+from typing import Callable, Sequence
 
 from faebryk.core.core import Parameter
 from faebryk.library.Constant import Constant
@@ -10,14 +10,14 @@ from faebryk.library.has_simple_value_representation import (
 )
 from faebryk.library.Range import Range
 
-T = TypeVar("T", bound=Sequence[Parameter])
-
 
 class has_simple_value_representation_based_on_params(
     has_simple_value_representation.impl()
 ):
     def __init__(
-        self, params: T, transformer: Callable[[Sequence[Constant | Range]], str]
+        self,
+        params: Sequence[Parameter],
+        transformer: Callable[[Sequence[Constant | Range]], str],
     ) -> None:
         super().__init__()
         self.transformer = transformer

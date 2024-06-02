@@ -7,6 +7,9 @@ from faebryk.core.core import Module
 from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Electrical import Electrical
 from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
+from faebryk.library.has_pin_association_heuristic_lookup_table import (
+    has_pin_association_heuristic_lookup_table,
+)
 from faebryk.library.TBD import TBD
 
 
@@ -38,3 +41,15 @@ class MOSFET(Module):
         self.add_trait(has_designator_prefix_defined("Q"))
         # TODO pretty confusing
         self.add_trait(can_bridge_defined(in_if=self.IFs.source, out_if=self.IFs.drain))
+
+        self.add_trait(
+            has_pin_association_heuristic_lookup_table(
+                mapping={
+                    self.IFs.source: ["S", "Source"],
+                    self.IFs.gate: ["G", "Gate"],
+                    self.IFs.drain: ["D", "Drain"],
+                },
+                accept_prefix=False,
+                case_sensitive=False,
+            )
+        )

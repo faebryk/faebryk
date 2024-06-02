@@ -933,6 +933,9 @@ class ModuleInterface(Node):
             def get_all(self) -> list[Parameter]:
                 return [cast_assert(Parameter, i) for i in super().get_all()]
 
+            def __str__(self) -> str:
+                return str({p.get_hierarchy()[-1][1]: p for p in self.get_all()})
+
         return PARAMS
 
     # TODO rename
@@ -1189,6 +1192,9 @@ class Module(Node):
             # workaround to help pylance
             def get_all(self) -> list[Parameter]:
                 return [cast_assert(Parameter, i) for i in super().get_all()]
+
+            def __str__(self) -> str:
+                return str({p.get_hierarchy()[-1][1]: p for p in self.get_all()})
 
         return PARAMS
 

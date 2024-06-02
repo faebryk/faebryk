@@ -115,6 +115,9 @@ def pick_part_recursively(module: Module, pick: Callable[[Module], Any]):
     try:
         _pick_part_recursively(module, pick)
     except PickError as e:
+        failed_parts = list(dict(flatten_dict(e.args[1])).keys())
+        for m in failed_parts:
+            logger.error(f"Could not find pick for {m}:\n {str(m.PARAMs)}")
         raise PickError(e.args[0])
 
     # check if lowest children are picked

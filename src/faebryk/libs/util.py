@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 
+import logging
 from abc import abstractmethod
 from collections import defaultdict
 from typing import (
@@ -17,6 +18,8 @@ from typing import (
     TypeVar,
     get_origin,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class lazy:
@@ -333,3 +336,20 @@ def flatten_dict(d: dict):
             yield from flatten_dict(v)
         else:
             yield (k, v)
+
+
+def try_avoid_endless_recursion(f: Callable[..., str]):
+    import sys
+
+    def _f_no_rec(*args, **kwargs):
+        limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(100)
+        try:
+            return f(*args, **kwargs)
+        except RecursionError:
+            logger.error("Recursion error while converting to str")
+            return "<RECURSION ERROR WHILE CONVERTING TO STR>"
+        finally:
+            sys.setrecursionlimit(limit)
+
+    return _f_no_rec

@@ -300,8 +300,64 @@ def is_type_set_subclasses(type_subclasses: set[type], types: set[type]) -> bool
 
 
 def round_str(value: SupportsFloat, n=8):
+    """
+    Round a float to n decimals and strip trailing zeros.
+    """
     f = round(float(value), n)
     return str(f).rstrip("0").rstrip(".")
+
+
+si_units = {
+    "f": 1e-15,
+    "p": 1e-12,
+    "n": 1e-9,
+    "µ": 1e-6,
+    "m": 1e-3,
+    "": 1,
+    "k": 1e3,
+    "M": 1e6,
+    "G": 1e9,
+    "T": 1e12,
+    "P": 1e15,
+}
+
+
+def si_str_to_float(si_value: str) -> float:
+    """
+    Convert a string with SI prefix and unit to a float.
+    """
+    si_value = si_value.replace("u", "µ")
+    si_prefix = ""
+
+    while si_value[-1].isalpha():
+        si_prefix = si_value[-1]
+        si_value = si_value[:-1]
+
+    if si_prefix:
+        return float(si_value[:-1]) * si_units[si_prefix]
+
+    return float(si_value)
+
+
+def float_to_si_str(value: float, unit: str, num_decimals: int = 2) -> str:
+    """
+    Convert a float to a string with SI prefix and unit.
+    """
+    if value == float("inf"):
+        return "∞"
+    elif value == float("-inf"):
+        return "-∞"
+
+    si_prefix = ""
+    for prefix, factor in si_units.items():
+        if abs(value) >= factor:
+            si_prefix = prefix
+            value /= factor
+            break
+
+    value_str = round_str(value, num_decimals)
+
+    return value_str + si_prefix + unit
 
 
 def _print_stack(stack):

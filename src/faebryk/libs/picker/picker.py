@@ -34,6 +34,7 @@ class DescriptiveProperties(StrEnum):
     manufacturer = "Manufacturer"
     partno = "Partnumber"
     datasheet = "Datasheet"
+    price_breaks = "Price breaks"
 
 
 @dataclass

@@ -1,7 +1,6 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-
 import inspect
 import logging
 from abc import abstractmethod
@@ -307,7 +306,7 @@ def round_str(value: SupportsFloat, n=8):
     return str(f).rstrip("0").rstrip(".")
 
 
-si_units = {
+si_prefixes = {
     "f": 1e-15,
     "p": 1e-12,
     "n": 1e-9,
@@ -326,17 +325,18 @@ def si_str_to_float(si_value: str) -> float:
     """
     Convert a string with SI prefix and unit to a float.
     """
-    si_value = si_value.replace("u", "µ")
-    si_prefix = ""
 
-    while si_value[-1].isalpha():
-        si_prefix = si_value[-1]
-        si_value = si_value[:-1]
+    prefix = ""
+    value = si_value.replace("u", "µ")
 
-    if si_prefix:
-        return float(si_value[:-1]) * si_units[si_prefix]
+    while value[-1].isalpha():
+        prefix = value[-1]
+        value = value[:-1]
 
-    return float(si_value)
+    if prefix in si_prefixes:
+        return float(value) * si_prefixes[prefix]
+
+    return float(value)
 
 
 def float_to_si_str(value: float, unit: str, num_decimals: int = 2) -> str:
@@ -348,16 +348,18 @@ def float_to_si_str(value: float, unit: str, num_decimals: int = 2) -> str:
     elif value == float("-inf"):
         return "-∞"
 
-    si_prefix = ""
-    for prefix, factor in si_units.items():
+    res_factor = 1
+    res_prefix = ""
+    for prefix, factor in si_prefixes.items():
         if abs(value) >= factor:
-            si_prefix = prefix
-            value /= factor
+            res_prefix = prefix
+            res_factor = factor
+        else:
             break
 
-    value_str = round_str(value, num_decimals)
+    value_str = round_str(value / res_factor, num_decimals)
 
-    return value_str + si_prefix + unit
+    return value_str + res_prefix + unit
 
 
 def _print_stack(stack):

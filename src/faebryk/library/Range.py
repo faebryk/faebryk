@@ -104,25 +104,13 @@ class Range(Generic[PV], Parameter[PV]):
 
     # comparison operators
     def __le__(self, other) -> bool:
-        if isinstance(other, Range):
-            return self.min <= other.min and self.max <= other.max
-
-        return self.min <= other
+        return self.max <= other
 
     def __lt__(self, other) -> bool:
-        if isinstance(other, Range):
-            return self.min < other.min and self.max < other.max
-
-        return self.min < other
+        return self.max < other
 
     def __ge__(self, other) -> bool:
-        if isinstance(other, Range):
-            return self.min >= other.min and self.max >= other.max
-
         return self.min >= other
 
     def __gt__(self, other) -> bool:
-        if isinstance(other, Range):
-            return self.min > other.min and self.max > other.max
-
         return self.min > other

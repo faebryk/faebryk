@@ -34,25 +34,13 @@ class Constant(Generic[PV], Parameter[PV]):
 
     # comparison operators
     def __le__(self, other) -> bool:
-        if isinstance(other, Constant):
-            return self.value <= other.value
-
         return self.value <= other
 
     def __lt__(self, other) -> bool:
-        if isinstance(other, Constant):
-            return self.value < other.value
-
         return self.value < other
 
     def __ge__(self, other) -> bool:
-        if isinstance(other, Constant):
-            return self.value >= other.value
-
         return self.value >= other
 
     def __gt__(self, other) -> bool:
-        if isinstance(other, Constant):
-            return self.value > other.value
-
         return self.value > other

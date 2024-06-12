@@ -345,13 +345,18 @@ class Footprint(Node):
     @property
     def reference(self) -> "FP_Text":
         return FP_Text.from_node(
-            self.get([lambda n: n[0:2] == [Symbol("fp_text"), Symbol("reference")]])[0]
+            # kicad7
+            # self.get([lambda n: n[0:2] == [Symbol("fp_text"),
+            #  Symbol("reference")]])[0]
+            self.get([lambda n: n[0:2] == [Symbol("property"), "Reference"]])[0]
         )
 
     @property
     def value(self) -> "FP_Text":
         return FP_Text.from_node(
-            self.get([lambda n: n[0:2] == [Symbol("fp_text"), Symbol("value")]])[0]
+            # kicad7
+            # self.get([lambda n: n[0:2] == [Symbol("fp_text"), Symbol("value")]])[0]
+            self.get([lambda n: n[0:2] == [Symbol("property"), "Value"]])[0]
         )
 
     @property
@@ -359,7 +364,9 @@ class Footprint(Node):
         return list(
             map(
                 FP_Text.from_node,
-                self.get([lambda n: n[0:2] == [Symbol("fp_text"), Symbol("user")]]),
+                # kicad7
+                # self.get([lambda n: n[0:2] == [Symbol("fp_text"), Symbol("user")]]),
+                self.get([lambda n: n[0:2] == [Symbol("fp_text"), "user"]]),
             )
         )
 

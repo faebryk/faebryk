@@ -32,6 +32,14 @@ PV = TypeVar("PV", bound=_SupportsRangeOps)
 class Range(Generic[PV], Parameter[PV]):
     def __init__(self, bound1: PV, bound2: PV) -> None:
         super().__init__()
+
+        # TODO this should not be here, but be dynamically resolved during comparison
+        if isinstance(bound1, Range):
+            bound1 = bound1.min
+
+        if isinstance(bound2, Range):
+            bound2 = bound2.max
+
         self.bounds = tuple(
             bound if isinstance(bound, Parameter) else Constant(bound)
             for bound in (bound1, bound2)
@@ -93,3 +101,28 @@ class Range(Generic[PV], Parameter[PV]):
 
     def __hash__(self) -> int:
         return hash(self.bounds)
+
+    # comparison operators
+    def __le__(self, other) -> bool:
+        if isinstance(other, Range):
+            return self.min <= other.min and self.max <= other.max
+
+        return self.min <= other
+
+    def __lt__(self, other) -> bool:
+        if isinstance(other, Range):
+            return self.min < other.min and self.max < other.max
+
+        return self.min < other
+
+    def __ge__(self, other) -> bool:
+        if isinstance(other, Range):
+            return self.min >= other.min and self.max >= other.max
+
+        return self.min >= other
+
+    def __gt__(self, other) -> bool:
+        if isinstance(other, Range):
+            return self.min > other.min and self.max > other.max
+
+        return self.min > other

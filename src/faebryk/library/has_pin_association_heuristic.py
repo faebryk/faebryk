@@ -7,5 +7,12 @@ from faebryk.core.core import ModuleInterface, ModuleTrait
 
 
 class has_pin_association_heuristic(ModuleTrait):
+    """
+    Get the pinmapping for a list of pins based on a heuristic.
+    """
+
     @abstractmethod
-    def get_pin(self, str) -> ModuleInterface: ...
+    def get_pins(
+        self,
+        pins: list[tuple[int, str]],
+    ) -> dict[str, ModuleInterface]: ...

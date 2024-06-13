@@ -19,21 +19,30 @@ class has_pin_association_heuristic_lookup_table(has_pin_association_heuristic.i
 
     def get_pins(
         self,
-        names: list[str],
-    ) -> list[ModuleInterface]:
-        mifs = []
-        for n in names:
+        pins: list[tuple[int, str]],
+    ) -> dict[str, ModuleInterface]:
+        """
+        Get the pinmapping for a list of pins based on a lookup table.
+
+        :param pins: A list of tuples with the pin number and name.
+        :return: A dictionary with the pin name as key and the module interface as value
+        """
+
+        pinmap = {}
+        for number, name in pins:
             for mif, alt_names in self.mapping.items():
                 match = None
                 for alt_name in alt_names:
                     if self.case_sensitive:
                         alt_name = alt_name.lower()
-                        n = n.lower()
-                    if self.accept_prefix and n.endswith(alt_name):
+                        name = name.lower()
+                    if self.accept_prefix and name.endswith(alt_name):
                         match = alt_name
-                    elif n == match:
+                    elif name == match:
                         match = alt_name
                 if not match:
-                    raise ValueError(f"Could not find a match for pin with name {n}")
-                mifs.append(match)
-        return mifs
+                    raise ValueError(
+                        f"Could not find a match for pin {number} with name {name}"
+                    )
+                pinmap[name] = mif
+        return pinmap

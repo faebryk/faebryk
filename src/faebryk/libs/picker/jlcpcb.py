@@ -3,22 +3,28 @@
 
 import asyncio
 import datetime
+import json
 import logging
 import os
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 from urllib.error import HTTPError
 
 import faebryk.library._F as F
-
-# from library.e_series import E24, E48, E96, E192
 import wget
-from faebryk.core.core import Module, Parameter
-from faebryk.library.has_defined_descriptive_properties import (
-    has_defined_descriptive_properties,
+from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
+from easyeda2kicad.easyeda.easyeda_importer import (
+    EasyedaSymbolImporter,
 )
-from faebryk.libs.e_series import E192, e_series_in_range
+from faebryk.core.core import Module, Parameter
+from faebryk.library.can_attach_to_footprint import can_attach_to_footprint
+from faebryk.library.can_attach_to_footprint_symmetrically import (
+    can_attach_to_footprint_symmetrically,
+)
+from faebryk.library.has_pin_association_heuristic import has_pin_association_heuristic
+from faebryk.libs.e_series import E_SERIES_VALUES, e_series_intersect
 from faebryk.libs.picker.lcsc import (
     LCSC_Part,
     attach_footprint,
@@ -60,23 +66,13 @@ class JLCPCB(Supplier):
     def pick(self, module: Module):
         if not self.db.connected:
             asyncio.run(self.db.init_db())
-        partno = None
+
         if isinstance(module, F.Resistor):
-            partno = asyncio.run(self.db.find_resistor(module))
+            asyncio.run(self.db.find_resistor(module))
         elif isinstance(module, F.Capacitor):
-            partno = asyncio.run(self.db.find_capacitor(module))
+            asyncio.run(self.db.find_capacitor(module))
         else:
             return
-
-        if partno is None:
-            raise PickError("Could not find part")
-
-        assert isinstance(partno, str)
-
-        attach_footprint(module, partno, True)
-        part = JLCPCB_Part(partno)
-
-        module.add_trait(has_part_picked_defined(part))
 
 
 class JLCPCB_Part(LCSC_Part):
@@ -91,6 +87,14 @@ class Category(Model):
 
     class Meta:
         table = "categories"
+
+
+class Manufacturers(Model):
+    id = IntField(pk=True)
+    name = CharField(max_length=255)
+
+    class Meta:
+        table = "manufacturers"
 
 
 class Component(Model):
@@ -173,31 +177,12 @@ class jlcpcb_db:
         )
         self.connected = True
 
-    async def attach_part_details(
-        self, cmp: Module, lcsc_pn: str, qty: int = 100
-    ) -> None:
-        res = Component.filter(
-            lcsc=lcsc_pn.strip("C"),
-        )
-        if res.count() != 1:
-            raise PickError(f"Could not find exact match for PN {lcsc_pn}")
-        res = await res.first()
-        assert isinstance(res, Component)
-
-        cmp.add_trait(
-            has_defined_descriptive_properties(
-                properties={
-                    DescriptiveProperties.partno: f"C{res.lcsc}",
-                    DescriptiveProperties.manufacturer: res.mfr,
-                    DescriptiveProperties.datasheet: res.datasheet,
-                    "JLCPCB stock": str(res.stock),
-                    "JLCPCB price": f"{self._get_unit_price_for_qty(res, qty):.4f}",
-                    "JLCPCB description": res.description,
-                    "JLCPCB Basic": str(bool(res.basic)),
-                    "JLCPCB Preferred": str(bool(res.preferred)),
-                }
-            )
-        )
+    @dataclass
+    class parameter_to_db_map:
+        param_name: str
+        attr_key: str
+        attr_tolerance_key: str | None = None
+        transform_fn: Callable[[str], Any] = lambda x: x
 
     async def find_part_by_manufacturer_pn(self, partnumber: str, qty: int = 100):
         filter_query = Q(stock__gte=qty) & Q(mfr__icontains=partnumber)
@@ -209,6 +194,9 @@ class jlcpcb_db:
         res = self._sort_results_by_basic_preferred_price(res, qty)[0]
         return f"C{res.lcsc}"
 
+    async def get_manufacturer_from_id(self, manufacturer_id: int) -> str:
+        return (await Manufacturers.get(id=manufacturer_id)).name
+
     async def find_resistor(self, cmp: F.Resistor, qty: int = 100):
         """
         Find a resistor part in the JLCPCB database that matches the parameters of the
@@ -219,20 +207,28 @@ class jlcpcb_db:
             raise ValueError
 
         logger.info(
-            f"Finding resistor for {cmp}, basic/preferred/cheapest with parameters: {cmp.PARAMs.resistance=} and {cmp.PARAMs.rated_power=}"
+            f"Finding resistor for {cmp}, basic/preferred/cheapest with parameters: "
+            f"{cmp.PARAMs.resistance=} and {cmp.PARAMs.rated_power=}"
         )
 
         category_ids = await self._get_category_id(
             "Resistors", "Chip Resistor - Surface Mount"
         )
-        category_query = Q(category_id__in=category_ids)
 
         value_query = Q()
-        for r in e_series_in_range(cmp.PARAMs.resistance.get_most_narrow(), E192):
-            si_val = float_to_si_str(r, "Ω")
+        for r in e_series_intersect(
+            cmp.PARAMs.resistance.get_most_narrow(), E_SERIES_VALUES.E_ALL
+        ).params:
+            assert isinstance(r, F.Constant)
+            si_val = float_to_si_str(r.value, "Ω")
             value_query |= Q(description__contains=f" {si_val}")
 
-        filter_query = Q(stock__gte=qty) & category_query & value_query
+        filter_query = (
+            Q(category_id__in=category_ids)
+            & Q(stock__gte=qty)
+            & Q(joints=2)
+            & value_query
+        )
 
         resistors = await Component.filter(filter_query).order_by("-basic")
 
@@ -241,37 +237,21 @@ class jlcpcb_db:
 
         resistors = self._sort_results_by_basic_preferred_price(resistors, qty)
 
-        for r in resistors:
-            if not self._component_satisfies_requirement_with_tolerance(
-                r,
-                "Resistance",
-                cmp.PARAMs.resistance.get_most_narrow(),
-            ):
-                continue
-
-            if not self._component_satisfies_requirement(
-                r,
+        mapping = [
+            self.parameter_to_db_map("resistance", "Resistance", "Tolerance"),
+            self.parameter_to_db_map(
+                "rated_power",
                 "Power(Watts)",
-                cmp.PARAMs.rated_power.get_most_narrow(),
-                lambda x: si_str_to_float(x),
-            ):
-                continue
-
-            if not self._component_satisfies_requirement(
-                r,
+                transform_fn=lambda x: si_str_to_float(x),
+            ),
+            self.parameter_to_db_map(
+                "rated_voltage",
                 "Overload Voltage (Max)",
-                cmp.PARAMs.rated_voltage.get_most_narrow(),
-                lambda x: si_str_to_float(x),
-            ):
-                continue
+                transform_fn=lambda x: si_str_to_float(x),
+            ),
+        ]
 
-            logger.info(
-                f"Found part {r.lcsc:8} "
-                f"Basic: {bool(r.basic)}, Preferred: {bool(r.preferred)}, "
-                f"Price: {self._get_unit_price_for_qty(r, 100):2.4f}, "
-                f"{r.description:15},"
-            )
-            return f"C{r.lcsc}"
+        await self._filter_by_params_and_attach(cmp, resistors, mapping, qty)
 
     async def find_capacitor(self, cmp: F.Capacitor, qty: int = 100):
         """
@@ -283,20 +263,28 @@ class jlcpcb_db:
             raise ValueError
 
         logger.info(
-            f"Finding capacitor for {cmp}, basic/preferred/cheapest with parameters: {cmp.PARAMs.capacitance=} and {cmp.PARAMs.rated_voltage=}"
+            f"Finding capacitor for {cmp}, basic/preferred/cheapest with parameters: "
+            f"{cmp.PARAMs.capacitance=} and {cmp.PARAMs.rated_voltage=}"
         )
 
         category_ids = await self._get_category_id(
             "Capacitors", "Multilayer Ceramic Capacitors MLCC - SMD/SMT"
         )
-        category_query = Q(category_id__in=category_ids)
 
         value_query = Q()
-        for r in e_series_in_range(cmp.PARAMs.capacitance.get_most_narrow(), E192):
-            si_val = float_to_si_str(r, "F").replace("µ", "u")
+        for r in e_series_intersect(
+            cmp.PARAMs.capacitance.get_most_narrow(), E_SERIES_VALUES.E_ALL
+        ).params:
+            assert isinstance(r, F.Constant)
+            si_val = float_to_si_str(r.value, "F").replace("µ", "u")
             value_query |= Q(description__contains=f" {si_val}")
 
-        filter_query = Q(stock__gte=qty) & category_query & value_query
+        filter_query = (
+            Q(category_id__in=category_ids)
+            & Q(stock__gte=qty)
+            & Q(joints=2)
+            & value_query
+        )
 
         capacitors = await Component.filter(filter_query).order_by("-basic")
 
@@ -307,37 +295,118 @@ class jlcpcb_db:
 
         capacitors = self._sort_results_by_basic_preferred_price(capacitors, qty)
 
-        for c in capacitors:
-            if not self._component_satisfies_requirement_with_tolerance(
-                c,
-                "Capacitance",
-                cmp.PARAMs.capacitance.get_most_narrow(),
-            ):
-                continue
-
-            if not self._component_satisfies_requirement(
-                c,
+        mapping = [
+            self.parameter_to_db_map("capacitance", "Capacitance", "Tolerance"),
+            self.parameter_to_db_map(
+                "rated_voltage",
                 "Voltage Rated",
-                cmp.PARAMs.rated_voltage.get_most_narrow(),
-                lambda x: si_str_to_float(x),
-            ):
-                continue
-
-            if not self._component_satisfies_requirement(
-                c,
+                transform_fn=lambda x: si_str_to_float(x),
+            ),
+            self.parameter_to_db_map(
+                "temperature_coefficient",
                 "Temperature Coefficient",
-                cmp.PARAMs.temperature_coefficient.get_most_narrow(),
-                lambda x: F.Capacitor.TemperatureCoefficient[x.replace("NP0", "C0G")],
+                transform_fn=lambda x: F.Capacitor.TemperatureCoefficient[
+                    x.replace("NP0", "C0G")
+                ],
+            ),
+        ]
+
+        await self._filter_by_params_and_attach(cmp, capacitors, mapping, qty)
+
+    async def _filter_by_params_and_attach(
+        self,
+        module: Module,
+        components: list[Component],
+        mapping: list[parameter_to_db_map],
+        qty: int = 100,
+    ):
+        for c in components:
+            if not all(
+                pm := [
+                    self._component_satisfies_requirement(
+                        c,
+                        m.attr_key,
+                        module.PARAMs.__getattribute__(m.param_name).get_most_narrow(),
+                        use_tolerance=m.attr_tolerance_key is not None,
+                        tolerance_key=m.attr_tolerance_key or "",
+                        attr_fn=m.transform_fn,
+                    )
+                    for m in mapping
+                ]
             ):
                 continue
 
             logger.info(
                 f"Found part {c.lcsc:8} "
                 f"Basic: {bool(c.basic)}, Preferred: {bool(c.preferred)}, "
-                f"Price: {self._get_unit_price_for_qty(c, 100):2.4f}$, "
+                f"Price: ${self._get_unit_price_for_qty(c, 100):2.4f}, "
                 f"{c.description:15},"
             )
-            return f"C{c.lcsc}"
+
+            for name, value in zip([m.param_name for m in mapping], pm):
+                module.PARAMs.__getattribute__(name).merge(value)
+
+            F.has_defined_descriptive_properties.add_properties_to(
+                module,
+                {
+                    DescriptiveProperties.partno: c.mfr,
+                    DescriptiveProperties.manufacturer: await (
+                        self.get_manufacturer_from_id(c.manufacturer_id)
+                    ),
+                    DescriptiveProperties.datasheet: c.datasheet,
+                    "JLCPCB stock": str(c.stock),
+                    "JLCPCB price": f"{self._get_unit_price_for_qty(c, qty):.4f}",
+                    "JLCPCB description": c.description,
+                    "JLCPCB Basic": str(bool(c.basic)),
+                    "JLCPCB Preferred": str(bool(c.preferred)),
+                },
+            )
+
+            module.add_trait(has_part_picked_defined(JLCPCB_Part(f"C{c.lcsc}")))
+            attach_footprint(module, f"C{c.lcsc}", True)
+            return
+
+    def auto_pinmapping(self, component: Module, partno: str):
+        if component.has_trait(can_attach_to_footprint):
+            logger.warning(f"Component {component} already has a pinmap, skipping")
+            return
+
+        if component.has_trait(can_attach_to_footprint_symmetrically):
+            logger.warning(
+                f"Component {component} is symmetrical, thus doesn't need a pimap"
+            )
+            return
+
+        api = EasyedaApi()
+
+        cache_base = BUILD_FOLDER / Path("cache/easyeda")
+        cache_base.mkdir(parents=True, exist_ok=True)
+
+        comp_path = cache_base.joinpath(partno)
+        if not comp_path.exists():
+            logger.info(f"Did not find component {partno} in cache, downloading...")
+            cad_data = api.get_cad_data_of_component(lcsc_id=partno)
+            serialized = json.dumps(cad_data)
+            comp_path.write_text(serialized)
+
+        data = json.loads(comp_path.read_text())
+
+        logger.warning(
+            f"No pinmap found for component {component}, attaching pins by name"
+        )
+        easyeda_symbol = EasyedaSymbolImporter(easyeda_cp_cad_data=data).get_symbol()
+        pins = [
+            (int(pin.settings.spice_pin_number), pin.name.text)
+            for pin in easyeda_symbol.pins
+        ]
+        if component.has_trait(has_pin_association_heuristic):
+            pinmap = component.get_trait(has_pin_association_heuristic).get_pins(pins)
+        else:
+            raise NotImplementedError
+
+        for pin, mif in pinmap.items():
+            logger.info(f"Attaching pin {pin} to {mif}")
+        component.add_trait(F.can_attach_to_footprint_via_pinmap(pinmap))
 
     async def _get_category_id(
         self, category: str = "", subcategory: str = ""
@@ -350,7 +419,8 @@ class jlcpcb_db:
         category_ids = await Category.filter(filter_query).values("id")
         if len(category_ids) < 1:
             raise PickError(
-                f"Could not find a match for category {category} and subcategory {subcategory}"
+                f"Could not find a match for category {category} "
+                f"and subcategory {subcategory}"
             )
         return [c["id"] for c in category_ids]
 
@@ -413,85 +483,60 @@ class jlcpcb_db:
         )
         return results
 
-    def _component_satisfies_requirement_with_tolerance(
-        self,
-        component: Component,
-        attributes_key: str,
-        requirement: Parameter,
-        tolerance_key: str = "Tolerance",
-    ) -> bool:
-        if isinstance(requirement, F.ANY):
-            return True
-
-        if not isinstance(requirement, F.Range):
-            raise ValueError(
-                "Only range requirements for values with tolerances are allowed"
-            )
-
-        assert isinstance(component.extra, dict)
-        if (
-            "attributes" not in component.extra
-            or attributes_key not in component.extra["attributes"]
-            or tolerance_key not in component.extra["attributes"]
-        ):
-            return False
-
-        try:
-            value = self._db_component_to_parameter(
-                component.extra["attributes"][attributes_key],
-                component.extra["attributes"][tolerance_key],
-            )
-            if not isinstance(value, F.Range):
-                logger.error(
-                    f"Could not parse component with {attributes_key} field "
-                    "{component.extra['attributes'][attributes_key]}"
-                )
-                return False
-            return requirement.contains(value.max) and requirement.contains(value.min)
-        except Exception:
-            logger.debug(
-                f"Could not parse component with {attributes_key} field "
-                "{component.extra['attributes'][attributes_key]}, {e}"
-            )
-            return False
-
     def _component_satisfies_requirement(
         self,
         component: Component,
         attributes_key: str,
         requirement: Parameter,
+        use_tolerance: bool = False,
+        tolerance_key: str = "Tolerance",
         attr_fn: Callable[[str], Any] = lambda x: float(x),
-    ) -> bool:
-        if isinstance(requirement, F.ANY):
-            return True
+    ) -> Parameter | None:
 
         assert isinstance(component.extra, dict)
-
         if (
             "attributes" not in component.extra
             or attributes_key not in component.extra["attributes"]
+            or use_tolerance
+            and (tolerance_key not in component.extra["attributes"])
         ):
-            return False
+            return None
 
-        if isinstance(requirement, F.Range):
-            try:
-                field_val = attr_fn(component.extra["attributes"][attributes_key])
-                return requirement.contains(field_val)
-            except Exception as e:
-                logger.debug(
-                    f"Could not parse component with {attributes_key} field "
-                    f"{component.extra['attributes'][attributes_key]}, {e}"
+        try:
+            if use_tolerance:
+                value = self._db_component_to_parameter(
+                    component.extra["attributes"][attributes_key],
+                    component.extra["attributes"][tolerance_key],
                 )
-                return False
-        elif isinstance(requirement, F.Constant):
-            try:
-                field_val = attr_fn(component.extra["attributes"][attributes_key])
-                return field_val == requirement.value
-            except Exception as e:
-                logger.debug(
-                    f"Could not parse component with {attributes_key} field "
-                    f"{component.extra['attributes'][attributes_key]}, {e}"
+                if not isinstance(value, F.Range):
+                    logger.error(
+                        f"Could not parse component with {attributes_key} field "
+                        "{component.extra['attributes'][attributes_key]}"
+                    )
+                    return None
+
+                if isinstance(requirement, F.ANY):
+                    return value
+
+                if not isinstance(requirement, F.Range):
+                    raise NotImplementedError
+                return (
+                    value
+                    if requirement.contains(value.max)
+                    and requirement.contains(value.min)
+                    else None
                 )
-                return False
-        else:
-            raise NotImplementedError
+            else:
+                field_val = attr_fn(component.extra["attributes"][attributes_key])
+                if isinstance(requirement, F.Range):
+                    return field_val if requirement.contains(field_val) else None
+                elif isinstance(requirement, F.Constant):
+                    return field_val if field_val == requirement.value else None
+                else:
+                    raise NotImplementedError
+        except Exception:
+            logger.debug(
+                f"Could not parse component with {attributes_key} field "
+                "{component.extra['attributes'][attributes_key]}, {e}"
+            )
+            return None

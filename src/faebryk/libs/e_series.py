@@ -418,19 +418,22 @@ class E_SERIES_VALUES:
 
 def e_series_intersect(
     value: Parameter, e_series: E_SERIES = E_SERIES_VALUES.E_ALL
-) -> E_SERIES:
+) -> F.Set[F.Constant]:
     if not isinstance(value, F.Range):
         raise NotImplementedError
 
+    if value <= 1e-12:
+        raise ValueError("Value too small")
+
     e_series_values = F.Set(
         [
-            F.Constant(e_val * 10**exp)
+            F.Constant(round(e_val * 10**exp, 13))
             for e_val in e_series
-            for exp in range(floor(log10(value.min)), ceil(log10(value.max)))
+            for exp in range(floor(log10(value.min)), ceil(log10(value.max)) + 1)
         ]
     )
 
-    return range_set_intersect(value, e_series_values).params
+    return range_set_intersect(value, e_series_values)
 
 
 def e_series_discretize_to_nearest(
@@ -439,10 +442,13 @@ def e_series_discretize_to_nearest(
     if not isinstance(value, (F.Constant, F.Range)):
         raise NotImplementedError
 
+    if value <= 1e-12:
+        raise ValueError("Value too small")
+
     target = value.value if isinstance(value, F.Constant) else sum(value.as_tuple()) / 2
 
     e_series_values = [
-        e_val * 10**exp
+        round(e_val * 10**exp, 13)
         for e_val in e_series
         for exp in range(floor(log10(target)), ceil(log10(target)))
     ]
@@ -455,8 +461,8 @@ def range_set_intersect(range_: F.Range, set_: F.Set) -> F.Set:
 
 
 def e_series_ratio(
-    R1: Parameter,
-    R2: Parameter,
+    RH: Parameter,
+    RL: Parameter,
     output_input_ratio: Parameter,
     e_values: E_SERIES = E_SERIES_VALUES.E_ALL,
 ) -> Tuple[float, float]:
@@ -464,25 +470,24 @@ def e_series_ratio(
     Calculates the values for two components in the E series range which are bound by a
     ratio.
 
-    R1 and R2 define the contstraints for the components, and output_input_ratio is the
+    RH and RL define the contstraints for the components, and output_input_ratio is the
     output/input voltage ratio as defined below.
-    R1 and output_input_ratio must be constrained to a range or constant, but R2 can be
+    RH and output_input_ratio must be constrained to a range or constant, but RL can be
     ANY.
 
-    output_input_ratio = R2/(R1 + R2)
-    R2/oir = r1 + r2
-    R2 (1/oir -1) = R1
-    R2 = R1 / (1/oir -1)
+    output_input_ratio = RL/(RH + RL)
+    RL/oir = RH + RL
+    RL * (1/oir -1) = RH
+    RL = RH / (1/oir -1)
 
-    Returns a tuple of R1/R2 values, of which R1 is decided by component_value, and R2
-    is chosen from the E series based on ratio.
+    Returns a tuple of RH/RL values.
 
     Can be used for a resistive divider.
     """
 
     if (
-        not isinstance(R1, (F.Constant, F.Range))
-        or not isinstance(R2, (F.Constant, F.Range, F.ANY))
+        not isinstance(RH, (F.Constant, F.Range))
+        or not isinstance(RL, (F.Constant, F.Range, F.ANY))
         or not isinstance(output_input_ratio, (F.Constant, F.Range))
     ):
         raise NotImplementedError
@@ -490,32 +495,32 @@ def e_series_ratio(
     if not output_input_ratio.is_more_specific_than(F.Range(0, 1)):
         raise ValueError("Invalid output/input voltage ratio")
 
-    r1 = F.Range(R1.value, R1.value) if isinstance(R1, F.Constant) else R1
-    r2 = F.Range(R2.value, R2.value) if isinstance(R2, F.Constant) else R2
+    rh = F.Range(RH.value, RH.value) if isinstance(RH, F.Constant) else RH
+    rl = F.Range(RL.value, RL.value) if isinstance(RL, F.Constant) else RL
     oir = (
         F.Range(output_input_ratio.value, output_input_ratio.value)
         if isinstance(output_input_ratio, F.Constant)
         else output_input_ratio
     )
 
-    r1_values = e_series_intersect(r1, e_values)
-    r2_values = e_series_intersect(r2, e_values) if isinstance(r2, F.Range) else None
+    rh_values = e_series_intersect(rh, e_values)
+    rl_values = e_series_intersect(rl, e_values) if isinstance(rl, F.Range) else None
 
-    target_ratio = oir.as_center_tuple()[0].value
+    target_ratio = oir.as_center_tuple()[0]
 
     solutions = []
 
-    for r1_val in r1_values:
-        r2_ideal = r1_val / (1 / target_ratio - 1)
+    for rh_val in rh_values.params:
+        rl_ideal = rh_val / (F.Constant(1) / target_ratio - 1)
 
-        r2_nearest_e_val = (
-            min(r2_values, key=lambda x: abs(x - r2_ideal))
-            if r2_values
-            else e_series_discretize_to_nearest(r2_ideal, e_values).value
+        rl_nearest_e_val = (
+            min(rl_values.params, key=lambda x: abs(x - rl_ideal))
+            if rl_values
+            else e_series_discretize_to_nearest(rl_ideal, e_values)
         )
-        real_ratio = r2_nearest_e_val / (r1_val.value + r2_nearest_e_val)
+        real_ratio = rl_nearest_e_val / (rh_val + rl_nearest_e_val)
 
-        solutions.append((real_ratio, (r1_val.value, r2_nearest_e_val)))
+        solutions.append((real_ratio, (rh_val, rl_nearest_e_val)))
 
     optimum = min(solutions, key=lambda x: abs(x[0] - target_ratio))
 
@@ -526,10 +531,8 @@ def e_series_ratio(
 
     if not oir.contains(optimum[0]):
         raise ArithmeticError(
-            "Calculated optimum R1 R2 value pair gives output/input voltage "
-            "ratio outside of specified range. Consider Increasing the "
-            "output/input range, R1 value range, R2 value range, or using a "
-            "broader E value series"
+            "Calculated optimum RH RL value pair gives output/input voltage ratio "
+            "outside of specified range. Consider relaxing the constraints"
         )
 
     return optimum[1]

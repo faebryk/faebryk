@@ -7,7 +7,7 @@ from faebryk.core.core import Parameter
 
 logger = logging.getLogger(__name__)
 
-E_SERIES = set
+E_SERIES = set[float]
 
 
 class E_SERIES_VALUES:
@@ -416,24 +416,27 @@ class E_SERIES_VALUES:
     E_ALL = set(sorted(set(E3 | E6 | E12 | E24 | E48 | E96 | E192)))
 
 
+def repeat_set_over_base(
+    values: set[float], base: int, exp_range: range, n_decimals: int = 13
+) -> set[float]:
+    assert all(v >= 1 and v < base for v in values)
+    return set(
+        [round(val * base**exp, n_decimals) for val in values for exp in exp_range]
+    )
+
+
 def e_series_intersect(
     value: Parameter, e_series: E_SERIES = E_SERIES_VALUES.E_ALL
 ) -> F.Set[F.Constant]:
     if not isinstance(value, F.Range):
         raise NotImplementedError
 
-    if value <= 1e-12:
-        raise ValueError("Value too small")
-
-    e_series_values = F.Set(
-        [
-            F.Constant(round(e_val * 10**exp, 13))
-            for e_val in e_series
-            for exp in range(floor(log10(value.min)), ceil(log10(value.max)) + 1)
-        ]
+    e_series_values = repeat_set_over_base(
+        e_series, 10, range(floor(log10(value.min)), ceil(log10(value.max)) + 1)
     )
-
-    return range_set_intersect(value, e_series_values)
+    return range_set_intersect(
+        value, F.Set([F.Constant(e) for e in list(e_series_values)])
+    )
 
 
 def e_series_discretize_to_nearest(
@@ -442,16 +445,11 @@ def e_series_discretize_to_nearest(
     if not isinstance(value, (F.Constant, F.Range)):
         raise NotImplementedError
 
-    if value <= 1e-12:
-        raise ValueError("Value too small")
-
     target = value.value if isinstance(value, F.Constant) else sum(value.as_tuple()) / 2
 
-    e_series_values = [
-        round(e_val * 10**exp, 13)
-        for e_val in e_series
-        for exp in range(floor(log10(target)), ceil(log10(target)))
-    ]
+    e_series_values = repeat_set_over_base(
+        e_series, 10, range(floor(log10(target)), ceil(log10(target)) + 1)
+    )
 
     return F.Constant(min(e_series_values, key=lambda x: abs(x - target)))
 

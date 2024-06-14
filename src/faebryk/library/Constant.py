@@ -47,3 +47,6 @@ class Constant(Generic[PV], Parameter[PV]):
 
     def __abs__(self):
         return Constant(abs(self.value))
+
+    def __format__(self, format_spec):
+        return f"{super().__str__()}({format(self.value, format_spec)})"

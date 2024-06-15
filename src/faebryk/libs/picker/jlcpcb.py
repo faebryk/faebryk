@@ -64,9 +64,6 @@ class JLCPCB(Supplier):
             F.has_defined_descriptive_properties.add_properties_to(module, part.info)
 
     def pick(self, module: Module):
-        if not self.db.connected:
-            asyncio.run(self.db.init_db())
-
         if isinstance(module, F.Resistor):
             asyncio.run(self.db.find_resistor(module))
         elif isinstance(module, F.Capacitor):
@@ -124,6 +121,26 @@ class jlcpcb_db:
         self.results = []
         self.db_path = db_path
         self.connected = False
+        asyncio.run(self._init_db())
+
+    def __del__(self):
+        if self.connected:
+            asyncio.run(self._close_db())
+
+    async def _init_db(self):
+        self.download()
+
+        await Tortoise.init(
+            db_url=f"sqlite://{self.db_path}/cache.sqlite3",
+            modules={
+                "models": [__name__]
+            },  # Use __name__ to refer to the current module
+        )
+        self.connected = True
+
+    async def _close_db(self):
+        await Tortoise.close_connections()
+        self.connected = False
 
     def download(
         self,
@@ -165,17 +182,6 @@ class jlcpcb_db:
                     except HTTPError:
                         break
                 subprocess.run(["7z", "x", str(zip_file), f"-o{self.db_path}"])
-
-    async def init_db(self):
-        self.download()
-
-        await Tortoise.init(
-            db_url=f"sqlite://{self.db_path}/cache.sqlite3",
-            modules={
-                "models": [__name__]
-            },  # Use __name__ to refer to the current module
-        )
-        self.connected = True
 
     @dataclass
     class parameter_to_db_map:

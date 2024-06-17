@@ -1,14 +1,18 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from faebryk.core.core import ModuleInterface
+import logging
+
+from faebryk.library.Electrical import Electrical
 from faebryk.library.has_pin_association_heuristic import has_pin_association_heuristic
+
+logger = logging.getLogger(__name__)
 
 
 class has_pin_association_heuristic_lookup_table(has_pin_association_heuristic.impl()):
     def __init__(
         self,
-        mapping: dict[ModuleInterface, list[str]],
+        mapping: dict[Electrical, list[str]],
         accept_prefix: bool,
         case_sensitive: bool,
     ) -> None:
@@ -20,7 +24,7 @@ class has_pin_association_heuristic_lookup_table(has_pin_association_heuristic.i
     def get_pins(
         self,
         pins: list[tuple[int, str]],
-    ) -> dict[str, ModuleInterface]:
+    ) -> dict[str, Electrical]:
         """
         Get the pinmapping for a list of pins based on a lookup table.
 
@@ -30,19 +34,26 @@ class has_pin_association_heuristic_lookup_table(has_pin_association_heuristic.i
 
         pinmap = {}
         for number, name in pins:
+            match = None
             for mif, alt_names in self.mapping.items():
-                match = None
                 for alt_name in alt_names:
-                    if self.case_sensitive:
+                    if not self.case_sensitive:
                         alt_name = alt_name.lower()
                         name = name.lower()
                     if self.accept_prefix and name.endswith(alt_name):
-                        match = alt_name
-                    elif name == match:
-                        match = alt_name
-                if not match:
-                    raise ValueError(
-                        f"Could not find a match for pin {number} with name {name}"
-                    )
-                pinmap[name] = mif
+                        match = (mif, alt_name)
+                        break
+                    elif name == alt_name:
+                        match = (mif, alt_name)
+                        break
+            if not match:
+                raise ValueError(
+                    f"Could not find a match for pin {number} with name {name}"
+                    f" in the mapping {self.mapping}"
+                )
+                pinmap[name] = match[0]
+            logger.info(
+                f"Matched pin {number} with name {name} to {match[0]} with "
+                f"alias {match[1]}"
+            )
         return pinmap

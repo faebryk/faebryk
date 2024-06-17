@@ -3,7 +3,8 @@
 
 from abc import abstractmethod
 
-from faebryk.core.core import ModuleInterface, ModuleTrait
+from faebryk.core.core import ModuleTrait
+from faebryk.library.Electrical import Electrical
 
 
 class has_pin_association_heuristic(ModuleTrait):
@@ -15,4 +16,4 @@ class has_pin_association_heuristic(ModuleTrait):
     def get_pins(
         self,
         pins: list[tuple[int, str]],
-    ) -> dict[str, ModuleInterface]: ...
+    ) -> dict[str, Electrical]: ...

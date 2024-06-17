@@ -11,7 +11,6 @@ from faebryk.library.can_attach_to_footprint_symmetrically import (
     can_attach_to_footprint_symmetrically,
 )
 from faebryk.library.can_bridge_defined import can_bridge_defined
-from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
 from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
 from faebryk.library.has_simple_value_representation_based_on_params import (
@@ -50,12 +49,17 @@ class Inductor(Module):
                     self.PARAMs.rated_current,
                     self.PARAMs.dc_resistance,
                 ),
-                lambda ps: f"{as_unit_with_tolerance(ps[0], 'H')}, "
-                f"{as_unit(ps[2] if isinstance(ps[2], Constant) else ps[2].min, 'A')}"
-                ", SRF "
-                f"{as_unit(ps[1] if isinstance(ps[1], Constant) else ps[1].min, 'Hz')}"
-                ", DCR "
-                f"{as_unit(ps[3] if isinstance(ps[3], Constant) else ps[3].max, 'Ω')}",
+                lambda ps: " ".join(
+                    filter(
+                        None,
+                        [
+                            as_unit_with_tolerance(ps[0], "H"),
+                            as_unit(ps[1], "Hz"),
+                            as_unit(ps[2], "A"),
+                            as_unit(ps[3], "Ω"),
+                        ],
+                    )
+                ),
             )
         )
         self.add_trait(has_designator_prefix_defined("L"))

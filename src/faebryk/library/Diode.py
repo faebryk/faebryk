@@ -50,7 +50,7 @@ class Diode(Module):
             has_pin_association_heuristic_lookup_table(
                 mapping={
                     self.IFs.anode: ["A", "Anode", "+"],
-                    self.IFs.cathode: ["K", "Cathode", "-"],
+                    self.IFs.cathode: ["K", "C", "Cathode", "-"],
                 },
                 accept_prefix=False,
                 case_sensitive=False,

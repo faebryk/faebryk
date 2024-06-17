@@ -1,7 +1,7 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from enum import Enum, auto
+from enum import IntEnum, auto
 
 from faebryk.core.core import Module
 from faebryk.library.can_bridge_defined import can_bridge_defined
@@ -14,11 +14,11 @@ from faebryk.library.TBD import TBD
 
 
 class MOSFET(Module):
-    class ChannelType(Enum):
+    class ChannelType(IntEnum):
         N_CHANNEL = auto()
         P_CHANNEL = auto()
 
-    class SaturationType(Enum):
+    class SaturationType(IntEnum):
         ENHANCEMENT = auto()
         DEPLETION = auto()
 
@@ -28,6 +28,10 @@ class MOSFET(Module):
         class _PARAMs(Module.PARAMS()):
             channel_type = TBD[MOSFET.ChannelType]()
             saturation_type = TBD[MOSFET.SaturationType]()
+            gate_source_threshold_voltage = TBD[float]()
+            max_drain_source_voltage = TBD[float]()
+            max_continuous_drain_current = TBD[float]()
+            on_resistance = TBD[float]()
 
         self.PARAMs = _PARAMs(self)
 

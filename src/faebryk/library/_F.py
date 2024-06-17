@@ -34,6 +34,7 @@ from faebryk.library.Electrical import Electrical
 from faebryk.library.Ethernet import Ethernet
 from faebryk.library.Fuse import Fuse
 from faebryk.library.I2C import I2C
+from faebryk.library.Inductor import Inductor
 from faebryk.library.JTAG import JTAG
 from faebryk.library.KicadFootprint import KicadFootprint
 from faebryk.library.LED import LED
@@ -110,6 +111,8 @@ from faebryk.library.has_esphome_config import has_esphome_config
 from faebryk.library.has_esphome_config_defined import has_esphome_config_defined
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_footprint_impl import has_footprint_impl
+from faebryk.library.has_footprint_requirement import has_footprint_requirement
+from faebryk.library.has_footprint_requirement_defined import has_footprint_requirement_defined
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
 from faebryk.library.has_kicad_footprint_equal_ifs import has_kicad_footprint_equal_ifs
 from faebryk.library.has_kicad_footprint_equal_ifs_defined import has_kicad_footprint_equal_ifs_defined

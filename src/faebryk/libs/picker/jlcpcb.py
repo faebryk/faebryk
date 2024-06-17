@@ -87,6 +87,10 @@ class JLCPCB(Supplier):
             asyncio.run(self.db.find_capacitor(module))
         elif isinstance(module, F.Inductor):
             asyncio.run(self.db.find_inductor(module))
+        elif isinstance(module, F.TVS):
+            asyncio.run(self.db.find_tvs(module))
+        elif isinstance(module, F.Diode):
+            asyncio.run(self.db.find_diode(module))
         elif isinstance(module, F.MOSFET):
             asyncio.run(self.db.find_mosfet(module))
         else:
@@ -179,7 +183,7 @@ class jlcpcb_db:
             prompt_update = True
         elif (
             datetime.datetime.fromtimestamp(
-                self.db_path.stat().st_mtime, tz=datetime.timezone.utc
+                db_file.stat().st_mtime, tz=datetime.timezone.utc
             )
             < datetime.datetime.now(tz=datetime.timezone.utc) - prompt_update_timediff
         ):
@@ -193,7 +197,8 @@ class jlcpcb_db:
                     "https://yaqwsx.github.io/jlcparts/data/cache.zip",
                     out=str(zip_file),
                 )
-                # TODO: use 7z from python? (py7zr) and auto calc number of files
+                # TODO: use requrests and 7z from python? (py7zr) and auto calc number
+                # of files
                 for i in range(1, 50):
                     try:
                         wget.download(
@@ -207,7 +212,7 @@ class jlcpcb_db:
     @dataclass
     class parameter_to_db_map:
         param_name: str
-        attr_key: str
+        attr_keys: list[str]
         attr_tolerance_key: str | None = None
         transform_fn: Callable[[str], Any] = lambda x: x
 
@@ -239,42 +244,25 @@ class jlcpcb_db:
         provided resistor
         """
 
-        category_ids = await self._get_category_id(
-            "Resistors", "Chip Resistor - Surface Mount"
+        resistors = await self._run_query(
+            cmp,
+            category="Resistors",
+            subcategory="Chip Resistor - Surface Mount",
+            si_values_from_param=cmp.PARAMs.resistance,
+            si_unit="Ω",
+            qty=qty,
         )
-
-        value_query = Q()
-        for r in e_series_intersect(
-            cmp.PARAMs.resistance.get_most_narrow(), E_SERIES_VALUES.E_ALL
-        ).params:
-            assert isinstance(r, F.Constant)
-            si_val = float_to_si_str(r.value, "Ω")
-            value_query |= Q(description__contains=f" {si_val}")
-
-        filter_query = (
-            Q(category_id__in=category_ids)
-            & Q(stock__gte=qty)
-            & Q(joints=2)
-            & value_query
-        )
-
-        resistors = await Component.filter(filter_query).order_by("-basic")
-
-        if len(resistors) < 1:
-            raise PickError("No parts found")
-
-        resistors = self._sort_results_by_basic_preferred_price(resistors, qty)
 
         mapping = [
-            self.parameter_to_db_map("resistance", "Resistance", "Tolerance"),
+            self.parameter_to_db_map("resistance", ["Resistance"], "Tolerance"),
             self.parameter_to_db_map(
                 "rated_power",
-                "Power(Watts)",
+                ["Power(Watts)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
             self.parameter_to_db_map(
                 "rated_voltage",
-                "Overload Voltage (Max)",
+                ["Overload Voltage (Max)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
         ]
@@ -287,44 +275,26 @@ class jlcpcb_db:
         provided capacitor
         """
 
-        category_ids = await self._get_category_id(
-            "Capacitors", "Multilayer Ceramic Capacitors MLCC - SMD/SMT"
+        # TODO: add support for electrolytic capacitors.
+        capacitors = await self._run_query(
+            cmp,
+            category="Capacitors",
+            subcategory="Multilayer Ceramic Capacitors MLCC - SMD/SMT",
+            si_values_from_param=cmp.PARAMs.capacitance,
+            si_unit="F",
+            qty=qty,
         )
-
-        value_query = Q()
-        for r in e_series_intersect(
-            cmp.PARAMs.capacitance.get_most_narrow(), E_SERIES_VALUES.E_ALL
-        ).params:
-            assert isinstance(r, F.Constant)
-            si_val = float_to_si_str(r.value, "F").replace("µ", "u")
-            value_query |= Q(description__contains=f" {si_val}")
-
-        filter_query = (
-            Q(category_id__in=category_ids)
-            & Q(stock__gte=qty)
-            & Q(joints=2)
-            & value_query
-        )
-
-        capacitors = await Component.filter(filter_query).order_by("-basic")
-
-        logger.debug(f"Found {len(capacitors)} capacitors")
-
-        if len(capacitors) < 1:
-            raise PickError("No parts found")
-
-        capacitors = self._sort_results_by_basic_preferred_price(capacitors, qty)
 
         mapping = [
-            self.parameter_to_db_map("capacitance", "Capacitance", "Tolerance"),
+            self.parameter_to_db_map("capacitance", ["Capacitance"], "Tolerance"),
             self.parameter_to_db_map(
                 "rated_voltage",
-                "Voltage Rated",
+                ["Voltage Rated"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
             self.parameter_to_db_map(
                 "temperature_coefficient",
-                "Temperature Coefficient",
+                ["Temperature Coefficient"],
                 transform_fn=lambda x: F.Constant(
                     F.Capacitor.TemperatureCoefficient[x.replace("NP0", "C0G")]
                 ),
@@ -343,54 +313,119 @@ class jlcpcb_db:
         """
 
         # Get Inductors (SMD), Power Inductors, TH Inductors, HF Inductors,
-        # Adjustable Inductors. HF and Adjtable are basically empty. TH inductors do not
-        # match the DC resistance (DCR) field. TODO: add support for TH inductors
-        category_ids = await self._get_category_id("Inductors", "Inductors")
-
-        value_query = Q()
-        for r in e_series_intersect(
-            cmp.PARAMs.inductance.get_most_narrow(), E_SERIES_VALUES.E_ALL
-        ).params:
-            assert isinstance(r, F.Constant)
-            si_val = float_to_si_str(r.value, "H").replace("µ", "u")
-            value_query |= Q(description__contains=f" {si_val}")
-
-        filter_query = (
-            Q(category_id__in=category_ids)
-            & Q(stock__gte=qty)
-            & Q(joints=2)
-            & value_query
+        # Adjustable Inductors. HF and Adjustable are basically empty.
+        inductors = await self._run_query(
+            cmp,
+            category="Inductors",
+            subcategory="Inductors",
+            si_values_from_param=cmp.PARAMs.inductance,
+            si_unit="H",
+            qty=qty,
         )
 
-        inductors = await Component.filter(filter_query).order_by("-basic")
-
-        logger.debug(f"Found {len(inductors)} inductors")
-
-        if len(inductors) < 1:
-            raise PickError("No parts found")
-
-        inductors = self._sort_results_by_basic_preferred_price(inductors, qty)
-
         mapping = [
-            self.parameter_to_db_map("inductance", "Inductance", "Tolerance"),
+            self.parameter_to_db_map("inductance", ["Inductance"], "Tolerance"),
             self.parameter_to_db_map(
                 "rated_current",
-                "Rated Current",
+                ["Rated Current"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
             self.parameter_to_db_map(
                 "dc_resistance",
-                "DC Resistance (DCR)",
+                ["DC Resistance (DCR)", "DC Resistance"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
             self.parameter_to_db_map(
                 "self_resonant_frequency",
-                "Frequency - Self Resonant",
+                ["Frequency - Self Resonant"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
         ]
 
         await self._filter_by_params_and_attach(cmp, inductors, mapping, qty)
+
+    async def find_tvs(self, cmp: F.TVS, qty: int = 100):
+        """
+        Find a TVS diode part in the JLCPCB database that matches the parameters of the
+        provided diode
+        """
+        # TODO: handle bidirectional TVS diodes
+        # "Bidirectional Channels": "1" in extra['attributes']
+        diodes = await self._run_query(
+            cmp,
+            category="",
+            subcategory="TVS",
+            qty=qty,
+        )
+
+        mapping = [
+            self.parameter_to_db_map(
+                "forward_voltage",
+                ["Forward Voltage", "Forward Voltage (Vf@If)"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
+            ),
+            # TODO: think about the difference of meaning for max_current between Diode
+            # and TVS
+            self.parameter_to_db_map(
+                "max_current",
+                ["Peak Pulse Current (Ipp)@10/1000us"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x)),
+            ),
+            self.parameter_to_db_map(
+                "reverse_working_voltage",
+                ["Reverse Voltage (Vr)", "Reverse Stand-Off Voltage (Vrwm)"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x)),
+            ),
+            self.parameter_to_db_map(
+                "reverse_leakage_current",
+                ["Reverse Leakage Current", "Reverse Leakage Current (Ir)"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
+            ),
+            self.parameter_to_db_map(
+                "reverse_breakdown_voltage",
+                ["Breakdown Voltage"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x)),
+            ),
+        ]
+
+        await self._filter_by_params_and_attach(cmp, diodes, mapping, qty)
+
+    async def find_diode(self, cmp: F.Diode, qty: int = 100):
+        """
+        Find a diode part in the JLCPCB database that matches the parameters of the
+        provided diode
+        """
+        diodes = await self._run_query(
+            cmp,
+            category="",
+            subcategory="Diodes",
+            qty=qty,
+        )
+
+        mapping = [
+            self.parameter_to_db_map(
+                "forward_voltage",
+                ["Forward Voltage", "Forward Voltage (Vf@If)"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
+            ),
+            self.parameter_to_db_map(
+                "max_current",
+                ["Average Rectified Current (Io)"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x)),
+            ),
+            self.parameter_to_db_map(
+                "reverse_working_voltage",
+                ["Reverse Voltage (Vr)", "Reverse Stand-Off Voltage (Vrwm)"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x)),
+            ),
+            self.parameter_to_db_map(
+                "reverse_leakage_current",
+                ["Reverse Leakage Current", "Reverse Leakage Current (Ir)"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
+            ),
+        ]
+
+        await self._filter_by_params_and_attach(cmp, diodes, mapping, qty)
 
     async def find_mosfet(self, cmp: F.MOSFET, qty: int = 100):
         """
@@ -398,26 +433,12 @@ class jlcpcb_db:
         provided MOSFET
         """
 
-        category_ids = await self._get_category_id("", "MOSFET")
-
-        footprint_query = Q()
-        if cmp.has_trait(F.has_footprint_requirement):
-            req = cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
-            for footprint, pin_count in req:
-                footprint_query |= Q(description__icontains=footprint) & Q(
-                    joints=pin_count
-                )
-
-        filter_query = (
-            Q(category_id__in=category_ids) & Q(stock__gte=qty) & footprint_query
+        mosfets = await self._run_query(
+            cmp,
+            category="",
+            subcategory="MOSFET",
+            qty=qty,
         )
-
-        mosfets = await Component.filter(filter_query).order_by("-basic")
-
-        if len(mosfets) < 1:
-            raise PickError("No parts found")
-
-        mosfets = self._sort_results_by_basic_preferred_price(mosfets, qty)
 
         def ChannelType_str_to_param(x: str) -> F.Constant[F.MOSFET.ChannelType]:
             if x in ["N Channel", "N-Channel"]:
@@ -430,27 +451,27 @@ class jlcpcb_db:
         mapping = [
             self.parameter_to_db_map(
                 "max_drain_source_voltage",
-                "Drain Source Voltage (Vdss)",
+                ["Drain Source Voltage (Vdss)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
             self.parameter_to_db_map(
                 "max_continuous_drain_current",
-                "Continuous Drain Current (Id)",
+                ["Continuous Drain Current (Id)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
             self.parameter_to_db_map(
                 "channel_type",
-                "Type",
+                ["Type"],
                 transform_fn=lambda x: (ChannelType_str_to_param(x)),
             ),
             self.parameter_to_db_map(
                 "gate_source_threshold_voltage",
-                "Gate Threshold Voltage (Vgs(th)@Id)",
+                ["Gate Threshold Voltage (Vgs(th)@Id)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
             ),
             self.parameter_to_db_map(
                 "on_resistance",
-                "Drain Source On Resistance (RDS(on)@Vgs,Id)",
+                ["Drain Source On Resistance (RDS(on)@Vgs,Id)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
             ),
         ]
@@ -499,7 +520,7 @@ class jlcpcb_db:
                 pm := [
                     self._component_satisfies_requirement(
                         c,
-                        m.attr_key,
+                        m.attr_keys,
                         module.PARAMs.__getattribute__(m.param_name).get_most_narrow(),
                         use_tolerance=m.attr_tolerance_key is not None,
                         tolerance_key=m.attr_tolerance_key or "",
@@ -508,14 +529,6 @@ class jlcpcb_db:
                     for m in mapping
                 ]
             ):
-                for p, mapp in zip(pm, mapping):
-                    if not p:
-                        logger.debug(
-                            f"Component {c.lcsc} does not satisfy requirement: "
-                            f"{mapp.param_name}: requirement: "
-                            f"{module.PARAMs.__getattribute__(mapp.param_name).get_most_narrow()}, "
-                            f"value: {c.extra['attributes'][mapp.attr_key] if isinstance(c.extra, dict) and 'attributes' in c.extra and mapp.attr_key in c.extra['attributes'] else 'N/A'}"
-                        )
                 continue
 
             for name, value in zip([m.param_name for m in mapping], pm):
@@ -576,9 +589,64 @@ class jlcpcb_db:
 
         component.add_trait(F.can_attach_to_footprint_via_pinmap(pinmap))
 
-    async def _get_category_id(
+    async def _run_query(
+        self,
+        module: Module,
+        category: str,
+        subcategory: str,
+        si_values_from_param: Parameter = F.ANY(),
+        si_unit="",
+        values: list[str] = [],
+        qty: int = 100,
+    ) -> list[Component]:
+        category_ids = await self._get_category_ids(category, subcategory)
+
+        footprint_query = Q()
+        if module.has_trait(F.has_footprint_requirement):
+            req = module.get_trait(
+                F.has_footprint_requirement
+            ).get_footprint_requirement()
+            for footprint, pin_count in req:
+                footprint_query |= Q(description__icontains=footprint) & Q(
+                    joints=pin_count
+                )
+
+        value_query = Q()
+        if si_values_from_param != F.ANY():
+            for r in e_series_intersect(
+                si_values_from_param.get_most_narrow(), E_SERIES_VALUES.E_ALL
+            ).params:
+                assert isinstance(r, F.Constant)
+                si_val = float_to_si_str(r.value, si_unit).replace("µ", "u")
+                value_query |= Q(description__contains=f" {si_val}")
+
+        filter_query = (
+            Q(category_id__in=category_ids)
+            & Q(stock__gte=qty)
+            & footprint_query
+            & value_query
+        )
+
+        results = await Component.filter(filter_query).order_by("-basic")
+
+        if len(results) < 1:
+            raise PickError("No parts found")
+
+        results = self._sort_results_by_basic_preferred_price(results, qty)
+
+        return results
+
+    async def _get_category_ids(
         self, category: str = "", subcategory: str = ""
     ) -> list[dict[str, Any]]:
+        """
+        Get the category ids for the given category and subcategory
+
+        :param category: The category to search for, use "" for any
+        :param subcategory: The subcategory to search for, use "" for any
+
+        :return: A list of category ids for the JLCPCB database Component id field
+        """
         filter_query = Q()
         if category != "":
             filter_query &= Q(category__icontains=category)
@@ -592,17 +660,28 @@ class jlcpcb_db:
             )
         return [c["id"] for c in category_ids]
 
-    def _db_field_to_parameter(self, field: str) -> Parameter:
-        if "~" in field:
-            values = field.split("~")
+    # TODO: finish this and use it
+    def _db_field_to_parameter(self, value: str, tolerance: str) -> Parameter:
+        if "~" in value:
+            values = value.split("~")
             values = [si_str_to_float(v) for v in values]
             assert len(values) == 2
             return F.Range(*values)
+        elif " - " in value:
+            values = value.split(" - ")
+            values = [si_str_to_float(v) for v in values]
+            assert len(values) == 2
+            return F.Range(*values)
+        elif "±" in value:
+            return F.Range(
+                si_str_to_float(value.strip("±")),
+                si_str_to_float(tolerance.strip("±")),
+            )
         try:
-            return F.Constant(si_str_to_float(field))
+            return F.Constant(si_str_to_float(value))
         except Exception as e:
             logger.info(
-                f"Could not convert field from database with value '{field}'"
+                f"Could not convert field from database with value '{value}'"
                 f"to parameter: {e}"
             )
             return F.TBD()
@@ -693,43 +772,70 @@ class jlcpcb_db:
     def _component_satisfies_requirement(
         self,
         component: Component,
-        attributes_key: str,
+        attributes_keys: list[str],
         requirement: Parameter,
         use_tolerance: bool = False,
         tolerance_key: str = "Tolerance",
         attr_fn: Callable[[str], Any] = lambda x: float(x),
     ) -> Parameter | None:
+        """
+        Check if the component satisfies the requirement
+
+        :param component: The component to check
+        :param attributes_key: The key in the component's extra['attributes'] dict that
+        holds the value to check
+        :param requirement: The requirement to check against
+        :param use_tolerance: Whether to use the tolerance field in the component
+        :param tolerance_key: The key in the component's extra['attributes'] dict that
+        holds the tolerance value
+        :param attr_fn: A function to convert the attribute value to the correct type
+
+        :return Returns the value of the component if it satisfies the requirement,
+        otherwise None
+        """
         if isinstance(requirement, F.ANY):
             return F.ANY()
 
         assert isinstance(component.extra, dict)
+
+        attr_key = next(
+            (k for k in attributes_keys if k in component.extra.get("attributes", "")),
+            None,
+        )
+
         if (
             "attributes" not in component.extra
-            or attributes_key not in component.extra["attributes"]
-            or use_tolerance
-            and (tolerance_key not in component.extra["attributes"])
+            or not attr_key
+            or (use_tolerance and (tolerance_key not in component.extra["attributes"]))
         ):
+            logger.debug(
+                f"Component {component.lcsc} does not have any of required fields "
+                f"'{attributes_keys}'"
+            )
             return None
 
         try:
             if use_tolerance:
                 if not isinstance(requirement, F.Range):
                     raise NotImplementedError
-                value = self._db_component_to_parameter(
-                    component.extra["attributes"][attributes_key],
+                field_val = self._db_component_to_parameter(
+                    component.extra["attributes"][attr_key],
                     component.extra["attributes"][tolerance_key],
                 )
-                return value if self._is_close_or_contains(requirement, value) else None
             else:
-                field_val = attr_fn(component.extra["attributes"][attributes_key])
-                return (
-                    field_val
-                    if self._is_close_or_contains(requirement, field_val)
-                    else None
+                field_val = attr_fn(component.extra["attributes"][attr_key])
+
+            valid = self._is_close_or_contains(requirement, field_val)
+            if not valid:
+                logger.debug(
+                    f"Component {component.lcsc} does not satisfy requirement "
+                    f"'{attr_key}': requirement: {requirement}, "
+                    f"value: {field_val}"
                 )
+            return field_val if valid else None
         except Exception as e:
             logger.debug(
-                f"Could not parse component with '{attributes_key}' field "
-                f"'{component.extra['attributes'][attributes_key]}', Error: '{e}'"
+                f"Could not parse component with '{attr_key}' field "
+                f"'{component.extra['attributes'][attr_key]}', Error: '{e}'"
             )
             return None

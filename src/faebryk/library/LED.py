@@ -23,27 +23,19 @@ class LED(Diode):
 
     class HumanBrightness(Enum):
         """
-        Human brightness perception in mcd (millicandela) for different light sources.
+        Human brightness perception in candela.
         """
 
-        GLOW_OF_STAR = Constant(0.001)  # Glow of a star on a clear night
-        DISTANT_STREETLIGHT = Constant(
-            0.01
-        )  # Distant streetlight seen from a few kilometers away
-        FULL_MOON = Constant(1)  # Typical full moon
-        CANDLES = Constant(10)  # Candles in a dark room
-        DIMMED_LED = Constant(50)  # Dimmed LED night light
-        STANDBY_LED = Constant(100)  # LED on electronic devices (standby indicator)
-        INDOOR_LIGHTING = Constant(500)  # Standard indoor lighting (incandescent bulb)
-        COMPUTER_SCREEN = Constant(1000)  # Computer screen at average brightness
-        OUTDOOR_LIGHTING = Constant(5000)  # Typical outdoor lighting (streetlight)
-        BRIGHT_LED_FLASHLIGHT = Constant(10000)  # Bright LED flashlight
-        CAR_HEADLIGHT_LOW = Constant(20000)  # Car headlight (low beam)
-        CAR_HEADLIGHT_HIGH = Constant(50000)  # Car headlight (high beam)
-        DIRECT_SUNLIGHT = Constant(100000)  # Direct sunlight
+        EXTREMELY_DIM = Constant(1e-2)
+        VERY_DIM = Constant(2.5e-2)
+        DIM = Constant(5e-2)
+        NORMAL = Constant(1e-1)
+        BRIGHT = Constant(2.5e-1)
+        VERY_BRIGHT = Constant(2)
+        EXTREMELY_BRIGHT = Constant(14)
 
         def __repr__(self):
-            return f"{self.name}: {self.value} mcd"
+            return f"{self.name}: {self.value} cd"
 
     @classmethod
     def PARAMS(cls):

@@ -5,7 +5,6 @@
 from enum import Enum, auto
 
 from faebryk.core.core import Parameter
-from faebryk.library.Constant import Constant
 from faebryk.library.Diode import Diode
 from faebryk.library.Electrical import Electrical
 from faebryk.library.ElectricPower import ElectricPower
@@ -20,22 +19,6 @@ class LED(Diode):
         BLUE = auto()
         YELLOW = auto()
         WHITE = auto()
-
-    class HumanBrightness(Enum):
-        """
-        Human brightness perception in candela.
-        """
-
-        EXTREMELY_DIM = Constant(1e-2)
-        VERY_DIM = Constant(2.5e-2)
-        DIM = Constant(5e-2)
-        NORMAL = Constant(1e-1)
-        BRIGHT = Constant(2.5e-1)
-        VERY_BRIGHT = Constant(2)
-        EXTREMELY_BRIGHT = Constant(14)
-
-        def __repr__(self):
-            return f"{self.name}: {self.value} cd"
 
     @classmethod
     def PARAMS(cls):

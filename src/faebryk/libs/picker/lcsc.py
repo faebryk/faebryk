@@ -3,6 +3,7 @@
 
 import json
 import logging
+import pickle
 from pathlib import Path
 
 from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
@@ -31,6 +32,8 @@ BUILD_FOLDER = Path("./build")
 LIB_FOLDER = Path("./src/kicad/libs")
 MODEL_PATH: str | None = "${KIPRJMOD}/../libs/"
 
+MODEL_CACHING_ENABLED = True
+
 
 def get_footprint(partno: str, get_model: bool = True):
     # easyeda api access & caching --------------------------------------------
@@ -38,8 +41,13 @@ def get_footprint(partno: str, get_model: bool = True):
 
     cache_base = BUILD_FOLDER / Path("cache/easyeda")
     cache_base.mkdir(parents=True, exist_ok=True)
+    comp_cache_dir = cache_base / "components"
+    model_cache_dir = cache_base / "models"
+    comp_cache_dir.mkdir(exist_ok=True, parents=True)
+    if MODEL_CACHING_ENABLED:
+        model_cache_dir.mkdir(exist_ok=True, parents=True)
 
-    comp_path = cache_base.joinpath(partno)
+    comp_path = comp_cache_dir / partno
     if not comp_path.exists():
         logger.debug(f"Did not find component {partno} in cache, downloading...")
         cad_data = api.get_cad_data_of_component(lcsc_id=partno)
@@ -69,27 +77,38 @@ def get_footprint(partno: str, get_model: bool = True):
     model_base_path_full.mkdir(exist_ok=True, parents=True)
 
     # export to kicad ---------------------------------------------------------
-    ki_footprint = ExporterFootprintKicad(easyeda_footprint)
 
     easyeda_model_info = Easyeda3dModelImporter(
         easyeda_cp_cad_data=data, download_raw_3d_model=False
     ).output
 
+    model = None
+
     if easyeda_model_info is not None:
         model_path = model_base_path_full.joinpath(f"{easyeda_model_info.name}.wrl")
         if get_model and not model_path.exists():
-            logger.debug(f"Downloading & Exporting 3dmodel {model_path}")
-            easyeda_model = Easyeda3dModelImporter(
-                easyeda_cp_cad_data=data, download_raw_3d_model=True
-            ).output
+            model_cache_file = model_cache_dir / Path(easyeda_model_info.name)
+            if not model_cache_file.exists() or not MODEL_CACHING_ENABLED:
+                logger.debug(f"Downloading & Exporting 3dmodel {model_path}")
+                easyeda_model = Easyeda3dModelImporter(
+                    easyeda_cp_cad_data=data, download_raw_3d_model=True
+                ).output
+                if MODEL_CACHING_ENABLED:
+                    model_cache_file.write_bytes(pickle.dumps(easyeda_model))
+            else:
+                logger.debug(f"Loading 3dmodel from cache {model_cache_file}")
+                easyeda_model = pickle.loads(model_cache_file.read_bytes())
             assert easyeda_model is not None
             ki_model = Exporter3dModelKicad(easyeda_model)
             ki_model.export(str(model_base_path))
+            model = ki_model.output
 
         if not model_path.exists():
-            ki_footprint.output.model_3d = None
+            model = None
     else:
         logger.warn(f"No 3D model for {name}")
+
+    ki_footprint = ExporterFootprintKicad(easyeda_footprint, model_3d=model)
 
     if not footprint_filepath.exists():
         logger.debug(f"Exporting footprint {footprint_filepath}")

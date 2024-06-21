@@ -31,6 +31,8 @@ BUILD_FOLDER = Path("./build")
 LIB_FOLDER = Path("./src/kicad/libs")
 MODEL_PATH: str | None = "${KIPRJMOD}/../libs/"
 
+EXPORT_NON_EXISTING_MODELS = False
+
 """
 easyeda2kicad has not figured out 100% yet how to do model translations.
 It's unfortunately also not really easy.
@@ -41,8 +43,25 @@ a lot of time and manual work.
 """
 WORKAROUND_SMD_3D_MODEL_FIX = True
 
+"""
+Some THT models seem to be fixed when assuming their translation is mm instead of inch.
+Does not really make a lot of sense.
+"""
+WORKAROUND_THT_INCH_MM_SWAP_FIX = False
 
-def get_footprint(partno: str, get_model: bool = True):
+
+def _fix_3d_model_offsets(ki_footprint):
+    if WORKAROUND_SMD_3D_MODEL_FIX:
+        if ki_footprint.input.info.fp_type == "smd":
+            ki_footprint.output.model_3d.translation.x = 0
+            ki_footprint.output.model_3d.translation.y = 0
+    if WORKAROUND_THT_INCH_MM_SWAP_FIX:
+        if ki_footprint.input.info.fp_type != "smd":
+            ki_footprint.output.model_3d.translation.x *= 2.54
+            ki_footprint.output.model_3d.translation.y *= 2.54
+
+
+def download_easyeda_info(partno: str, get_model: bool = True):
     # easyeda api access & caching --------------------------------------------
     api = EasyedaApi()
 
@@ -81,17 +100,18 @@ def get_footprint(partno: str, get_model: bool = True):
     # export to kicad ---------------------------------------------------------
     ki_footprint = ExporterFootprintKicad(easyeda_footprint)
 
-    if WORKAROUND_SMD_3D_MODEL_FIX:
-        if ki_footprint.input.info.fp_type == "smd":
-            ki_footprint.output.model_3d.translation.x = 0
-            ki_footprint.output.model_3d.translation.y = 0
+    _fix_3d_model_offsets(ki_footprint)
 
-    easyeda_model_info = Easyeda3dModelImporter(
+    easyeda_model = Easyeda3dModelImporter(
         easyeda_cp_cad_data=data, download_raw_3d_model=False
     ).output
 
-    if easyeda_model_info is not None:
-        model_path = model_base_path_full.joinpath(f"{easyeda_model_info.name}.wrl")
+    ki_model = None
+    if easyeda_model:
+        ki_model = Exporter3dModelKicad(easyeda_model)
+
+    if easyeda_model is not None:
+        model_path = model_base_path_full.joinpath(f"{easyeda_model.name}.wrl")
         if get_model and not model_path.exists():
             logger.debug(f"Downloading & Exporting 3dmodel {model_path}")
             easyeda_model = Easyeda3dModelImporter(
@@ -101,7 +121,7 @@ def get_footprint(partno: str, get_model: bool = True):
             ki_model = Exporter3dModelKicad(easyeda_model)
             ki_model.export(str(model_base_path))
 
-        if not model_path.exists():
+        if not model_path.exists() and not EXPORT_NON_EXISTING_MODELS:
             ki_footprint.output.model_3d = None
     else:
         logger.warn(f"No 3D model for {name}")
@@ -117,6 +137,14 @@ def get_footprint(partno: str, get_model: bool = True):
             footprint_full_path=str(footprint_filepath),
             model_3d_path=kicad_model_path,
         )
+
+    return ki_footprint, ki_model, easyeda_footprint, easyeda_model
+
+
+def get_footprint(partno: str, get_model: bool = True):
+    _, _, easyeda_footprint, _ = download_easyeda_info(
+        partno=partno, get_model=get_model
+    )
 
     # add trait to component ---------------------------------------------------
     fp = KicadFootprint(

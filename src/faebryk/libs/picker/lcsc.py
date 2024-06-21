@@ -31,6 +31,16 @@ BUILD_FOLDER = Path("./build")
 LIB_FOLDER = Path("./src/kicad/libs")
 MODEL_PATH: str | None = "${KIPRJMOD}/../libs/"
 
+"""
+easyeda2kicad has not figured out 100% yet how to do model translations.
+It's unfortunately also not really easy.
+A lot of SMD components (especially passives, ICs, etc) seem to be doing just fine with
+an x,y translation of 0. However that makes some other SMD components behave even worse.
+Since in a typical design most components are passives etc, this workaround can save
+a lot of time and manual work.
+"""
+WORKAROUND_SMD_3D_MODEL_FIX = True
+
 
 def get_footprint(partno: str, get_model: bool = True):
     # easyeda api access & caching --------------------------------------------
@@ -70,6 +80,11 @@ def get_footprint(partno: str, get_model: bool = True):
 
     # export to kicad ---------------------------------------------------------
     ki_footprint = ExporterFootprintKicad(easyeda_footprint)
+
+    if WORKAROUND_SMD_3D_MODEL_FIX:
+        if ki_footprint.input.info.fp_type == "smd":
+            ki_footprint.output.model_3d.translation.x = 0
+            ki_footprint.output.model_3d.translation.y = 0
 
     easyeda_model_info = Easyeda3dModelImporter(
         easyeda_cp_cad_data=data, download_raw_3d_model=False

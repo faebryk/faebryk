@@ -37,6 +37,7 @@ from faebryk.library.I2C import I2C
 from faebryk.library.Inductor import Inductor
 from faebryk.library.JTAG import JTAG
 from faebryk.library.KicadFootprint import KicadFootprint
+from faebryk.library.LDO import LDO
 from faebryk.library.LED import LED
 from faebryk.library.LEDIndicator import LEDIndicator
 from faebryk.library.Logic import Logic

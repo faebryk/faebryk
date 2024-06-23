@@ -5,7 +5,7 @@ import logging
 import unittest
 
 import faebryk.library._F as F
-from faebryk.core.core import Parameter
+from faebryk.core.core import Module, Parameter
 from faebryk.libs.logging import setup_basic_logging
 from faebryk.libs.picker.jlcpcb import JLCPCB
 from faebryk.libs.picker.picker import DescriptiveProperties, has_part_picked
@@ -14,21 +14,17 @@ logger = logging.getLogger(__name__)
 
 
 class TestPickerJlcpcb(unittest.TestCase):
-    class TestResistorRequirements:
+    class TestRequirements:
         def __init__(
             self,
             test_case: unittest.TestCase,
-            r: F.Resistor,
-            resistance: Parameter,
-            rated_power: Parameter,
-            rated_voltage: Parameter,
+            module: Module,
+            requirements: dict[str, Parameter],
             footprint: list[tuple[str, int]],
         ):
             self.test_case = test_case
-            self.r = r
-            self.resistance = resistance
-            self.rated_power = rated_power
-            self.rated_voltage = rated_voltage
+            self.module = module
+            self.requirements = requirements
             self.footprint = footprint
 
             self.merge()
@@ -36,59 +32,57 @@ class TestPickerJlcpcb(unittest.TestCase):
             self.test()
 
         def merge(self):
-            self.r.PARAMs.resistance.merge(self.resistance)
-            self.r.PARAMs.rated_power.merge(self.rated_power)
-            self.r.PARAMs.rated_voltage.merge(self.rated_voltage)
-            self.r.add_trait(F.has_footprint_requirement_defined(self.footprint))
+            for p, req in self.requirements.items():
+                self.module.PARAMs.__dict__[p] = self.module.PARAMs.__getattribute__(
+                    p
+                ).merge(req)
+
+            self.module.add_trait(F.has_footprint_requirement_defined(self.footprint))
 
         def test(self):
             try:
-                JLCPCB(no_download_prompt=True).pick(self.r)
+                JLCPCB(no_download_prompt=True).pick(self.module)
             except Exception as e:
                 self.test_case.fail(f"Failed to pick part: {e}")
 
-            self.test_case.assertTrue(self.r.has_trait(has_part_picked))
+            self.test_case.assertTrue(self.module.has_trait(has_part_picked))
 
-            self.test_case.assertTrue(self.r.has_trait(F.has_descriptive_properties))
-
+            # check part number
+            self.test_case.assertTrue(
+                self.module.has_trait(F.has_descriptive_properties)
+            )
             self.test_case.assertIn(
                 DescriptiveProperties.partno,
-                self.r.get_trait(F.has_descriptive_properties).get_properties(),
+                self.module.get_trait(F.has_descriptive_properties).get_properties(),
             )
-
             self.test_case.assertNotEqual(
                 "",
-                self.r.get_trait(F.has_descriptive_properties).get_properties()[
+                self.module.get_trait(F.has_descriptive_properties).get_properties()[
                     DescriptiveProperties.partno
                 ],
             )
 
-            self.test_case.assertTrue(self.r.has_trait(F.has_footprint))
+            # check footprint
+            self.test_case.assertTrue(self.module.has_trait(F.has_footprint))
             self.test_case.assertTrue(
-                self.r.get_trait(F.has_footprint)
+                self.module.get_trait(F.has_footprint)
                 .get_footprint()
                 .has_trait(F.has_kicad_footprint)
             )
+            # check pin count
             self.test_case.assertTrue(
                 self.footprint[0][1]
                 == len(
-                    self.r.get_trait(F.has_footprint)
+                    self.module.get_trait(F.has_footprint)
                     .get_footprint()
                     .get_trait(F.has_kicad_footprint)
                     .get_pin_names()
                 )
             )
 
-            for p, req in zip(
-                [
-                    self.r.PARAMs.resistance,
-                    self.r.PARAMs.rated_power,
-                    self.r.PARAMs.rated_voltage,
-                ],
-                [self.resistance, self.rated_power, self.rated_voltage],
-            ):
+            for p, req in self.requirements.items():
                 req = req.get_most_narrow()
-                p = p.get_most_narrow()
+                p = self.module.PARAMs.__getattribute__(p).get_most_narrow()
                 if isinstance(req, F.Range):
                     self.test_case.assertTrue(req.contains(p))
                 elif isinstance(req, F.Constant):
@@ -97,85 +91,131 @@ class TestPickerJlcpcb(unittest.TestCase):
                     self.test_case.assertTrue(p in req.params)
 
     def test_find_resistor(self):
-        r1 = F.Resistor()
-        r2 = F.Resistor()
-
-        self.TestResistorRequirements(
+        self.TestRequirements(
             self,
-            r1,
-            F.Range.from_center(10e3, 1e3),
-            F.Range.lower_bound(0.05),
-            F.Range.lower_bound(25),
-            [("0402", 2)],
+            F.Resistor(),
+            requirements={
+                "resistance": F.Range.from_center(10e3, 1e3),
+                "rated_power": F.Range.lower_bound(0.05),
+                "rated_voltage": F.Range.lower_bound(25),
+            },
+            footprint=[("0402", 2)],
         )
 
-        self.TestResistorRequirements(
+        self.TestRequirements(
             self,
-            r2,
-            F.Range.from_center(69e3, 2e3),
-            F.Range.lower_bound(0.1),
-            F.Range.lower_bound(50),
-            [("0603", 2)],
+            F.Resistor(),
+            requirements={
+                "resistance": F.Range.from_center(69e3, 2e3),
+                "rated_power": F.Range.lower_bound(0.1),
+                "rated_voltage": F.Range.lower_bound(50),
+            },
+            footprint=[("0603", 2)],
         )
 
     def test_find_capacitor(self):
-        c1 = F.Capacitor()
-        c2 = F.Capacitor()
-
-        c1.PARAMs.capacitance.merge(F.Range.from_center(100e-9, 10e-9))
-        c1.PARAMs.rated_voltage.merge(F.Range.lower_bound(25))
-        c1.PARAMs.temperature_coefficient.merge(
-            F.Range.lower_bound(F.Capacitor.TemperatureCoefficient.X7R)
+        self.TestRequirements(
+            self,
+            F.Capacitor(),
+            requirements={
+                "capacitance": F.Range.from_center(100e-9, 10e-9),
+                "rated_voltage": F.Range.lower_bound(25),
+                "temperature_coefficient": F.Range.lower_bound(
+                    F.Capacitor.TemperatureCoefficient.X7R
+                ),
+            },
+            footprint=[("0603", 2)],
         )
 
-        c2.PARAMs.capacitance.merge(F.Range.from_center(47e-12, 4.7e-12))
-        c2.PARAMs.rated_voltage.merge(F.Range.lower_bound(50))
-        c2.PARAMs.temperature_coefficient.merge(
-            F.Range.lower_bound(F.Capacitor.TemperatureCoefficient.C0G)
+        self.TestRequirements(
+            self,
+            F.Capacitor(),
+            requirements={
+                "capacitance": F.Range.from_center(47e-12, 4.7e-12),
+                "rated_voltage": F.Range.lower_bound(50),
+                "temperature_coefficient": F.Range.lower_bound(
+                    F.Capacitor.TemperatureCoefficient.C0G
+                ),
+            },
+            footprint=[("0402", 2)],
         )
 
     def test_find_inductor(self):
-        l1 = F.Inductor()
-
-        l1.PARAMs.inductance.merge(F.Range.from_center(4.7e-9, 0.47e-9))
-        l1.PARAMs.rated_current.merge(F.Range.lower_bound(0.01))
-        l1.PARAMs.dc_resistance.merge(F.Range.upper_bound(1))
-        l1.PARAMs.self_resonant_frequency.merge(F.Range.lower_bound(100e6))
-        l1.PARAMs.self_resonant_frequency.merge(F.ANY())
+        self.TestRequirements(
+            self,
+            F.Inductor(),
+            requirements={
+                "inductance": F.Range.from_center(4.7e-9, 0.47e-9),
+                "rated_current": F.Range.lower_bound(0.01),
+                "dc_resistance": F.Range.upper_bound(1),
+                "self_resonant_frequency": F.Range.lower_bound(100e6),
+            },
+            footprint=[("0603", 2)],
+        )
 
     def test_find_mosfet(self):
-        q1 = F.MOSFET()
-
-        q1.PARAMs.channel_type.merge(F.MOSFET.ChannelType.N_CHANNEL)
-        q1.PARAMs.saturation_type.merge(F.MOSFET.SaturationType.ENHANCEMENT)
-        q1.PARAMs.gate_source_threshold_voltage.merge(F.Range(0.4, 3))
-        q1.PARAMs.max_drain_source_voltage.merge(F.Range.lower_bound(20))
-        q1.PARAMs.max_continuous_drain_current.merge(F.Range.lower_bound(2))
-        q1.PARAMs.on_resistance.merge(F.Range.upper_bound(0.1))
-        q1.add_trait(
-            F.has_footprint_requirement_defined(
-                [("SOT-23", 3), ("SOT23", 3), ("SOT-23-3", 3)]
-            )
+        self.TestRequirements(
+            self,
+            F.MOSFET(),
+            requirements={
+                "channel_type": F.Constant(F.MOSFET.ChannelType.N_CHANNEL),
+                "saturation_type": F.Constant(F.MOSFET.SaturationType.ENHANCEMENT),
+                "gate_source_threshold_voltage": F.Range(0.4, 3),
+                "max_drain_source_voltage": F.Range.lower_bound(20),
+                "max_continuous_drain_current": F.Range.lower_bound(2),
+                "on_resistance": F.Range.upper_bound(0.1),
+            },
+            footprint=[("SOT-23", 3)],
         )
 
     def test_find_diode(self):
-        d1 = F.Diode()
-
-        d1.add_trait(F.has_footprint_requirement_defined([("SOD-123", 2)]))
-        d1.PARAMs.forward_voltage.merge(F.Range.upper_bound(1.7))
-        d1.PARAMs.reverse_working_voltage.merge(F.Range.lower_bound(20))
-        d1.PARAMs.reverse_leakage_current.merge(F.Range.upper_bound(100e-6))
-        d1.PARAMs.max_current.merge(F.Range.lower_bound(1))
+        self.TestRequirements(
+            self,
+            F.Diode(),
+            requirements={
+                "forward_voltage": F.Range.upper_bound(1.7),
+                "reverse_working_voltage": F.Range.lower_bound(20),
+                "reverse_leakage_current": F.Range.upper_bound(100e-6),
+                "max_current": F.Range.lower_bound(1),
+            },
+            footprint=[("SOD-123", 2)],
+        )
 
     def test_find_tvs(self):
-        d2 = F.TVS()
+        self.TestRequirements(
+            self,
+            F.TVS(),
+            requirements={
+                "forward_voltage": F.ANY(),
+                "reverse_working_voltage": F.Range.lower_bound(5),
+                "reverse_leakage_current": F.ANY(),
+                "max_current": F.Range.lower_bound(10),
+                "reverse_breakdown_voltage": F.Range.upper_bound(8),
+            },
+            footprint=[("SMB(DO-214AA)", 2)],
+        )
 
-        d2.add_trait(F.has_footprint_requirement_defined([("SMB(DO-214AA)", 2)]))
-        d2.PARAMs.forward_voltage.merge(F.ANY())
-        d2.PARAMs.reverse_working_voltage.merge(F.Range.lower_bound(5))
-        d2.PARAMs.reverse_leakage_current.merge(F.ANY())
-        d2.PARAMs.max_current.merge(F.Range.lower_bound(10))
-        d2.PARAMs.reverse_breakdown_voltage.merge(F.Range.upper_bound(8))
+    def test_find_ldo(self):
+        self.TestRequirements(
+            self,
+            F.LDO(),
+            requirements={
+                "output_voltage": F.Range.from_center(3.3, 0.1),
+                "output_current": F.Range.lower_bound(0.1),
+                "max_input_voltage": F.Range.lower_bound(5),
+                "dropout_voltage": F.Range.upper_bound(1),
+                "output_polarity": F.Constant(F.LDO.OutputPolarity.POSITIVE),
+                "output_type": F.Constant(F.LDO.OutputType.FIXED),
+                "psrr": F.ANY(),
+                "number_of_outputs": F.Constant(1),
+            },
+            footprint=[
+                ("SOT-23", 3),
+                ("SOT23", 3),
+                ("SOT-23-3", 3),
+                ("SOT-23-3L", 3),
+            ],
+        )
 
 
 if __name__ == "__main__":

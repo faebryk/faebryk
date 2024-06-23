@@ -103,7 +103,7 @@ class JLCPCB_Part(LCSC_Part):
 
 
 class Category(Model):
-    id = IntField(pk=True)
+    id = IntField(primary_key=True)
     category = CharField(max_length=255)
     subcategory = CharField(max_length=255)
 
@@ -112,7 +112,7 @@ class Category(Model):
 
 
 class Manufacturers(Model):
-    id = IntField(pk=True)
+    id = IntField(primary_key=True)
     name = CharField(max_length=255)
 
     class Meta:
@@ -120,7 +120,7 @@ class Manufacturers(Model):
 
 
 class Component(Model):
-    lcsc = IntField(pk=True)
+    lcsc = IntField(primary_key=True)
     category_id = IntField()
     mfr = CharField(max_length=255)
     package = CharField(max_length=255)

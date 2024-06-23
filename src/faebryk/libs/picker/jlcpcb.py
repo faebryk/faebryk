@@ -56,15 +56,13 @@ MODEL_PATH: str | None = "${KIPRJMOD}/../libs/"
 
 
 class JLCPCB(Supplier):
-    def __init__(self) -> None:
+    def __init__(self, no_download_prompt: bool = False) -> None:
         super().__init__()
-        self.db = jlcpcb_db()
+        self.db = jlcpcb_db(no_download_prompt=no_download_prompt)
 
     def attach(self, module: Module, part: PickerOption):
         assert isinstance(part.part, JLCPCB_Part)
-        attach_footprint(component=module, partno=part.part.partno)
-        if part.info is not None:
-            F.has_defined_descriptive_properties.add_properties_to(module, part.info)
+        asyncio.run(self.db.find_by_lcsc_pn(part.part.partno))
 
     def pick(self, module: Module):
         if module.has_trait(has_part_picked):
@@ -142,10 +140,34 @@ class Component(Model):
 
 
 class jlcpcb_db:
-    def __init__(self, db_path: Path = Path("jlcpcb_part_database")) -> None:
+    def __init__(
+        self,
+        db_path: Path = Path("jlcpcb_part_database"),
+        no_download_prompt: bool = False,
+        force_db_update: bool = False,
+    ) -> None:
         self.results = []
         self.db_path = db_path
+        self.db_file = db_path / Path("cache.sqlite3")
         self.connected = False
+
+        if force_db_update:
+            self.download()
+        elif not self.has_db():
+            if no_download_prompt or self.prompt_db_update(
+                f"No JLCPCB database found at {self.db_file}, download now?"
+            ):
+                self.download()
+            else:
+                raise FileNotFoundError(f"No JLCPCB database found at {self.db_file}")
+        elif not self.is_db_up_to_date():
+            if no_download_prompt or self.prompt_db_update(
+                f"JLCPCB database at {self.db_file} is older than 7 days, update?"
+            ):
+                self.download()
+            else:
+                logger.warning("Continuing with outdated JLCPCB database")
+
         asyncio.run(self._init_db())
 
     def __del__(self):
@@ -153,7 +175,6 @@ class jlcpcb_db:
             asyncio.run(self._close_db())
 
     async def _init_db(self):
-        self.download()
 
         await Tortoise.init(
             db_url=f"sqlite://{self.db_path}/cache.sqlite3",
@@ -167,47 +188,49 @@ class jlcpcb_db:
         await Tortoise.close_connections()
         self.connected = False
 
+    def has_db(self) -> bool:
+        return self.db_path.is_dir() and self.db_file.is_file()
+
+    def is_db_up_to_date(
+        self, max_timediff: datetime.timedelta = datetime.timedelta(days=7)
+    ) -> bool:
+        if not self.has_db():
+            return False
+
+        return (
+            datetime.datetime.fromtimestamp(
+                self.db_file.stat().st_mtime, tz=datetime.timezone.utc
+            )
+            >= datetime.datetime.now(tz=datetime.timezone.utc) - max_timediff
+        )
+
+    def prompt_db_update(self, prompt: str = "Update JLCPCB database?") -> bool:
+        ans = input(prompt + " [Y/n]:").lower()
+        return ans == "y" or ans == ""
+
     def download(
         self,
-        prompt_update_timediff: datetime.timedelta = datetime.timedelta(days=7),
     ):
-        prompt_update = False
-        db_file = self.db_path / Path("cache.sqlite3")
         zip_file = self.db_path / Path("cache.zip")
 
         if not self.db_path.is_dir():
             os.makedirs(self.db_path)
 
-        if not db_file.is_file():
-            print(f"No JLCPCB database file in {self.db_path}.")
-            prompt_update = True
-        elif (
-            datetime.datetime.fromtimestamp(
-                db_file.stat().st_mtime, tz=datetime.timezone.utc
-            )
-            < datetime.datetime.now(tz=datetime.timezone.utc) - prompt_update_timediff
-        ):
-            print(f"JLCPCB database file in {self.db_path} is outdated.")
-            prompt_update = True
-
-        if prompt_update:
-            ans = input("Update JLCPCB database? [Y/n]:").lower()
-            if ans == "y" or ans == "":
+        wget.download(
+            "https://yaqwsx.github.io/jlcparts/data/cache.zip",
+            out=str(zip_file),
+        )
+        # TODO: use requrests and 7z from python? (py7zr) and auto calc number
+        # of files
+        for i in range(1, 50):
+            try:
                 wget.download(
-                    "https://yaqwsx.github.io/jlcparts/data/cache.zip",
-                    out=str(zip_file),
+                    f"https://yaqwsx.github.io/jlcparts/data/cache.z{i:02d}",
+                    out=str(self.db_path / Path(f"cache.z{i:02d}")),
                 )
-                # TODO: use requrests and 7z from python? (py7zr) and auto calc number
-                # of files
-                for i in range(1, 50):
-                    try:
-                        wget.download(
-                            f"https://yaqwsx.github.io/jlcparts/data/cache.z{i:02d}",
-                            out=str(self.db_path / Path(f"cache.z{i:02d}")),
-                        )
-                    except HTTPError:
-                        break
-                subprocess.run(["7z", "x", str(zip_file), f"-o{self.db_path}"])
+            except HTTPError:
+                break
+        subprocess.run(["7z", "x", str(zip_file), f"-o{self.db_path}"])
 
     @dataclass
     class parameter_to_db_map:

@@ -91,6 +91,10 @@ class JLCPCB(Supplier):
             asyncio.run(self.db.find_diode(module))
         elif isinstance(module, F.MOSFET):
             asyncio.run(self.db.find_mosfet(module))
+        elif isinstance(module, F.LDO):
+            logger.setLevel(logging.DEBUG)
+            asyncio.run(self.db.find_ldo(module))
+            logger.setLevel(logging.INFO)
         else:
             return
 
@@ -501,6 +505,75 @@ class jlcpcb_db:
 
         await self._filter_by_params_and_attach(cmp, mosfets, mapping, qty)
 
+    async def find_ldo(self, cmp: F.LDO, qty: int = 100):
+        """
+        Find a LDO part in the JLCPCB database that matches the parameters of the
+        provided LDO
+        """
+
+        ldos = await self._run_query(
+            cmp,
+            category="",
+            subcategory="LDO",
+            qty=qty,
+        )
+
+        def OutputType_str_to_param(x: str) -> F.Constant[F.LDO.OutputType]:
+            if x == "Fixed":
+                return F.Constant(F.LDO.OutputType.FIXED)
+            elif x == "Adjustable":
+                return F.Constant(F.LDO.OutputType.ADJUSTABLE)
+            else:
+                raise ValueError(f"Unknown LDO output type: {x}")
+
+        def OutputPolarity_str_to_param(x: str) -> F.Constant[F.LDO.OutputPolarity]:
+            if x == "Positive":
+                return F.Constant(F.LDO.OutputPolarity.POSITIVE)
+            elif x == "Negative":
+                return F.Constant(F.LDO.OutputPolarity.NEGATIVE)
+            else:
+                raise ValueError(f"Unknown LDO output polarity: {x}")
+
+        mapping = [
+            self.parameter_to_db_map(
+                "output_polarity",
+                ["Output Polarity"],
+                transform_fn=lambda x: OutputPolarity_str_to_param(x),
+            ),
+            self.parameter_to_db_map(
+                "max_input_voltage",
+                ["Maximum Input Voltage"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x)),
+            ),
+            self.parameter_to_db_map(
+                "output_type",
+                ["Output Type"],
+                transform_fn=lambda x: OutputType_str_to_param(x),
+            ),
+            self.parameter_to_db_map(
+                "output_current",
+                ["Output Current"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x)),
+            ),
+            self.parameter_to_db_map(
+                "dropout_voltage",
+                ["Dropout Voltage"],
+                transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
+            ),
+            self.parameter_to_db_map(
+                "output_voltage",
+                ["Output Voltage"],
+                transform_fn=lambda x: self._db_field_to_parameter(x),
+            ),
+            self.parameter_to_db_map(
+                "number_of_outputs",
+                ["Number of Outputs"],
+                transform_fn=lambda x: F.Constant(int(x)),
+            ),
+        ]
+
+        await self._filter_by_params_and_attach(cmp, ldos, mapping, qty)
+
     async def _attach_component_to_module(
         self,
         module: Module,
@@ -617,7 +690,7 @@ class jlcpcb_db:
         module: Module,
         category: str,
         subcategory: str,
-        si_values_from_param: Parameter = F.ANY(),
+        si_values_from_param: Parameter | None = None,
         si_unit="",
         values: list[str] = [],
         qty: int = 100,
@@ -635,7 +708,7 @@ class jlcpcb_db:
                 )
 
         value_query = Q()
-        if si_values_from_param != F.ANY():
+        if si_values_from_param:
             for r in e_series_intersect(
                 si_values_from_param.get_most_narrow(), E_SERIES_VALUES.E_ALL
             ).params:
@@ -683,23 +756,32 @@ class jlcpcb_db:
             )
         return [c["id"] for c in category_ids]
 
-    # TODO: finish this and use it
-    def _db_field_to_parameter(self, value: str, tolerance: str) -> Parameter:
+    # TODO: merge with _db_component_to_parameter
+    def _db_field_to_parameter(
+        self, value: str, tolerance: str | None = None
+    ) -> Parameter:
         if "~" in value:
             values = value.split("~")
             values = [si_str_to_float(v) for v in values]
             assert len(values) == 2
+            assert tolerance is None
             return F.Range(*values)
         elif " - " in value:
             values = value.split(" - ")
             values = [si_str_to_float(v) for v in values]
             assert len(values) == 2
+            assert tolerance is None
             return F.Range(*values)
         elif "±" in value:
-            return F.Range(
-                si_str_to_float(value.strip("±")),
-                si_str_to_float(tolerance.strip("±")),
-            )
+            values = value.split("±")
+            values = [si_str_to_float(v) for v in values]
+            assert tolerance is None
+            if len(values) == 2:
+                return F.Range.from_center(*values)
+            else:
+                raise NotImplementedError(f"Could not parse value: {value}")
+        elif tolerance is not None:
+            return self._db_component_to_parameter(value, tolerance)
         try:
             return F.Constant(si_str_to_float(value))
         except Exception as e:

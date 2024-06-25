@@ -127,7 +127,7 @@ def export_glb(pcb_file: Path, glb_file: Path) -> None:
                 "--include-tracks",
                 "--include-zones",
                 "--grid-origin",
-                # "--subst-models",
+                "--subst-models",
                 "--no-dnp",
                 "--output",
                 f"{glb_file.absolute()}",

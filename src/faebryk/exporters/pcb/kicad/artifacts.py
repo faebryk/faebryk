@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-import os
 import subprocess as sp
 import tempfile
 from pathlib import Path
@@ -29,17 +28,6 @@ def _check_kicad_cli() -> None:
         raise Exception("Failed to check kicad-cli version")
 
 
-def _check_parent_dir(file: Path, is_dir: bool = False) -> None:
-    """Check if parent directory exists, create it if it doesn't"""
-    if is_dir:
-        if not file.exists():
-            os.makedirs(file)
-            return
-    if not file.parent.exists():
-        os.makedirs(file.parent)
-        return
-
-
 def export_step(pcb_file: Path, step_file: Path) -> None:
     """
     3D PCBA STEP file export using the kicad-cli
@@ -48,8 +36,7 @@ def export_step(pcb_file: Path, step_file: Path) -> None:
     _check_kicad_cli()
 
     logger.info(f"Exporting step file to {step_file}")
-    _check_parent_dir(step_file)
-
+    step_file.parent.mkdir(parents=True, exist_ok=True)
     try:
         sp.check_output(
             [
@@ -78,7 +65,7 @@ def export_dxf(pcb_file: Path, dxf_file: Path) -> None:
     _check_kicad_cli()
 
     logger.info(f"Exporting dxf file to {dxf_file}")
-    _check_parent_dir(dxf_file)
+    dxf_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         try:
@@ -114,7 +101,7 @@ def export_glb(pcb_file: Path, glb_file: Path) -> None:
     _check_kicad_cli()
 
     logger.info(f"Exporting glb file to {glb_file}")
-    _check_parent_dir(glb_file)
+    glb_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         sp.check_output(
@@ -147,7 +134,7 @@ def export_svg(pcb_file: Path, svg_file: Path, flip_board: bool = False) -> None
     _check_kicad_cli()
 
     logger.info(f"Exporting svg file to {svg_file}")
-    _check_parent_dir(svg_file)
+    svg_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         sp.check_output(
@@ -157,7 +144,9 @@ def export_svg(pcb_file: Path, svg_file: Path, flip_board: bool = False) -> None
                 "export",
                 "svg",
                 "--layers",
-                f"{'\"F.Cu,F.Paste,F.SilkS,F.Mask,Edge.Cuts\"' if not flip_board else '\"B.Cu,B.Paste,B.SilkS,B.Mask,Edge.Cuts\"'}",
+                "F.Cu,F.Paste,F.SilkS,F.Mask,Edge.Cuts"
+                if not flip_board
+                else "B.Cu,B.Paste,B.SilkS,B.Mask,Edge.Cuts",
                 "--page-size-mode",
                 "2"  # Fit PSB to page
                 "--exclude-drawing-sheet",
@@ -180,7 +169,7 @@ def export_gerber(pcb_file: Path, gerber_zip_file: Path) -> None:
 
     logger.info(f"Exporting gerber files to {gerber_zip_file}")
     gerber_dir = gerber_zip_file.parent
-    _check_parent_dir(gerber_dir, is_dir=True)
+    gerber_dir.mkdir(parents=True, exist_ok=True)
 
     # Create a temporary folder to export the gerber and drill files to
     with tempfile.TemporaryDirectory(dir=gerber_dir) as temp_dir:
@@ -239,7 +228,7 @@ def export_pick_and_place(pcb_file: Path, pick_and_place_file: Path) -> None:
     _check_kicad_cli()
 
     logger.info(f"Exporting pick and place file to {pick_and_place_file}")
-    _check_parent_dir(pick_and_place_file)
+    pick_and_place_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         sp.check_output(

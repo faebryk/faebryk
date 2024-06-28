@@ -19,7 +19,7 @@ class has_pcb_position_defined_relative_to_parent(has_pcb_position.impl()):
         for parent, _ in reversed(self.get_obj().get_hierarchy()[:-1]):
             if parent.has_trait(has_pcb_position):
                 pos = parent.get_trait(has_pcb_position).get_position()
-                logger.info(
+                logger.debug(
                     f"Found parent position for: {self.get_obj().get_full_name()}:"
                     f"{pos} [{parent.get_full_name()}]"
                 )

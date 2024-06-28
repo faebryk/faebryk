@@ -119,6 +119,8 @@ from faebryk.library.has_kicad_manual_footprint import has_kicad_manual_footprin
 from faebryk.library.has_kicad_ref import has_kicad_ref
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
+from faebryk.library.has_pcb_layout import has_pcb_layout
+from faebryk.library.has_pcb_layout_defined import has_pcb_layout_defined
 from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.has_pcb_position_defined import has_pcb_position_defined
 from faebryk.library.has_pcb_position_defined_relative import has_pcb_position_defined_relative

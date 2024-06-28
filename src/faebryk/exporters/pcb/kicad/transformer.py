@@ -678,13 +678,23 @@ class PCB_Transformer:
             # print(f"Rotate {round(cx,2),round(cy,2)},
             # by {round(rot,2),parent[2]} to {rx,ry}")
 
-            for i in range(2, len(parent)):
-                if len(child) <= i:
-                    continue
-                if parent[i] != 0 and child[i] != 0:
-                    logger.warn(f"Adding non-zero values: {parent[i]=} + {child[i]=}")
+            # TODO not sure what this is supposed to do
+            # for i in range(2, len(parent)):
+            #    if len(child) <= i:
+            #        continue
+            #    if parent[i] != 0 and child[i] != 0:
+            #        logger.warn(f"Adding non-zero values: {parent[i]=} + {child[i]=}")
 
-            out = x + rx, y + ry, *(c1 + c2 for c1, c2 in zip(parent[2:], child[2:]))
+            # TODO check if this works everywhere
+            out = (
+                # XY
+                x + rx,
+                y + ry,
+                # ROT
+                *(c1 + c2 for c1, c2 in zip(parent[2:3], child[2:3])),
+                # Layer
+                *child[3:],
+            )
 
             return out
 

@@ -20,15 +20,14 @@ from faebryk.library.has_single_electric_reference import has_single_electric_re
 from faebryk.library.has_single_electric_reference_defined import (
     has_single_electric_reference_defined,
 )
-from faebryk.library.Logic import Logic
 from faebryk.library.Resistor import Resistor
+from faebryk.library.SignalElectrical import SignalElectrical
 
 
-class ElectricLogic(Logic):
+class ElectricLogic(SignalElectrical):
     class has_pulls(NodeTrait):
         @abstractmethod
-        def get_pulls(self) -> tuple[Resistor | None, Resistor | None]:
-            ...
+        def get_pulls(self) -> tuple[Resistor | None, Resistor | None]: ...
 
     class has_pulls_defined(has_pulls.impl()):
         def __init__(self, up: Resistor | None, down: Resistor | None) -> None:
@@ -41,8 +40,7 @@ class ElectricLogic(Logic):
 
     class can_be_pulled(NodeTrait):
         @abstractmethod
-        def pull(self, up: bool) -> Resistor:
-            ...
+        def pull(self, up: bool) -> Resistor: ...
 
     class can_be_pulled_defined(can_be_pulled.impl()):
         def __init__(self, signal: Electrical, ref: ElectricPower) -> None:
@@ -102,12 +100,6 @@ class ElectricLogic(Logic):
 
     def __init__(self) -> None:
         super().__init__()
-
-        class IFS(Logic.NODES()):
-            reference = ElectricPower()
-            signal = Electrical()
-
-        self.IFs = IFS(self)
 
         class _can_be_surge_protected_defined(can_be_surge_protected_defined):
             def protect(_self):

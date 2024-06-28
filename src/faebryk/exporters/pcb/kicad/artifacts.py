@@ -139,6 +139,38 @@ def export_glb(pcb_file: Path, glb_file: Path) -> None:
         raise Exception("Failed to export glb file")
 
 
+def export_svg(pcb_file: Path, svg_file: Path, flip_board: bool = False) -> None:
+    """
+    2D PCBA SVG file export using the kicad-cli
+    """
+
+    _check_kicad_cli()
+
+    logger.info(f"Exporting svg file to {svg_file}")
+    _check_parent_dir(svg_file)
+
+    try:
+        sp.check_output(
+            [
+                "kicad-cli",
+                "pcb",
+                "export",
+                "svg",
+                "--layers",
+                f"{'\"F.Cu,F.Paste,F.SilkS,F.Mask,Edge.Cuts\"' if not flip_board else '\"B.Cu,B.Paste,B.SilkS,B.Mask,Edge.Cuts\"'}",
+                "--page-size-mode",
+                "2"  # Fit PSB to page
+                "--exclude-drawing-sheet",
+                "--output",
+                f"{svg_file}",
+                f"{pcb_file}",
+            ],
+            shell=False,
+        )
+    except sp.CalledProcessError:
+        raise Exception("Failed to export svg file")
+
+
 def export_gerber(pcb_file: Path, gerber_zip_file: Path) -> None:
     """
     Gerber export using the kicad-cli
@@ -150,7 +182,7 @@ def export_gerber(pcb_file: Path, gerber_zip_file: Path) -> None:
     gerber_dir = gerber_zip_file.parent
     _check_parent_dir(gerber_dir, is_dir=True)
 
-    # Create a temporary folder to export the gerber files to
+    # Create a temporary folder to export the gerber and drill files to
     with tempfile.TemporaryDirectory(dir=gerber_dir) as temp_dir:
         try:
             sp.check_output(
@@ -169,6 +201,28 @@ def export_gerber(pcb_file: Path, gerber_zip_file: Path) -> None:
             )
         except sp.CalledProcessError:
             raise Exception("Failed to export gerber files")
+
+        try:
+            sp.check_output(
+                [
+                    "kicad-cli",
+                    "pcb",
+                    "export",
+                    "drill",
+                    "--format",
+                    "excellon",
+                    "--excellon-separate-th",
+                    "--generate-map",
+                    "--map-format",
+                    "gerberx2",
+                    "--output",
+                    f"{temp_dir}",
+                    f"{pcb_file}",
+                ],
+                shell=False,
+            )
+        except sp.CalledProcessError:
+            raise Exception("Failed to export drill files")
 
         # Zip the gerber files
         with ZipFile(gerber_zip_file, "w") as zipf:

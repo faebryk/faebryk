@@ -32,8 +32,11 @@ from faebryk.library.ElectricLogicGates import ElectricLogicGates
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.Electrical import Electrical
 from faebryk.library.Ethernet import Ethernet
+from faebryk.library.Filter import Filter
+from faebryk.library.FilterElectricalLC import FilterElectricalLC
 from faebryk.library.Fuse import Fuse
 from faebryk.library.I2C import I2C
+from faebryk.library.Inductor import Inductor
 from faebryk.library.JTAG import JTAG
 from faebryk.library.KicadFootprint import KicadFootprint
 from faebryk.library.LED import LED
@@ -67,6 +70,8 @@ from faebryk.library.SPI import SPI
 from faebryk.library.SWD import SWD
 from faebryk.library.Sercom import Sercom
 from faebryk.library.Set import Set
+from faebryk.library.Signal import Signal
+from faebryk.library.SignalElectrical import SignalElectrical
 from faebryk.library.Switch import Switch
 from faebryk.library.TBD import TBD
 from faebryk.library.TI_CD4011BE import TI_CD4011BE
@@ -94,6 +99,7 @@ from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.can_switch_power import can_switch_power
 from faebryk.library.can_switch_power_defined import can_switch_power_defined
 from faebryk.library.has_capacitance import has_capacitance
+from faebryk.library.has_construction_dependency import has_construction_dependency
 from faebryk.library.has_datasheet import has_datasheet
 from faebryk.library.has_datasheet_defined import has_datasheet_defined
 from faebryk.library.has_defined_capacitance import has_defined_capacitance
@@ -119,6 +125,7 @@ from faebryk.library.has_kicad_manual_footprint import has_kicad_manual_footprin
 from faebryk.library.has_kicad_ref import has_kicad_ref
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
+from faebryk.library.has_parameter_construction_dependency import has_parameter_construction_dependency
 from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.has_pcb_position_defined import has_pcb_position_defined
 from faebryk.library.has_resistance import has_resistance

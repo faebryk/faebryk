@@ -1,8 +1,7 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from faebryk.core.core import ModuleInterface
+from faebryk.library.Signal import Signal
 
 
-class Logic(ModuleInterface):
-    ...
+class Logic(Signal): ...

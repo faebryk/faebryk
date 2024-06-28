@@ -622,6 +622,31 @@ class PCB_Transformer:
         for pad, point in zip(pads, shape):
             self.insert_via(point, pad.net)
 
+    # Positioning ------------------------------------------------------------
+    def move_footprints(self):
+        # position modules with defined positions
+        pos_mods: set[Module] = {
+            gif.node
+            for gif in self.graph.G.nodes
+            if gif.node.has_trait(has_pcb_position)
+            and gif.node.has_trait(self.has_linked_kicad_footprint)
+        }
+        logger.info(f"Positioning {len(pos_mods)} footprints")
+
+        for module in pos_mods:
+            fp = module.get_trait(self.has_linked_kicad_footprint).get_fp()
+            coord = module.get_trait(has_pcb_position).get_position()
+            layer_name = {
+                has_pcb_position.layer_type.TOP_LAYER: "F.Cu",
+                has_pcb_position.layer_type.BOTTOM_LAYER: "B.Cu",
+            }
+
+            if coord[3] == has_pcb_position.layer_type.NONE:
+                raise Exception(f"Component {module}({fp.name}) has no layer defined")
+
+            logger.info(f"Placing {fp.name} at {coord} layer {layer_name[coord[3]]}")
+            self.move_fp(fp, coord[:3], layer_name[coord[3]])
+
     # Geometry ----------------------------------------------------------------
     class Geometry:
         Point2D = tuple[float, float]

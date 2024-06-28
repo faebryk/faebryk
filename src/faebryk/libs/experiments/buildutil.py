@@ -2,21 +2,27 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+import shutil
 from pathlib import Path
 
 import faebryk.libs.picker.lcsc as lcsc
 from faebryk.core.core import Module
 from faebryk.core.graph import Graph
+from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.exporters.visualize.graph import render_sidebyside
 from faebryk.libs.app.erc import simple_erc
 from faebryk.libs.app.kicad_netlist import write_netlist
 from faebryk.libs.app.parameters import replace_tbd_with_any
 from faebryk.libs.experiments.pickers import pick_parts_for_examples
+from faebryk.libs.kicad.pcb import PCB
 from faebryk.libs.picker.picker import pick_part_recursively
 
 BUILD_DIR = Path("./build")
 GRAPH_OUT = BUILD_DIR / Path("faebryk/graph.png")
 NETLIST_OUT = BUILD_DIR / Path("faebryk/faebryk.net")
+KICAD_SRC = BUILD_DIR / Path("kicad/source")
+PCB_FILE = KICAD_SRC / Path("example.kicad_pcb")
+PROJECT_FILE = KICAD_SRC / Path("example.kicad_pro")
 
 lcsc.BUILD_FOLDER = BUILD_DIR
 lcsc.LIB_FOLDER = BUILD_DIR / Path("kicad/libs")
@@ -25,7 +31,7 @@ lcsc.MODEL_PATH = None
 logger = logging.getLogger(__name__)
 
 
-def tag_and_export_module_to_netlist(m: Module):
+def tag_and_export_module_to_netlist(m: Module, pcb_transform: bool = False):
     """
     Picks parts for the module.
     Runs a simple ERC.
@@ -45,7 +51,16 @@ def tag_and_export_module_to_netlist(m: Module):
     pick_part_recursively(m, pick_parts_for_examples)
     G = m.get_graph()
     simple_erc(G)
-    return tag_and_export_graph_to_netlist(G)
+    changed = tag_and_export_graph_to_netlist(G)
+
+    if not changed:
+        logger.info("Netlist did not change")
+        return changed
+
+    if not pcb_transform:
+        return changed
+
+    export_pcb(m, G)
 
 
 def tag_and_export_graph_to_netlist(G: Graph):
@@ -73,3 +88,33 @@ def export_graph(g, show):
 
     if show:
         plt.show()
+
+
+def export_pcb(app: Module, G: Graph):
+    example_prj = Path(__file__).parent / Path("resources/example")
+
+    if not PCB_FILE.exists():
+        shutil.copytree(
+            example_prj,
+            KICAD_SRC,
+        )
+
+    if PCB_FILE.read_text() == (example_prj / Path("example.kicad_pcb")).read_text():
+        print(
+            "Open the PCB in kicad and import the netlist."
+            "Then save the pcb and press ENTER"
+            f"PCB location: {PCB_FILE}"
+        )
+        input()
+
+    logger.info("Load PCB")
+    pcb = PCB.load(PCB_FILE)
+
+    transformer = PCB_Transformer(pcb, G, app)  # noqa: F841
+
+    logger.info("Transform PCB")
+    # set layout
+    #
+
+    logger.info(f"Writing pcbfile {PCB_FILE}")
+    pcb.dump(PCB_FILE)

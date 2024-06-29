@@ -644,7 +644,7 @@ class PCB_Transformer:
             if coord[3] == has_pcb_position.layer_type.NONE:
                 raise Exception(f"Component {module}({fp.name}) has no layer defined")
 
-            logger.info(f"Placing {fp.name} at {coord} layer {layer_name[coord[3]]}")
+            logger.debug(f"Placing {fp.name} at {coord} layer {layer_name[coord[3]]}")
             self.move_fp(fp, coord[:3], layer_name[coord[3]])
 
     # Geometry ----------------------------------------------------------------

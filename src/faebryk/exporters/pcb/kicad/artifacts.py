@@ -20,7 +20,7 @@ def _check_kicad_cli() -> None:
     # check if kicad-cli is version 8+
     try:
         version = sp.check_output("kicad-cli --version", shell=True).decode("utf-8")
-        if not int(version.split()[0]) >= 8:
+        if not int(version.split(".")[0]) >= 8:
             raise Exception(
                 f"kicad-cli is not version 8.x.x or higher but version {version}"
             )
@@ -205,7 +205,7 @@ def export_gerber(pcb_file: Path, gerber_zip_file: Path) -> None:
                     "--map-format",
                     "gerberx2",
                     "--output",
-                    f"{temp_dir}",
+                    f"{temp_dir}/",  # trailing slash is KiCad bug
                     f"{pcb_file}",
                 ],
                 shell=False,

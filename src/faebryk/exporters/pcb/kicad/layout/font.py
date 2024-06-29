@@ -6,13 +6,9 @@ from math import inf
 from pathlib import Path
 
 import numpy as np
-from faebryk.core.core import Module, Node
-from faebryk.core.util import get_all_nodes
+from faebryk.core.core import Node
 from faebryk.exporters.pcb.kicad.layout.layout import Layout
-from faebryk.exporters.pcb.kicad.layout.simple import SimpleLayout
-from faebryk.library.has_pcb_layout_defined import has_pcb_layout_defined
 from faebryk.library.has_pcb_position import has_pcb_position
-from faebryk.library.has_pcb_position_defined import has_pcb_position_defined
 from faebryk.library.has_pcb_position_defined_relative_to_parent import (
     has_pcb_position_defined_relative_to_parent,
 )
@@ -29,8 +25,9 @@ class FontLayout(Layout):
         self,
         ttf: Path,
         text: str,
-        char_dimensions: tuple[float, float],
         resolution: tuple[float, float],
+        bbox: tuple[float, float] | None = None,
+        char_dimensions: tuple[float, float] | None = None,
         kerning: float = 1,
     ) -> None:
         """
@@ -46,15 +43,22 @@ class FontLayout(Layout):
         """
         super().__init__()
 
+        assert bbox or char_dimensions, "Either bbox or char_dimensions must be given"
+        # TODO
+        # if not char_dimensions:
+        #    char_dimensions = bbox[0] / len(text), bbox[1]
+        if not char_dimensions:
+            raise NotImplementedError()
+
         self.poly_glyphs = []
         for letter in text:
             self.poly_glyphs.append(self._ttf_letter_to_polygons(ttf, letter))
 
         for i, polys in enumerate(self.poly_glyphs):
-            logger.info(f"Found {len(polys)} polygons for letter {text[i]}")
+            logger.debug(f"Found {len(polys)} polygons for letter {text[i]}")
             for p in polys:
-                logger.info(f"Polygon with {len(p.exterior.coords)} vertices")
-                logger.info(f"Coords: {list(p.exterior.coords)}")
+                logger.debug(f"Polygon with {len(p.exterior.coords)} vertices")
+                logger.debug(f"Coords: {list(p.exterior.coords)}")
 
         # normalize
         font = TTFont(ttf)
@@ -68,11 +72,11 @@ class FontLayout(Layout):
 
         self.coords = []
         for i, polys in enumerate(self.poly_glyphs):
-            logger.info(f"Processing letter {text[i]}")
-            logger.info(f"Found {len(polys)} polygons for letter {text[i]}")
+            logger.debug(f"Processing letter {text[i]}")
+            logger.debug(f"Found {len(polys)} polygons for letter {text[i]}")
             for p in polys:
-                logger.info(f"Polygon with {len(p.exterior.coords)} vertices")
-                logger.info(f"Coords: {list(p.exterior.coords)}")
+                logger.debug(f"Polygon with {len(p.exterior.coords)} vertices")
+                logger.debug(f"Coords: {list(p.exterior.coords)}")
             glyph_nodes = self._fill_poly_with_nodes_on_grid(
                 polys=polys,
                 grid_pitch=resolution,
@@ -88,7 +92,7 @@ class FontLayout(Layout):
                         node[1],
                     )
                 )
-            logger.info(f"Found {len(glyph_nodes)} nodes for letter {text[i]}")
+            logger.debug(f"Found {len(glyph_nodes)} nodes for letter {text[i]}")
 
     def get_count(self) -> int:
         """
@@ -96,32 +100,23 @@ class FontLayout(Layout):
         """
         return len(self.coords)
 
-    def apply(self, node: Node) -> None:
+    def apply(self, *nodes_to_distribute: Node) -> None:
         """
         Apply the PCB positions to all nodes that are inside the font
         """
-        nodes_to_distribute = get_all_nodes(node)
-
-        layouts = []
-
-        # Layout
-        Point = has_pcb_position.Point
-        L = has_pcb_position.layer_type
-
-        for i, coord in enumerate(self.coords):
-            n = nodes_to_distribute[i]
-            n.add_trait(has_pcb_position_defined_relative_to_parent(coord))
-            assert isinstance(n, Module)
-            layouts.append(
-                SimpleLayout.SubLayout(
-                    mod_type=type(n),
-                    position=Point((coord[0], coord[1], 0, L.TOP_LAYER)),
-                )
+        if len(nodes_to_distribute) != len(self.coords):
+            logger.warning(
+                f"Number of nodes to distribute ({len(nodes_to_distribute)})"
+                " does not match"
+                f" the number of coordinates ({len(self.coords)})"
             )
 
-        layout = SimpleLayout(layouts)
-        node.add_trait(has_pcb_layout_defined(layout))
-        node.add_trait(has_pcb_position_defined(Point((100, 100, 0, L.TOP_LAYER))))
+        for coord, node in zip(self.coords, nodes_to_distribute):
+            node.add_trait(
+                has_pcb_position_defined_relative_to_parent(
+                    (coord[0], -coord[1], 0, has_pcb_position.layer_type.NONE)
+                )
+            )
 
     def _get_max_glyph_dimensions(
         self, font, text: str | None = None

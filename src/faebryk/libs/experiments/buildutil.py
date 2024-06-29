@@ -55,19 +55,17 @@ def tag_and_export_module_to_netlist(m: Module, pcb_transform: bool = False):
     pick_part_recursively(m, pick_parts_for_examples)
     G = m.get_graph()
     simple_erc(G)
-    changed = tag_and_export_graph_to_netlist(G)
-
-    if not changed:
-        logger.info("Netlist did not change")
-        return changed
+    tag_and_export_graph_to_netlist(G)
 
     if not pcb_transform:
-        return changed
+        return
 
     export_pcb(m, G)
+    return
 
 
 def tag_and_export_graph_to_netlist(G: Graph):
+    NETLIST_OUT.unlink(missing_ok=True)
     return write_netlist(G, NETLIST_OUT, use_kicad_designators=True)
 
 
@@ -97,19 +95,16 @@ def export_graph(g, show):
 def export_pcb(app: Module, G: Graph):
     example_prj = Path(__file__).parent / Path("resources/example")
 
-    if not PCB_FILE.exists():
-        shutil.copytree(
-            example_prj,
-            KICAD_SRC,
-        )
+    PCB_FILE.unlink(missing_ok=True)
 
-    if PCB_FILE.read_text() == (example_prj / Path("example.kicad_pcb")).read_text():
-        print(
-            "Open the PCB in kicad and import the netlist."
-            "Then save the pcb and press ENTER"
-            f"PCB location: {PCB_FILE}"
-        )
-        input()
+    shutil.copytree(example_prj, KICAD_SRC, dirs_exist_ok=True)
+
+    print(
+        "Open the PCB in kicad and import the netlist.\n"
+        "Then save the pcb and press ENTER.\n"
+        f"PCB location: {PCB_FILE}"
+    )
+    input()
 
     logger.info("Load PCB")
     pcb = PCB.load(PCB_FILE)
@@ -132,3 +127,5 @@ def export_pcb(app: Module, G: Graph):
 
     logger.info(f"Writing pcbfile {PCB_FILE}")
     pcb.dump(PCB_FILE)
+
+    print("Reopen PCB in kicad")

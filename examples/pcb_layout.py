@@ -12,11 +12,10 @@ import faebryk.library._F as F
 import typer
 from faebryk.core.core import Module
 from faebryk.exporters.pcb.kicad.layout.font import FontLayout
-from faebryk.exporters.pcb.kicad.layout.simple import SimpleLayout
+from faebryk.exporters.pcb.kicad.layout.typehierarchy import LayoutTypeHierarchy
 from faebryk.library.has_pcb_layout_defined import has_pcb_layout_defined
 from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.has_pcb_position_defined import has_pcb_position_defined
-from faebryk.libs.brightness import TypicalLuminousIntensity
 from faebryk.libs.experiments.buildutil import (
     tag_and_export_module_to_netlist,
 )
@@ -27,8 +26,18 @@ logger = logging.getLogger(__name__)
 
 
 class LEDText(Module):
-    def __init__(self, num_leds: int) -> None:
+    def __init__(self) -> None:
         super().__init__()
+
+        led_layout = FontLayout(
+            ttf=Path("/tmp/Minecraftia-Regular.ttf"),
+            text="FAEBRYK",
+            char_dimensions=(10, 14),
+            resolution=(4.5, 1.1 * 2),
+            kerning=5,
+        )
+
+        num_leds = led_layout.get_count()
 
         class _IFs(Module.IFS()):
             power = F.ElectricPower()
@@ -47,50 +56,63 @@ class LEDText(Module):
             led.IFs.power.connect(self.IFs.power)
             # Parametrize
             led.NODEs.led.PARAMs.color.merge(F.LED.Color.YELLOW)
-            #led.NODEs.led.PARAMs.brightness.merge(
-            #    TypicalLuminousIntensity.APPLICATION_LED_INDICATOR_INSIDE.value.value
-            #)
+
+        # Resistor relative to LED layout
+        for led in self.NODEs.leds:
+            led.add_trait(
+                has_pcb_layout_defined(
+                    LayoutTypeHierarchy(
+                        layouts=[
+                            LayoutTypeHierarchy.Level(
+                                mod_type=F.LED,
+                                position=has_pcb_position.Point(
+                                    (0, 0, 0, has_pcb_position.layer_type.TOP_LAYER)
+                                ),
+                            ),
+                            LayoutTypeHierarchy.Level(
+                                mod_type=F.Resistor,
+                                position=has_pcb_position.Point(
+                                    (2, 0, 0, has_pcb_position.layer_type.TOP_LAYER)
+                                ),
+                            ),
+                        ]
+                    )
+                )
+            )
+
+        led_layout.apply(*self.NODEs.leds)
 
 
 class App(Module):
     def __init__(self) -> None:
         super().__init__()
 
-        led_layout = FontLayout(
-            ttf=Path("Minecraftia-Regular.ttf"),
-            text="F",
-            char_dimensions=(5, 7),
-            resolution=(1, 1),
-        )
-
         class _NODES(Module.NODES()):
-            leds = LEDText(led_layout.get_count())
+            leds = LEDText()
             battery = F.Battery()
 
         self.NODEs = _NODES(self)
 
         self.NODEs.leds.IFs.power.connect(self.NODEs.battery.IFs.power)
 
-        led_layout.apply(self.NODEs.leds)
-
         # Layout
         Point = has_pcb_position.Point
         L = has_pcb_position.layer_type
 
-        layout = SimpleLayout(
+        layout = LayoutTypeHierarchy(
             layouts=[
-                SimpleLayout.SubLayout(
+                LayoutTypeHierarchy.Level(
                     mod_type=LEDText,
                     position=Point((0, 0, 0, L.TOP_LAYER)),
                 ),
-                SimpleLayout.SubLayout(
+                LayoutTypeHierarchy.Level(
                     mod_type=F.Battery,
-                    position=Point((0, 30, 180, L.TOP_LAYER)),
+                    position=Point((0, 20, 0, L.BOTTOM_LAYER)),
                 ),
             ]
         )
         self.add_trait(has_pcb_layout_defined(layout))
-        self.add_trait(has_pcb_position_defined(Point((100, 100, 0, L.TOP_LAYER))))
+        self.add_trait(has_pcb_position_defined(Point((0, 0, 0, L.TOP_LAYER))))
 
 
 def main():

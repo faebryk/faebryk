@@ -4,7 +4,15 @@
 import logging
 import math
 from enum import Enum
-from typing import Callable, Iterable, Sequence, SupportsFloat, Tuple, TypeVar, cast
+from typing import (
+    Callable,
+    Iterable,
+    Sequence,
+    SupportsFloat,
+    Tuple,
+    TypeVar,
+    cast,
+)
 
 import networkx as nx
 from faebryk.core.core import (
@@ -296,10 +304,46 @@ def zip_moduleinterfaces(
             yield src_i, dst_i
 
 
+def get_node_tree(
+    node: Node,
+    include_mifs: bool = True,
+    include_root: bool = True,
+) -> dict[Node, dict[Node, dict]]:
+    out: list[Node] = list(node.NODEs.get_all())
+
+    if include_mifs and isinstance(node, (Module, ModuleInterface)):
+        mifs = node.IFs.get_all()
+        out.extend(mifs)
+
+    tree = {n: get_node_tree(n, include_root=False) for n in out}
+
+    if include_root:
+        return {node: tree}
+    return tree
+
+
+def iter_tree_by_depth(tree: dict[Node, dict]):
+    yield list(tree.keys())
+
+    # zip iterators, but if one iterators stops producing, the rest continue
+    def zip_exhaust(*args):
+        while True:
+            out = [next(a, None) for a in args]
+            out = [a for a in out if a]
+            if not out:
+                return
+
+            yield out
+
+    for level in zip_exhaust(*[iter_tree_by_depth(v) for v in tree.values()]):
+        # merge lists of parallel subtrees
+        yield [n for subtree in level for n in subtree]
+
+
 def get_mif_tree(
     obj: ModuleInterface | Module,
 ) -> dict[ModuleInterface, dict[ModuleInterface, dict]]:
-    mifs = obj.IFs.get_all() if isinstance(obj, Module) else obj.IFs.get_all()
+    mifs = obj.IFs.get_all()
     assert all(isinstance(i, ModuleInterface) for i in mifs)
     mifs = cast(list[ModuleInterface], mifs)
 

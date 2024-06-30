@@ -72,11 +72,14 @@ class FontLayout(Layout):
 
         self.coords = []
         for i, polys in enumerate(self.poly_glyphs):
-            logger.debug(f"Processing letter {text[i]}")
-            logger.debug(f"Found {len(polys)} polygons for letter {text[i]}")
-            for p in polys:
-                logger.debug(f"Polygon with {len(p.exterior.coords)} vertices")
-                logger.debug(f"Coords: {list(p.exterior.coords)}")
+            # Debugging
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"Processing letter {text[i]}")
+                logger.debug(f"Found {len(polys)} polygons for letter {text[i]}")
+                for p in polys:
+                    logger.debug(f"Polygon with {len(p.exterior.coords)} vertices")
+                    logger.debug(f"Coords: {list(p.exterior.coords)}")
+
             glyph_nodes = fill_poly_with_nodes_on_grid(
                 polys=polys,
                 grid_pitch=resolution,

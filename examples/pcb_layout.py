@@ -11,14 +11,15 @@ from pathlib import Path
 import faebryk.library._F as F
 import typer
 from faebryk.core.core import Module
-from faebryk.exporters.pcb.kicad.layout.font import FontLayout
-from faebryk.exporters.pcb.kicad.layout.typehierarchy import LayoutTypeHierarchy
+from faebryk.exporters.pcb.layout.font import FontLayout
+from faebryk.exporters.pcb.layout.typehierarchy import LayoutTypeHierarchy
 from faebryk.library.has_pcb_layout_defined import has_pcb_layout_defined
 from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.has_pcb_position_defined import has_pcb_position_defined
 from faebryk.libs.experiments.buildutil import (
     tag_and_export_module_to_netlist,
 )
+from faebryk.libs.font import Font
 from faebryk.libs.logging import setup_basic_logging
 from faebryk.libs.util import times
 
@@ -30,7 +31,7 @@ class LEDText(Module):
         super().__init__()
 
         led_layout = FontLayout(
-            ttf=Path("/tmp/Minecraftia-Regular.ttf"),
+            font=Font(Path("/tmp/Minecraftia-Regular.ttf")),
             text="FAEBRYK",
             char_dimensions=(10, 14),
             resolution=(4.5, 1.1 * 2),
@@ -53,7 +54,7 @@ class LEDText(Module):
         self.NODEs = _NODES(self)
 
         for led in self.NODEs.leds:
-            led.IFs.power.connect(self.IFs.power)
+            # led.IFs.power.connect(self.IFs.power)
             # Parametrize
             led.NODEs.led.PARAMs.color.merge(F.LED.Color.YELLOW)
 

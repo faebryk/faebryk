@@ -9,7 +9,7 @@ from faebryk.core.core import (
     Node,
 )
 from faebryk.core.util import get_node_tree
-from faebryk.exporters.pcb.kicad.layout.layout import Layout
+from faebryk.exporters.pcb.layout.layout import Layout
 from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.has_pcb_position_defined_relative_to_parent import (
     has_pcb_position_defined_relative_to_parent,

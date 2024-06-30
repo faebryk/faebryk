@@ -11,6 +11,7 @@ from pathlib import Path
 import faebryk.library._F as F
 import typer
 from faebryk.core.core import Module
+from faebryk.exporters.pcb.layout.absolute import LayoutAbsolute
 from faebryk.exporters.pcb.layout.font import FontLayout
 from faebryk.exporters.pcb.layout.typehierarchy import LayoutTypeHierarchy
 from faebryk.library.has_pcb_layout_defined import has_pcb_layout_defined
@@ -54,7 +55,7 @@ class LEDText(Module):
         self.NODEs = _NODES(self)
 
         for led in self.NODEs.leds:
-            # led.IFs.power.connect(self.IFs.power)
+            led.IFs.power.connect(self.IFs.power)
             # Parametrize
             led.NODEs.led.PARAMs.color.merge(F.LED.Color.YELLOW)
 
@@ -66,14 +67,18 @@ class LEDText(Module):
                         layouts=[
                             LayoutTypeHierarchy.Level(
                                 mod_type=F.LED,
-                                position=has_pcb_position.Point(
-                                    (0, 0, 0, has_pcb_position.layer_type.TOP_LAYER)
+                                layout=LayoutAbsolute(
+                                    has_pcb_position.Point(
+                                        (0, 0, 0, has_pcb_position.layer_type.TOP_LAYER)
+                                    )
                                 ),
                             ),
                             LayoutTypeHierarchy.Level(
                                 mod_type=F.Resistor,
-                                position=has_pcb_position.Point(
-                                    (2, 0, 0, has_pcb_position.layer_type.TOP_LAYER)
+                                layout=LayoutAbsolute(
+                                    has_pcb_position.Point(
+                                        (2, 0, 0, has_pcb_position.layer_type.TOP_LAYER)
+                                    )
                                 ),
                             ),
                         ]
@@ -104,11 +109,11 @@ class App(Module):
             layouts=[
                 LayoutTypeHierarchy.Level(
                     mod_type=LEDText,
-                    position=Point((0, 0, 0, L.TOP_LAYER)),
+                    layout=LayoutAbsolute(Point((0, 0, 0, L.TOP_LAYER))),
                 ),
                 LayoutTypeHierarchy.Level(
                     mod_type=F.Battery,
-                    position=Point((0, 20, 0, L.BOTTOM_LAYER)),
+                    layout=LayoutAbsolute(Point((0, 20, 0, L.BOTTOM_LAYER))),
                 ),
             ]
         )

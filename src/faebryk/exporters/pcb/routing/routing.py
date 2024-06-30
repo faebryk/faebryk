@@ -20,6 +20,7 @@ from faebryk.exporters.pcb.routing.grid import (
 )
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.Net import Net
+from faebryk.libs.geometry.basic import Geometry
 from faebryk.libs.kicad.pcb import Footprint, GR_Circle, GR_Line, GR_Rect, Pad
 
 # logging settings
@@ -52,7 +53,7 @@ class PCB_Router:
 
             self.pos = [
                 Coord(
-                    *router.transformer.Geometry.abs_pos(fp.at.coord, pad.at.coord),
+                    *Geometry.abs_pos(fp.at.coord, pad.at.coord),
                     router.copper_layers[layer],
                 )
                 for layer in self.layers

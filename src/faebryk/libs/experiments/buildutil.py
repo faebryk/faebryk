@@ -8,15 +8,12 @@ from pathlib import Path
 import faebryk.libs.picker.lcsc as lcsc
 from faebryk.core.core import Module
 from faebryk.core.graph import Graph
-from faebryk.core.util import get_all_modules
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.exporters.visualize.graph import render_sidebyside
-from faebryk.library.has_pcb_layout import has_pcb_layout
-from faebryk.library.has_pcb_position import has_pcb_position
-from faebryk.library.has_pcb_position_defined import has_pcb_position_defined
 from faebryk.libs.app.erc import simple_erc
 from faebryk.libs.app.kicad_netlist import write_netlist
 from faebryk.libs.app.parameters import replace_tbd_with_any
+from faebryk.libs.app.pcb import apply_layouts
 from faebryk.libs.experiments.pickers import pick_parts_for_examples
 from faebryk.libs.kicad.pcb import PCB
 from faebryk.libs.picker.picker import pick_part_recursively
@@ -114,15 +111,7 @@ def export_pcb(app: Module, G: Graph):
     logger.info("Transform PCB")
 
     # set layout
-    if not app.has_trait(has_pcb_position):
-        app.add_trait(
-            has_pcb_position_defined(
-                has_pcb_position.Point((0, 0, 0, has_pcb_position.layer_type.TOP_LAYER))
-            )
-        )
-    for n in get_all_modules(app) | {app}:
-        if n.has_trait(has_pcb_layout):
-            n.get_trait(has_pcb_layout).apply()
+    apply_layouts(app)
     transformer.move_footprints()
 
     logger.info(f"Writing pcbfile {PCB_FILE}")

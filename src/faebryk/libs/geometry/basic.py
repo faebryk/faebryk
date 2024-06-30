@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-import math
 from math import inf
 from operator import add
 from typing import TypeVar
@@ -91,35 +90,38 @@ class Geometry:
 
     @staticmethod
     def abs_pos(parent: Point, child: Point) -> Point:
-        rot_deg = parent[2] + child[2]
+        # Extend to x,y,rotation,layer
+        parent = parent + (0,) * (4 - len(parent))
+        child = child + (0,) * (4 - len(child))
 
-        rot = rot_deg / 360 * 2 * math.pi
+        rot_parent = parent[2]
+        rot_child = child[2]
+        total_rot_deg = rot_parent + rot_child
 
-        x, y = parent[:2]
-        cx, cy = child[:2]
+        # Rotate child vector around parent and add
+        parent_absolute_xy = parent[:2]
+        child_relative_xy = child[:2]
+        x, y = parent_absolute_xy
+        cx_rotated, cy_rotated = Geometry.rotate(
+            (0, 0), [child_relative_xy], rot_parent
+        )[0]
+        abs_x = x + cx_rotated
+        abs_y = y + cy_rotated
 
-        rx = round(cx * math.cos(rot) + cy * math.sin(rot), 2)
-        ry = round(-cx * math.sin(rot) + cy * math.cos(rot), 2)
+        # Layer
+        parent_layer = parent[3]
+        child_layer = child[3]
+        if parent_layer != 0 and child_layer != 0:
+            raise Exception(
+                f"Adding two non-zero layers: {parent_layer=} + {child_layer=}"
+            )
+        layer = parent_layer + child_layer
 
-        # print(f"Rotate {round(cx,2),round(cy,2)},
-        # by {round(rot,2),parent[2]} to {rx,ry}")
-
-        # TODO not sure what this is supposed to do
-        # for i in range(2, len(parent)):
-        #    if len(child) <= i:
-        #        continue
-        #    if parent[i] != 0 and child[i] != 0:
-        #        logger.warn(f"Adding non-zero values: {parent[i]=} + {child[i]=}")
-
-        # TODO check if this works everywhere
         out = (
-            # XY
-            x + rx,
-            y + ry,
-            # ROT
-            *(c1 + c2 for c1, c2 in zip(parent[2:3], child[2:3])),
-            # Layer
-            child[3],
+            abs_x,
+            abs_y,
+            total_rot_deg,
+            layer,
         )
 
         return out

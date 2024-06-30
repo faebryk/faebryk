@@ -69,7 +69,7 @@ class LEDText(Module):
                                 mod_type=F.LED,
                                 layout=LayoutAbsolute(
                                     has_pcb_position.Point(
-                                        (0, 0, 0, has_pcb_position.layer_type.TOP_LAYER)
+                                        (0, 0, 0, has_pcb_position.layer_type.NONE)
                                     )
                                 ),
                             ),
@@ -77,7 +77,7 @@ class LEDText(Module):
                                 mod_type=F.Resistor,
                                 layout=LayoutAbsolute(
                                     has_pcb_position.Point(
-                                        (2, 0, 0, has_pcb_position.layer_type.TOP_LAYER)
+                                        (2, 0, 0, has_pcb_position.layer_type.NONE)
                                     )
                                 ),
                             ),
@@ -118,7 +118,7 @@ class App(Module):
             ]
         )
         self.add_trait(has_pcb_layout_defined(layout))
-        self.add_trait(has_pcb_position_defined(Point((0, 0, 0, L.TOP_LAYER))))
+        self.add_trait(has_pcb_position_defined(Point((0, 0, 0, L.NONE))))
 
 
 def main():

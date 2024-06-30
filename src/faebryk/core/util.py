@@ -304,18 +304,26 @@ def zip_moduleinterfaces(
             yield src_i, dst_i
 
 
-def get_node_tree(
-    node: Node,
-    include_mifs: bool = True,
-    include_root: bool = True,
-) -> dict[Node, dict[Node, dict]]:
+def get_node_direct_children(node: Node, include_mifs: bool = True):
     out: list[Node] = list(node.NODEs.get_all())
 
     if include_mifs and isinstance(node, (Module, ModuleInterface)):
         mifs = node.IFs.get_all()
         out.extend(mifs)
 
-    tree = {n: get_node_tree(n, include_root=False) for n in out}
+    return out
+
+
+def get_node_tree(
+    node: Node,
+    include_mifs: bool = True,
+    include_root: bool = True,
+) -> dict[Node, dict[Node, dict]]:
+    out = get_node_direct_children(node, include_mifs=include_mifs)
+
+    tree = {
+        n: get_node_tree(n, include_mifs=include_mifs, include_root=False) for n in out
+    }
 
     if include_root:
         return {node: tree}

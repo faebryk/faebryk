@@ -126,3 +126,6 @@ class FontLayout(Layout):
                     )
                 )
             )
+
+    def __hash__(self) -> int:
+        return hash(id(self))

@@ -8,21 +8,20 @@ from faebryk.core.core import (
     Module,
     Node,
 )
-from faebryk.core.util import get_node_tree
+from faebryk.core.util import get_node_direct_children
 from faebryk.exporters.pcb.layout.layout import Layout
-from faebryk.libs.util import find
+from faebryk.libs.util import find_or, flatten, groupby
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True, eq=True)
 class LayoutTypeHierarchy(Layout):
-    @dataclass
+    @dataclass(frozen=True, eq=True)
     class Level:
         mod_type: type[Module]
         layout: Layout
         children_layout: Layout | None = None
-        collective: bool = True
 
     layouts: list[Level]
 
@@ -30,30 +29,32 @@ class LayoutTypeHierarchy(Layout):
         """
         Tip: Make sure at least one parent of node has an absolute position defined
         """
-        for n in node:
-            self._apply(n)
 
-    def _apply(self, node: Node):
-        tree = get_node_tree(node)
-        direct_children = tree[node]
+        # Find the layout for each node and group by matched level
+        levels = groupby(
+            {
+                n: find_or(
+                    self.layouts,
+                    lambda layout: isinstance(n, layout.mod_type),
+                    default=None,
+                )
+                for n in node
+            }.items(),
+            lambda t: t[1],
+        )
 
-        # Find layout for the node
-        try:
-            level = find(self.layouts, lambda layout: isinstance(node, layout.mod_type))
-        except KeyError:
-            # node not in this level, descend to direct children nodes
-            self.apply(*direct_children)
-            return
+        for level, nodes_tuple in levels.items():
+            nodes = [n for n, _ in nodes_tuple]
 
-        # Use node specific layout to apply
-        level.layout.apply(node)
+            direct_children = flatten(get_node_direct_children(n) for n in nodes)
 
-        # Recurse
-        if not level.children_layout:
-            return
+            if level is None:
+                self.apply(*direct_children)
+                continue
 
-        if level.collective:
-            level.children_layout.apply(*direct_children)
-        else:
-            for child in direct_children:
-                level.children_layout.apply(child)
+            level.layout.apply(*nodes)
+
+            if not level.children_layout:
+                continue
+
+            level.children_layout.apply()

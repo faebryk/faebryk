@@ -16,7 +16,7 @@ from faebryk.library.has_pcb_position_defined_relative_to_parent import (
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True, eq=True)
 class LayoutAbsolute(Layout):
     pos: has_pcb_position.Point
 

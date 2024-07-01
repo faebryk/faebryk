@@ -15,9 +15,9 @@ def fill_poly_with_nodes_on_grid(
     grid_offset: tuple[float, float],
 ) -> list[Point]:
     """
-    Get a list of points on a grid that are inside a polygon
+    Get a list of points on a grid that are inside a list of non-intersecting polygons
 
-    :param polys: The polygons to check
+    :param polys: The polygons to check, can be either an exterior or interior polygon
     :param grid_pitch: The pitch of the grid (x, y)
     :param grid_offset: The offset of the grid (x, y)
     :return: A list of points that are inside the polygons
@@ -36,9 +36,23 @@ def fill_poly_with_nodes_on_grid(
     grid_x = np.arange(grid_start_x, max_x, grid_pitch[0])
     grid_y = np.arange(grid_start_y, max_y, grid_pitch[1])
 
+    fill_polys = []
+    keepout_polys = []
+
+    # only support one level of keepout, no fills inside keepouts
     for poly in polys:
+        if any([p.contains(poly) for p in polys if p != poly]):
+            keepout_polys.append(poly)
+            continue
+        fill_polys.append(poly)
+
+    for poly in fill_polys:
         pixels += [
-            Point(x, y) for x in grid_x for y in grid_y if poly.contains(Point(x, y))
+            Point(x, y)
+            for x in grid_x
+            for y in grid_y
+            if poly.contains(Point(x, y))
+            and not any([p.contains(Point(x, y)) for p in keepout_polys])
         ]
 
     return pixels

@@ -1,73 +1,81 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-import logging
 import math
-from math import inf
 from operator import add
 from typing import TypeVar
 
 import numpy as np
 from shapely import Point, Polygon, transform
 
-logger = logging.getLogger(__name__)
-
 
 def fill_poly_with_nodes_on_grid(
     polys: list[Polygon],
     grid_pitch: tuple[float, float],
     grid_offset: tuple[float, float],
-) -> list[tuple[float, float]]:
+) -> list[Point]:
     """
-    Get a list of points on a grid that are inside a polygon
+    Get a list of points on a grid that are inside a list of non-intersecting polygons
 
-    :param polys: The polygons to check
+    :param polys: The polygons to check, can be either an exterior or interior polygon
     :param grid_pitch: The pitch of the grid (x, y)
     :param grid_offset: The offset of the grid (x, y)
     :return: A list of points that are inside the polygons
     """
 
     pixels = []
-    min_x, min_y, max_x, max_y = (inf, inf, -inf, -inf)
+    min_x, min_y, max_x, max_y = (math.inf, math.inf, -math.inf, -math.inf)
     for b in [(p.bounds) for p in polys]:
         min_x = min(min_x, b[0])
         min_y = min(min_y, b[1])
         max_x = max(max_x, b[2])
         max_y = max(max_y, b[3])
 
+    grid_start_x = math.ceil(min_x / grid_pitch[0]) * grid_pitch[0] + grid_offset[0]
+    grid_start_y = math.ceil(min_y / grid_pitch[1]) * grid_pitch[1] + grid_offset[1]
+    grid_x = np.arange(grid_start_x, max_x, grid_pitch[0])
+    grid_y = np.arange(grid_start_y, max_y, grid_pitch[1])
+
+    fill_polys = []
+    keepout_polys = []
+
+    # only support one level of keepout, no fills inside keepouts
     for poly in polys:
-        for x in np.arange(min_x, max_x, grid_pitch[0]):
-            x += grid_offset[0]
-            for y in np.arange(min_x, max_y, grid_pitch[1]):
-                y += grid_offset[1]
-                if poly.contains(Point(x, y)):
-                    pixels.append((x, y))
+        if any([p.contains(poly) for p in polys if p != poly]):
+            keepout_polys.append(poly)
+            continue
+        fill_polys.append(poly)
+
+    for poly in fill_polys:
+        pixels += [
+            Point(x, y)
+            for x in grid_x
+            for y in grid_y
+            if poly.contains(Point(x, y))
+            and not any([p.contains(Point(x, y)) for p in keepout_polys])
+        ]
 
     return pixels
 
 
 def transform_polygons(
-    polys: list[list[Polygon]], dim: tuple[float, float, float, float]
+    polys: list[list[Polygon]], offset: tuple[float, float], scale: tuple[float, float]
 ) -> list[list[Polygon]]:
     """
     Transform a list of polygons using a transformation matrix
 
     :param polys: The polygons to transform
-    :param dim: The transformation matrix (x_min, y_min, x_max, y_max)
+    :param offset: The offset to apply (x, y)
+    :param scale: The scale to apply (x, y)
+
+    :return: The transformed polygons
     """
 
-    scale_x = 1 / (dim[2] - dim[0])
-    scale_y = 1 / (dim[3] - dim[1])
-    offset_x = -dim[0]
-    offset_y = -dim[1]
-
-    scaled_polys = []
+    tf_polys = []
     for poly in polys:
-        scaled_polys.append(
-            transform(poly, lambda x: (x + [offset_x, offset_y]) * [scale_x, scale_y])
-        )
+        tf_polys.append(transform(poly, lambda x: (x + offset) * scale))
 
-    return scaled_polys
+    return tf_polys
 
 
 # TODO: cleanup and merge

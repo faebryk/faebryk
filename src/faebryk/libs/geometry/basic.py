@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+import math
 from math import inf
 from operator import add
 from typing import TypeVar
@@ -99,11 +100,12 @@ class Geometry:
         total_rot_deg = rot_parent + rot_child
 
         # Rotate child vector around parent and add
+        # rotation deg is negative because kicad rotates counter clock wise
         parent_absolute_xy = parent[:2]
         child_relative_xy = child[:2]
         x, y = parent_absolute_xy
         cx_rotated, cy_rotated = Geometry.rotate(
-            (0, 0), [child_relative_xy], rot_parent
+            (0, 0), [child_relative_xy], -rot_parent
         )[0]
         abs_x = x + cx_rotated
         abs_y = y + cy_rotated
@@ -249,3 +251,7 @@ class Geometry:
         seg_no_np = [(tuple(a), tuple(b)) for a, b in segments]
 
         return seg_no_np
+
+    @staticmethod
+    def distance_euclid(p1: Point, p2: Point):
+        return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)

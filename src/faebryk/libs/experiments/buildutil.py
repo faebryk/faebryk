@@ -13,7 +13,7 @@ from faebryk.exporters.visualize.graph import render_sidebyside
 from faebryk.libs.app.erc import simple_erc
 from faebryk.libs.app.kicad_netlist import write_netlist
 from faebryk.libs.app.parameters import replace_tbd_with_any
-from faebryk.libs.app.pcb import apply_layouts
+from faebryk.libs.app.pcb import apply_layouts, apply_routing
 from faebryk.libs.experiments.pickers import pick_parts_for_examples
 from faebryk.libs.kicad.pcb import PCB
 from faebryk.libs.picker.picker import pick_part_recursively
@@ -113,6 +113,7 @@ def export_pcb(app: Module, G: Graph):
     # set layout
     apply_layouts(app)
     transformer.move_footprints()
+    apply_routing(app, transformer)
 
     logger.info(f"Writing pcbfile {PCB_FILE}")
     pcb.dump(PCB_FILE)

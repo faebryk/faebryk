@@ -6,6 +6,7 @@ import logging
 import pprint
 import random
 import re
+from abc import abstractmethod
 from operator import add
 from typing import Any, List, Tuple, TypeVar
 
@@ -16,6 +17,7 @@ from faebryk.core.core import (
 from faebryk.core.core import (
     Module,
     ModuleInterface,
+    ModuleInterfaceTrait,
     ModuleTrait,
     Node,
 )
@@ -58,8 +60,8 @@ class PCB_Transformer:
         is found in the current PCB file.
         """
 
-        def get_fp(self) -> Footprint:
-            raise NotImplementedError()
+        @abstractmethod
+        def get_fp(self) -> Footprint: ...
 
     class has_linked_kicad_footprint_defined(has_linked_kicad_footprint.impl()):
         def __init__(self, fp: Footprint) -> None:
@@ -68,6 +70,19 @@ class PCB_Transformer:
 
         def get_fp(self):
             return self.fp
+
+    class has_linked_kicad_pad(ModuleInterfaceTrait):
+        @abstractmethod
+        def get_pad(self) -> tuple[Footprint, Pad]: ...
+
+    class has_linked_kicad_pad_defined(has_linked_kicad_pad.impl()):
+        def __init__(self, fp: Footprint, pad: Pad) -> None:
+            super().__init__()
+            self.fp = fp
+            self.pad = pad
+
+        def get_pad(self):
+            return self.fp, self.pad
 
     def __init__(
         self, pcb: PCB, graph: Graph, app: Module, cleanup: bool = True
@@ -116,6 +131,21 @@ class PCB_Transformer:
             fp = footprints[(fp_ref, fp_name)]
 
             node.add_trait(self.has_linked_kicad_footprint_defined(fp))
+
+        # TODO implement above
+        # way faster because can skip fp lookup
+        for node in {gif.node for gif in self.graph.G.nodes}:
+            assert isinstance(node, Node)
+            if not isinstance(node, ModuleInterface):
+                continue
+
+            try:
+                fp, pad = PCB_Transformer.get_pad(node)
+            # TODO
+            except Exception:
+                continue
+
+            node.add_trait(PCB_Transformer.has_linked_kicad_pad_defined(fp, pad))
 
         attached = {
             gif.node: gif.node.get_trait(self.has_linked_kicad_footprint).get_fp()

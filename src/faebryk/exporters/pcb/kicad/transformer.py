@@ -7,8 +7,9 @@ import pprint
 import random
 import re
 from operator import add
-from typing import Any, TypeVar
+from typing import Any, List, Tuple, TypeVar
 
+import numpy as np
 from faebryk.core.core import (
     Footprint as Core_Footprint,
 )
@@ -32,8 +33,10 @@ from faebryk.libs.kicad.pcb import (
     Footprint,
     FP_Text,
     Geom,
+    GR_Arc,
     GR_Line,
     GR_Text,
+    Line,
     Net,
     Pad,
     Rect,
@@ -562,76 +565,209 @@ class PCB_Transformer:
         )
 
     # Edge -----------------------------------------------------------------------------
+    def connect_lines_via_radius(
+        self,
+        line1: Line,
+        line2: Line,
+        radius: float,
+    ) -> Tuple[Line, Arc, Line]:
+        def calculate_arc_points(
+            p1, p2, p3, r
+        ) -> tuple[Geom.Coord, Geom.Coord, Geom.Coord]:
+            # Calculate the vectors
+            vector_a = np.array([p1[0] - p2[0], p1[1] - p2[1]])
+            vector_b = np.array([p3[0] - p2[0], p3[1] - p2[1]])
+            logger.info(f"{'-'*24} Arc points {'-'*24}")
+            logger.info(f"             Points: l1s{p1}, l2s{p2}, l2e{p3}")
+            logger.info(f"             Radius: {r}")
+            logger.info(f"           Vector A: {vector_a}")
+            logger.info(f"           Vector B: {vector_b}")
+
+            # Normalize the vectors
+            len_v1 = np.linalg.norm(vector_a)
+            len_v2 = np.linalg.norm(vector_b)
+            vector_a = vector_a / len_v1
+            vector_b = vector_b / len_v2
+            logger.info(f"    Length Vector A: {len_v1}")
+            logger.info(f"    Length Vector B: {len_v2}")
+            logger.info(f"Normalized Vector A: {vector_a}")
+            logger.info(f"Normalized Vector B: {vector_b}")
+
+            # Calculate the angle between the vectors
+            dot_product = np.dot(vector_a, vector_b)
+            logger.info(f"       Dot Product: {dot_product}")
+            # clamp the dot product between -1 and 1
+            angle = np.arccos(np.clip(dot_product, -1.0, 1.0))
+            logger.info(f"              Angle: {angle}")
+
+            # Calculate the distance from the intersection point to the start of the arc
+            dist = r / np.tan(angle / 2)
+            logger.info(f"           Distance: {dist}")
+
+            # Calculate the center of the arc using the cross product
+            cross = np.cross(vector_a, vector_b)
+            cross90 = np.cross(vector_a, [vector_b[1], vector_b[0]])
+            logger.info(f"             Cross: {cross}")
+            logger.info(f"         cross_a90: {cross90}")
+            # TODO: add case to invert cross when needed
+            # if cross90 < 0:
+            #    angle = np.pi - angle
+            # else:
+            #    if angle > 0:
+            #        cross = -cross
+            #    else:
+            #        angle = np.pi * 2 + angle
+            arc_center = (
+                p2[0] + cross * np.sin(angle) * r / np.sin(np.pi - angle),
+                p2[1] + cross * np.cos(angle) * r / np.sin(np.pi - angle),
+            )
+            logger.info(f"        Cross (abs): {cross}")
+            logger.info(f"          New angle: {angle}")
+            logger.info(f"         Arc Center: {arc_center}")
+
+            # Calculate the arc start and end points
+            arc_start = (p2[0] + vector_a[0] * dist, p2[1] + vector_a[1] * dist)
+            arc_end = (p2[0] + vector_b[0] * dist, p2[1] + vector_b[1] * dist)
+            logger.info(f"          Arc Start: {arc_start}")
+            logger.info(f"            Arc End: {arc_end}")
+            logger.info("")
+
+            return arc_start, arc_center, arc_end
+
+        # Extract coordinates from lines
+        line1_start = line1.start
+        line1_end = line1.end
+        line2_start = line2.start
+        line2_end = line2.end
+
+        # Assert if the endpoints of the lines are not connected
+        assert line1_end == line2_start, "The endpoints of the lines are not connected."
+
+        # Assert if the radius is less than or equal to zero
+        assert radius > 0, "The radius must be greater than zero."
+
+        # Calculate the arc points
+        arc_start, arc_center, arc_end = calculate_arc_points(
+            line1_start, line2_start, line2_end, radius
+        )
+
+        # Create the arc
+        arc = GR_Arc.factory(
+            start=arc_start,
+            mid=arc_center,
+            end=arc_end,
+            stroke=GR_Line.Stroke.factory(0.05, "default"),
+            layer="Edge.Cuts",
+            tstamp=str(int(random.random() * 100000)),
+        )
+
+        # Create new lines
+        new_line1 = GR_Line.factory(
+            start=line1_start,
+            end=arc_start,
+            stroke=GR_Line.Stroke.factory(0.05, "default"),
+            layer="Edge.Cuts",
+            tstamp=str(int(random.random() * 100000)),
+        )
+        new_line2 = GR_Line.factory(
+            start=arc_end,
+            end=line2_end,
+            stroke=GR_Line.Stroke.factory(0.05, "default"),
+            layer="Edge.Cuts",
+            tstamp=str(int(random.random() * 100000)),
+        )
+
+        return new_line1, arc, new_line2
+
     def set_dimensions_rectangle(
         self,
         width_mm: float,
         height_mm: float,
-        origin_x_mm: float = 0.0,
-        origin_y_mm: float = 0.0,
-        remove_existing_outline: bool = True,
-    ):
+        rounded_corners: bool = False,
+        corner_radius_mm: float = 0.0,
+    ) -> List[Geom] | List[GR_Line]:
         """
         Create a rectengular board outline (edge cut)
         """
-
-        points = [
-            (origin_x_mm, origin_y_mm),
-            (origin_x_mm, origin_y_mm + height_mm),
-            (origin_x_mm + width_mm, origin_y_mm + height_mm),
-            (origin_x_mm + width_mm, origin_y_mm),
-            (origin_x_mm, origin_y_mm),
+        # make 4 line objects where the end of the last line is the begining of the next
+        lines = [
+            GR_Line.factory(
+                start=(0, 0),
+                end=(width_mm, 0),
+                stroke=GR_Line.Stroke.factory(0.05, "default"),
+                layer="Edge.Cuts",
+                tstamp=str(int(random.random() * 100000)),
+            ),
+            GR_Line.factory(
+                start=(width_mm, 0),
+                end=(width_mm, height_mm),
+                stroke=GR_Line.Stroke.factory(0.05, "default"),
+                layer="Edge.Cuts",
+                tstamp=str(int(random.random() * 100000)),
+            ),
+            GR_Line.factory(
+                start=(width_mm, height_mm),
+                end=(0, height_mm),
+                stroke=GR_Line.Stroke.factory(0.05, "default"),
+                layer="Edge.Cuts",
+                tstamp=str(int(random.random() * 100000)),
+            ),
+            GR_Line.factory(
+                start=(0, height_mm),
+                end=(0, 0),
+                stroke=GR_Line.Stroke.factory(0.05, "default"),
+                layer="Edge.Cuts",
+                tstamp=str(int(random.random() * 100000)),
+            ),
         ]
+        if rounded_corners:
+            rectangle_geometry = []
+            # calculate from a line pair sharing a corner, a line pair with an arc in between using connect_lines_via_radius.
+            # replace the original line pair with the new line pair and arc
+            for i in range(4):
+                line1 = lines[i]
+                line2 = lines[(i + 1) % 4]
+                new_line1, arc, new_line2 = self.connect_lines_via_radius(
+                    line1,
+                    line2,
+                    corner_radius_mm,
+                )
+                lines[i] = new_line1
+                lines[(i + 1) % 4] = new_line2
+                rectangle_geometry.append(arc)
+            for line in lines:
+                rectangle_geometry.append(line)
 
-        self.set_dimensions_complex(
-            points=points,
-            origin_x_mm=origin_x_mm,
-            origin_y_mm=origin_y_mm,
-            remove_existing_outline=remove_existing_outline,
-        )
+            return rectangle_geometry
+        else:
+            # Create the rectangle without rounded corners using lines
+            return lines
 
-    def set_dimensions_complex(
+    def set_pcb_outline_complex(
         self,
-        points: list,
-        origin_x_mm: float = 0.0,
-        origin_y_mm: float = 0.0,
+        geometry: List[Geom],
         remove_existing_outline: bool = True,
     ):
         """
         Create a board outline (edge cut) consisting out of
-        points connected via straight lines
+        different geometries
         """
 
         # remove existing lines on Egde.cuts layer
         if remove_existing_outline:
             for geo in self.pcb.geoms:
-                if not isinstance(geo, GR_Line):
+                if geo.sym not in ["gr_line", "gr_arc"]:
                     continue
-                line = geo
-                if line.layer_name != "Edge.Cuts":
+                if geo.layer_name != "Edge.Cuts":
                     continue
-                line.delete()
+                geo.delete()
 
-        # offset the points with origin
-        points_offset = []
-        for point in points:
-            points_offset.append((point[0] + origin_x_mm, point[1] + origin_y_mm))
+        # create Edge.Cuts geometries
+        for geo in geometry:
+            assert (
+                geo.layer_name == "Edge.Cuts"
+            ), f"Geometry {geo} is not on Edge.Cuts layer"
 
-        # Append the first point to the end to create a closed shape
-        points_offset.append(points_offset[0])
+            self.pcb.append(geo)
 
-        # create Edge.Cuts lines
-        for start, end in zip(points_offset, points_offset[1:]):
-            self.pcb.append(
-                GR_Line.factory(
-                    start,
-                    end,
-                    stroke=GR_Line.Stroke.factory(0.05, "default"),
-                    layer="Edge.Cuts",
-                    tstamp=str(int(random.random() * 100000)),
-                )
-            )
-
-        width_mm = max(p[0] for p in points)
-        height_mm = max(p[1] for p in points)
-
-        self.dimensions = (width_mm, height_mm)
+        # find bounding box

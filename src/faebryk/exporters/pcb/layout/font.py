@@ -41,11 +41,7 @@ class FontLayout(Layout):
         self.font = font
 
         assert bbox or char_dimensions, "Either bbox or char_dimensions must be given"
-        # TODO
-        # if not char_dimensions:
-        #    char_dimensions = bbox[0] / len(text), bbox[1]
-        if not char_dimensions:
-            raise NotImplementedError()
+        assert len(text) > 0, "Text must not be empty"
 
         self.poly_glyphs = [
             # poly for letter in text for poly in self.font.letter_to_polygons(letter)
@@ -55,22 +51,54 @@ class FontLayout(Layout):
 
         # Debugging
         if logger.isEnabledFor(logging.DEBUG):
-            for i, polys in enumerate(self.poly_glyphs):
-                logger.debug(f"Found {len(polys)} polygons for letter {text[i]}")
-                for p in polys:
-                    logger.debug(f"Polygon with {len(p.exterior.coords)} vertices")
-                    logger.debug(f"Coords: {list(p.exterior.coords)}")
+           for i, polys in enumerate(self.poly_glyphs):
+               logger.debug(f"Found {len(polys)} polygons for letter {text[i]}")
+               for p in polys:
+                   logger.debug(f"Polygon with {len(p.exterior.coords)} vertices")
+                   logger.debug(f"Coords: {list(p.exterior.coords)}")
 
-        # normalize
-        max_dim = self.font.get_max_glyph_dimensions(text)
-        self.poly_glyphs = transform_polygons(self.poly_glyphs, max_dim)
+        char_dim_max = self.font.get_max_glyph_dimensions(text)
 
-        # scale to the desired dimensions
+        logger.debug(f"Max character dimension in text '{text}': {char_dim_max}")
+
+        offset = (0, 0)
+        scale = (1, 1)
+
+        if char_dimensions is None and bbox is not None:
+            char_width = (bbox[0] - (len(text) - 1) * kerning) / len(text)
+            char_height = bbox[1]
+
+            s = min(
+                char_width / (char_dim_max[2] - char_dim_max[0]),
+                char_height / (char_dim_max[3] - char_dim_max[1]),
+            )
+            scale = (s, s)
+        else:
+            assert char_dimensions is not None
+            offset = (-char_dim_max[0], -char_dim_max[1])
+            scale = (
+                char_dimensions[0] / (char_dim_max[2] - char_dim_max[0]),
+                char_dimensions[1] / (char_dim_max[3] - char_dim_max[1]),
+            )
+
+        logger.debug(f"Offset: {offset}")
+        logger.debug(f"Scale: {scale}")
+
         self.poly_glyphs = transform_polygons(
-            self.poly_glyphs, (0, 0, 1 / char_dimensions[0], 1 / char_dimensions[1])
+            self.poly_glyphs,
+            offset,
+            scale,
         )
 
+        # set grid offset to half a grid pitch to center the nodes
+        grid_offset = (1 / resolution[0] / 2, 1 / resolution[1] / 2)
+        grid_pitch = (1 / resolution[0], 1 / resolution[1])
+
+        logger.debug(f"Grid pitch: {grid_pitch}")
+        logger.debug(f"Grid offset: {grid_offset}")
+
         self.coords = []
+
         for i, polys in enumerate(self.poly_glyphs):
             # Debugging
             if logger.isEnabledFor(logging.DEBUG):
@@ -82,20 +110,27 @@ class FontLayout(Layout):
 
             glyph_nodes = fill_poly_with_nodes_on_grid(
                 polys=polys,
-                grid_pitch=resolution,
-                grid_offset=(
-                    1 / resolution[0] / 2,
-                    1 / resolution[1] / 2,
-                ),
+                grid_pitch=grid_pitch,
+                grid_offset=grid_offset,
+            )
+
+            # apply character offset in string + kerning
+            char_offset_x = (
+                max([0] + [c[0] for c in self.coords]) + 1 / resolution[0] + kerning
             )
             for node in glyph_nodes:
                 self.coords.append(
                     (
-                        node[0] + i * (char_dimensions[0] + kerning),
-                        node[1],
+                        node.x + char_offset_x,
+                        node.y,
                     )
                 )
             logger.debug(f"Found {len(glyph_nodes)} nodes for letter {text[i]}")
+
+        # Move down because the font has the origin in the bottom left while KiCad has
+        # it in the top left
+        char_offset_y = -max([0] + [c[1] for c in self.coords])
+        self.coords = [(c[0], c[1] + char_offset_y) for c in self.coords]
 
     def get_count(self) -> int:
         """

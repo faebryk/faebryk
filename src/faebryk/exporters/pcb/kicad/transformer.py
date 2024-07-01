@@ -565,74 +565,77 @@ class PCB_Transformer:
         )
 
     # Edge -----------------------------------------------------------------------------
+    # TODO: make generic
     def connect_lines_via_radius(
         self,
         line1: Line,
         line2: Line,
         radius: float,
-    ) -> Tuple[Line, Arc, Line]:
-        def calculate_arc_points(
-            p1, p2, p3, r
+    ) -> Tuple[GR_Line, GR_Arc, GR_Line]:
+        def calculate_arc_coordinates(
+            A: Tuple, B: Tuple, C: Tuple, r: float
         ) -> tuple[Geom.Coord, Geom.Coord, Geom.Coord]:
+            # TODO: remove
+            logger.setLevel(logging.DEBUG)
             # Calculate the vectors
-            vector_a = np.array([p1[0] - p2[0], p1[1] - p2[1]])
-            vector_b = np.array([p3[0] - p2[0], p3[1] - p2[1]])
-            logger.info(f"{'-'*24} Arc points {'-'*24}")
-            logger.info(f"             Points: l1s{p1}, l2s{p2}, l2e{p3}")
-            logger.info(f"             Radius: {r}")
-            logger.info(f"           Vector A: {vector_a}")
-            logger.info(f"           Vector B: {vector_b}")
+            vector_ab = np.array([A[0] - B[0], A[1] - B[1]])
+            vector_bc = np.array([C[0] - B[0], C[1] - B[1]])
+            logger.debug(f"{'-'*21} Arc Calculations {'-'*21}")
+            logger.debug(f"             Points: l1s{A}, l2s{B}, l2e{C}")
+            logger.debug(f"             Radius: {r}")
+            logger.debug(f"           Vector A: {vector_ab}")
+            logger.debug(f"           Vector B: {vector_bc}")
 
             # Normalize the vectors
-            len_v1 = np.linalg.norm(vector_a)
-            len_v2 = np.linalg.norm(vector_b)
-            vector_a = vector_a / len_v1
-            vector_b = vector_b / len_v2
-            logger.info(f"    Length Vector A: {len_v1}")
-            logger.info(f"    Length Vector B: {len_v2}")
-            logger.info(f"Normalized Vector A: {vector_a}")
-            logger.info(f"Normalized Vector B: {vector_b}")
+            length_vector_ab = np.linalg.norm(vector_ab)
+            length_vector_bc = np.linalg.norm(vector_bc)
+            unitvector_ab = vector_ab / length_vector_ab
+            unitvector_bc = vector_bc / length_vector_bc
+            logger.debug(f"   Length Vector AB: {length_vector_ab}")
+            logger.debug(f"   Length Vector BC: {length_vector_bc}")
+            logger.debug(f"  Normalized Vec AB: {unitvector_ab}")
+            logger.debug(f"  Normalized Vec BC: {unitvector_bc}")
 
-            # Calculate the angle between the vectors
-            dot_product = np.dot(vector_a, vector_b)
-            logger.info(f"       Dot Product: {dot_product}")
+            # Calculate the angle between the unit vectors by using the dot product
+            dot_product = np.dot(unitvector_ab, unitvector_bc)
+            logger.debug(f"        Dot Product: {dot_product}")
             # clamp the dot product between -1 and 1
             angle = np.arccos(np.clip(dot_product, -1.0, 1.0))
-            logger.info(f"              Angle: {angle}")
+            angle_half = angle / 2
+            logger.debug(f"            Angle/2: {angle_half}")
+            logger.debug(f"        Angle/2 deg: {np.degrees(angle_half)}")
 
-            # Calculate the distance from the intersection point to the start of the arc
-            dist = r / np.tan(angle / 2)
-            logger.info(f"           Distance: {dist}")
-
-            # Calculate the center of the arc using the cross product
-            cross = np.cross(vector_a, vector_b)
-            cross90 = np.cross(vector_a, [vector_b[1], vector_b[0]])
-            logger.info(f"             Cross: {cross}")
-            logger.info(f"         cross_a90: {cross90}")
-            # TODO: add case to invert cross when needed
-            # if cross90 < 0:
-            #    angle = np.pi - angle
-            # else:
-            #    if angle > 0:
-            #        cross = -cross
-            #    else:
-            #        angle = np.pi * 2 + angle
-            arc_center = (
-                p2[0] + cross * np.sin(angle) * r / np.sin(np.pi - angle),
-                p2[1] + cross * np.cos(angle) * r / np.sin(np.pi - angle),
+            # find the unit bisector vector
+            bisector = (unitvector_ab + unitvector_bc) / np.linalg.norm(
+                unitvector_ab + unitvector_bc
             )
-            logger.info(f"        Cross (abs): {cross}")
-            logger.info(f"          New angle: {angle}")
-            logger.info(f"         Arc Center: {arc_center}")
+            logger.debug(f"       Bisector Vec: {bisector}")
 
-            # Calculate the arc start and end points
-            arc_start = (p2[0] + vector_a[0] * dist, p2[1] + vector_a[1] * dist)
-            arc_end = (p2[0] + vector_b[0] * dist, p2[1] + vector_b[1] * dist)
-            logger.info(f"          Arc Start: {arc_start}")
-            logger.info(f"            Arc End: {arc_end}")
-            logger.info("")
+            # Calculate distance from B to arc_center
+            dist_to_center = r / np.sin(angle_half)
+            logger.debug(f" Dist to Arc Center: {dist_to_center}")
+            # check if dist_to_center in not more than AB or BC
+            # if it is, reduce the radius
+            if dist_to_center > min(length_vector_ab, length_vector_bc):
+                logger.warning("Reducing radius")
+                r = dist_to_center * np.abs(np.tan(angle_half / 2))
 
-            return arc_start, arc_center, arc_end
+            # Calculate arc_center
+            arc_center = np.array(B) - bisector * (dist_to_center / -1)
+
+            # Calculate arc start and end points
+            arc_start = np.array(B) + unitvector_ab * (r / np.tan(angle_half))
+            arc_end = np.array(B) + unitvector_bc * (r / np.tan(angle_half))
+
+            logger.debug(f"          Arc Start: {arc_start}")
+            logger.debug(f"            Arc End: {arc_end}")
+            logger.debug(f"         Arc Center: {arc_center}")
+
+            logger.debug("")
+            # TODO: remove
+            logger.setLevel(logging.INFO)
+
+            return (arc_start, arc_center, arc_end)
 
         # Extract coordinates from lines
         line1_start = line1.start
@@ -647,7 +650,7 @@ class PCB_Transformer:
         assert radius > 0, "The radius must be greater than zero."
 
         # Calculate the arc points
-        arc_start, arc_center, arc_end = calculate_arc_points(
+        arc_start, arc_center, arc_end = calculate_arc_coordinates(
             line1_start, line2_start, line2_end, radius
         )
 
@@ -679,7 +682,7 @@ class PCB_Transformer:
 
         return new_line1, arc, new_line2
 
-    def set_dimensions_rectangle(
+    def create_rectangular_edgecut(
         self,
         width_mm: float,
         height_mm: float,
@@ -722,18 +725,19 @@ class PCB_Transformer:
         ]
         if rounded_corners:
             rectangle_geometry = []
-            # calculate from a line pair sharing a corner, a line pair with an arc in between using connect_lines_via_radius.
+            # calculate from a line pair sharing a corner, a line pair with an arc in
+            # between using connect_lines_via_radius.
             # replace the original line pair with the new line pair and arc
-            for i in range(4):
+            for i in range(len(lines)):
                 line1 = lines[i]
-                line2 = lines[(i + 1) % 4]
+                line2 = lines[(i + 1) % len(lines)]
                 new_line1, arc, new_line2 = self.connect_lines_via_radius(
                     line1,
                     line2,
                     corner_radius_mm,
                 )
                 lines[i] = new_line1
-                lines[(i + 1) % 4] = new_line2
+                lines[(i + 1) % len(lines)] = new_line2
                 rectangle_geometry.append(arc)
             for line in lines:
                 rectangle_geometry.append(line)
@@ -743,15 +747,43 @@ class PCB_Transformer:
             # Create the rectangle without rounded corners using lines
             return lines
 
+    # plot the board outline with matplotlib
+    # TODO: remove
+    def plot_board_outline(self, geometry: List[Any]):
+        import matplotlib.patches as patches
+        import matplotlib.pyplot as plt
+        from matplotlib.path import Path
+
+        def plot_arc(start, mid, end):
+            verts = [start, mid, end]
+            codes = [Path.MOVETO, Path.CURVE3, Path.CURVE3]  # , Path.CLOSEPOLY]
+
+            path = Path(verts, codes)
+            shape = patches.PathPatch(path, facecolor="none", lw=0.75)
+            plt.gca().add_patch(shape)
+
+        fig, ax = plt.subplots()
+        for geo in geometry:
+            if isinstance(geo, GR_Line):
+                # plot a line
+                plt.plot([geo.start[0], geo.end[0]], [geo.start[1], geo.end[1]])
+            elif isinstance(geo, GR_Arc):
+                plot_arc(geo.start, geo.mid, geo.end)
+                plt.plot([geo.start[0], geo.end[0]], [geo.start[1], geo.end[1]])
+        plt.show()
+
     def set_pcb_outline_complex(
         self,
-        geometry: List[Geom],
+        geometry: List[Geom] | List[GR_Line],
         remove_existing_outline: bool = True,
     ):
         """
         Create a board outline (edge cut) consisting out of
         different geometries
         """
+
+        # TODO: remove
+        # self.plot_board_outline(geometry)
 
         # remove existing lines on Egde.cuts layer
         if remove_existing_outline:

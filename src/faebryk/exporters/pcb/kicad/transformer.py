@@ -682,83 +682,47 @@ class PCB_Transformer:
         line2: Line,
         radius: float,
     ) -> Tuple[GR_Line, GR_Arc, GR_Line]:
-        def calculate_arc_coordinates(
-            A: Tuple, B: Tuple, C: Tuple, r: float
-        ) -> tuple[Geom.Coord, Geom.Coord, Geom.Coord]:
-            # Calculate the vectors
-            vector_ab = np.array([A[0] - B[0], A[1] - B[1]])
-            vector_bc = np.array([C[0] - B[0], C[1] - B[1]])
-            logger.debug(f"{'-'*21} Arc Calculations {'-'*21}")
-            logger.debug(f"             Points: l1s{A}, l2s{B}, l2e{C}")
-            logger.debug(f"             Radius: {r}")
-            logger.debug(f"           Vector A: {vector_ab}")
-            logger.debug(f"           Vector B: {vector_bc}")
-
-            # Normalize the vectors
-            length_vector_ab = np.linalg.norm(vector_ab)
-            length_vector_bc = np.linalg.norm(vector_bc)
-            unitvector_ab = vector_ab / length_vector_ab
-            unitvector_bc = vector_bc / length_vector_bc
-            logger.debug(f"   Length Vector AB: {length_vector_ab}")
-            logger.debug(f"   Length Vector BC: {length_vector_bc}")
-            logger.debug(f"  Normalized Vec AB: {unitvector_ab}")
-            logger.debug(f"  Normalized Vec BC: {unitvector_bc}")
-
-            # Calculate the angle between the unit vectors by using the dot product
-            dot_product = np.dot(unitvector_ab, unitvector_bc)
-            logger.debug(f"        Dot Product: {dot_product}")
-            # clamp the dot product between -1 and 1
-            angle = np.arccos(np.clip(dot_product, -1.0, 1.0))
-            angle_half = angle / 2
-            logger.debug(f"            Angle/2: {angle_half}")
-            logger.debug(f"        Angle/2 deg: {np.degrees(angle_half)}")
-
-            # find the unit bisector vector
-            bisector = (unitvector_ab + unitvector_bc) / np.linalg.norm(
-                unitvector_ab + unitvector_bc
-            )
-            logger.debug(f"       Bisector Vec: {bisector}")
-
-            # Calculate distance from B to arc_center
-            dist_to_center = r / np.sin(angle_half)
-            logger.debug(f" Dist to Arc Center: {dist_to_center}")
-            # check if dist_to_center in not more than AB or BC
-            # if it is, reduce the radius
-            if dist_to_center > min(length_vector_ab, length_vector_bc):
-                logger.warning("Reducing radius")
-                r = dist_to_center * np.abs(np.tan(angle_half / 2))
-
-            # Calculate arc_center
-            arc_center = np.array(B) - bisector * (dist_to_center / -1)
-
-            # Calculate arc start and end points
-            arc_start = np.array(B) + unitvector_ab * (r / np.tan(angle_half))
-            arc_end = np.array(B) + unitvector_bc * (r / np.tan(angle_half))
-
-            logger.debug(f"          Arc Start: {arc_start}")
-            logger.debug(f"            Arc End: {arc_end}")
-            logger.debug(f"         Arc Center: {arc_center}")
-
-            logger.debug("")
-
-            return (arc_start, arc_center, arc_end)
-
-        # Extract coordinates from lines
-        line1_start = line1.start
-        line1_end = line1.end
-        line2_start = line2.start
-        line2_end = line2.end
-
         # Assert if the endpoints of the lines are not connected
-        assert line1_end == line2_start, "The endpoints of the lines are not connected."
+        assert line1.end == line2.start, "The endpoints of the lines are not connected."
 
         # Assert if the radius is less than or equal to zero
         assert radius > 0, "The radius must be greater than zero."
 
-        # Calculate the arc points
-        arc_start, arc_center, arc_end = calculate_arc_coordinates(
-            line1_start, line2_start, line2_end, radius
-        )
+        v1 = np.array(line1.start) - np.array(line1.end)
+        v2 = np.array(line2.end) - np.array(line2.start)
+        v1 = v1 / np.linalg.norm(v1)
+        v2 = v2 / np.linalg.norm(v2)
+
+        v_middle = v1 * radius + v2 * radius
+        v_middle_norm = v_middle / np.linalg.norm(v_middle)
+        v_center = v_middle - v_middle_norm * radius
+
+        # calculate the arc center
+        arc_center = np.array(line1.end) + v_center
+
+        # calculate the arc start and end points
+        arc_end = np.array(line2.start) + v2 * radius
+        arc_start = np.array(line1.end) + v1 * radius
+
+        # convert to tuples
+        arc_start = tuple(arc_start)
+        arc_center = tuple(arc_center)
+        arc_end = tuple(arc_end)
+
+        logger.debug(f"{v_middle=}")
+        logger.debug(f"{v_middle_norm=}")
+        logger.debug(f"{v_center=}")
+
+        logger.debug(f"line intersection: {line1.end} == {line2.start}")
+        logger.debug(f"line1: {line1.start} -> {line1.end}")
+        logger.debug(f"line2: {line2.start} -> {line2.end}")
+        logger.debug(f"v1: {v1}")
+        logger.debug(f"v2: {v2}")
+        logger.debug(f"v_middle: {v_middle}")
+        logger.debug(f"radius: {radius}")
+        logger.debug(f"arc_start: {arc_start}")
+        logger.debug(f"arc_center: {arc_center}")
+        logger.debug(f"arc_end: {arc_end}")
 
         # Create the arc
         arc = GR_Arc.factory(
@@ -772,7 +736,7 @@ class PCB_Transformer:
 
         # Create new lines
         new_line1 = GR_Line.factory(
-            start=line1_start,
+            start=line1.start,
             end=arc_start,
             stroke=GR_Line.Stroke.factory(0.05, "default"),
             layer="Edge.Cuts",
@@ -780,7 +744,7 @@ class PCB_Transformer:
         )
         new_line2 = GR_Line.factory(
             start=arc_end,
-            end=line2_end,
+            end=line2.end,
             stroke=GR_Line.Stroke.factory(0.05, "default"),
             layer="Edge.Cuts",
             uuid=self.gen_uuid(mark=True),

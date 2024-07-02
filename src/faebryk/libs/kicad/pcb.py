@@ -86,10 +86,23 @@ class UUID(Node):
         return self.node[1]
 
     @staticmethod
-    def gen_uuid(suffix: str = ""):
+    def gen_uuid(mark: str = ""):
+        # format: d864cebe-263c-4d3f-bbd6-bb51c6d2a608
         value = uuid.uuid4().hex
+
+        suffix = mark.encode().hex()
         value = value[: -len(suffix)] + suffix
-        return value
+
+        DASH_IDX = [8, 12, 16, 20]
+        formatted = value
+        for i, idx in enumerate(DASH_IDX):
+            formatted = formatted[: idx + i] + "-" + formatted[idx + i :]
+
+        return formatted
+
+    def is_marked(self, mark: str):
+        suffix = mark.encode().hex()
+        return self.uuid.replace("-", "").endswith(suffix)
 
     @classmethod
     def factory(cls, value: str | None = None):

@@ -185,11 +185,11 @@ class PCB_Transformer:
         return [(x, (y + 180) % 360) for x, y in reversed(input_list)]
 
     def gen_uuid(self, mark: bool = False):
-        return UUID.factory(UUID.gen_uuid(suffix="_FBRK_AUTO" if mark else ""))
+        return UUID.factory(UUID.gen_uuid(mark="FBRK" if mark else ""))
 
     @staticmethod
     def is_marked(obj) -> bool:
-        return obj.uuid.uuid.endswith("_FBRK_AUTO")
+        return obj.uuid.is_marked("FBRK")
 
     # Getter ---------------------------------------------------------------------------
     @staticmethod

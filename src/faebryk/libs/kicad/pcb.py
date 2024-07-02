@@ -671,6 +671,10 @@ class Text(Node):
         self.node[self.TEXT_IDX] = value
 
     @property
+    def uuid(self) -> UUID:
+        return UUID.from_node(self.get_prop("uuid")[0])
+
+    @property
     def at(self):
         return At.from_node(self.get_prop("at")[0])
 

@@ -49,6 +49,7 @@ from faebryk.libs.kicad.pcb import (
 from faebryk.libs.kicad.pcb import (
     Node as PCB_Node,
 )
+from faebryk.libs.util import flatten
 
 logger = logging.getLogger(__name__)
 
@@ -160,19 +161,11 @@ class PCB_Transformer:
         logger.debug(f"Attached: {pprint.pformat(attached)}")
 
     def cleanup(self):
-        # delete auto-placed vias
-        # determined by their size_drill values
-        for via in self.pcb.vias:
-            if via.uuid.uuid.endswith("_FBRK_AUTO"):
-                via.delete()
-
-        for trace in self.pcb.segments:
-            if trace.uuid.uuid.endswith("_FBRK_AUTO"):
-                trace.delete()
-
-        for text in self.pcb.text:
-            if text.text.endswith("_FBRK_AUTO"):
-                text.delete()
+        # delete auto-placed objects
+        candidates = flatten([self.pcb.vias, self.pcb.segments, self.pcb.text])
+        for obj in candidates:
+            if self.is_marked(obj):
+                obj.delete()
 
         # TODO maybe faebryk layer?
         CLEAN_LAYERS = re.compile(r"^User.[2-9]$")
@@ -190,6 +183,10 @@ class PCB_Transformer:
 
     def gen_uuid(self, mark: bool = False):
         return UUID.factory(UUID.gen_uuid(suffix="_FBRK_AUTO" if mark else ""))
+
+    @staticmethod
+    def is_marked(obj) -> bool:
+        return obj.uuid.uuid.endswith("_FBRK_AUTO")
 
     # Getter ---------------------------------------------------------------------------
     @staticmethod
@@ -390,10 +387,7 @@ class PCB_Transformer:
             )
         )
 
-    def insert_text(self, text: str, at: "At", font: Font, permanent: bool):
-        # TODO find a better way for this
-        if not permanent:
-            text = text + "_FBRK_AUTO"
+    def insert_text(self, text: str, at: "At", font: Font):
         self.insert(
             GR_Text.factory(
                 text=text,
@@ -629,7 +623,7 @@ class PCB_Transformer:
                 text="FBRK:autoplaced",
                 at=At.factory((0, 0, 0)),
                 font=self.font,
-                uuid=self.gen_uuid(),
+                uuid=self.gen_uuid(mark=True),
                 layer="User.5",
             )
         )
@@ -727,7 +721,7 @@ class PCB_Transformer:
             end=arc_end,
             stroke=GR_Line.Stroke.factory(0.05, "default"),
             layer="Edge.Cuts",
-            uuid=self.gen_uuid(),
+            uuid=self.gen_uuid(mark=True),
         )
 
         # Create new lines
@@ -736,14 +730,14 @@ class PCB_Transformer:
             end=arc_start,
             stroke=GR_Line.Stroke.factory(0.05, "default"),
             layer="Edge.Cuts",
-            uuid=self.gen_uuid(),
+            uuid=self.gen_uuid(mark=True),
         )
         new_line2 = GR_Line.factory(
             start=arc_end,
             end=line2_end,
             stroke=GR_Line.Stroke.factory(0.05, "default"),
             layer="Edge.Cuts",
-            uuid=self.gen_uuid(),
+            uuid=self.gen_uuid(mark=True),
         )
 
         return new_line1, arc, new_line2
@@ -765,28 +759,28 @@ class PCB_Transformer:
                 end=(width_mm, 0),
                 stroke=GR_Line.Stroke.factory(0.05, "default"),
                 layer="Edge.Cuts",
-                uuid=self.gen_uuid(),
+                uuid=self.gen_uuid(mark=True),
             ),
             GR_Line.factory(
                 start=(width_mm, 0),
                 end=(width_mm, height_mm),
                 stroke=GR_Line.Stroke.factory(0.05, "default"),
                 layer="Edge.Cuts",
-                uuid=self.gen_uuid(),
+                uuid=self.gen_uuid(mark=True),
             ),
             GR_Line.factory(
                 start=(width_mm, height_mm),
                 end=(0, height_mm),
                 stroke=GR_Line.Stroke.factory(0.05, "default"),
                 layer="Edge.Cuts",
-                uuid=self.gen_uuid(),
+                uuid=self.gen_uuid(mark=True),
             ),
             GR_Line.factory(
                 start=(0, height_mm),
                 end=(0, 0),
                 stroke=GR_Line.Stroke.factory(0.05, "default"),
                 layer="Edge.Cuts",
-                uuid=self.gen_uuid(),
+                uuid=self.gen_uuid(mark=True),
             ),
         ]
         if rounded_corners:

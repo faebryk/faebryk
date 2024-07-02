@@ -370,7 +370,9 @@ class PCB_Transformer:
         return matching_layers
 
     # Insert ---------------------------------------------------------------------------
-    def insert(self, node: PCB_Node):
+    def insert(self, node: PCB_Node, mark: bool = True):
+        if hasattr(node, "uuid"):
+            node.uuid.uuid = self.gen_uuid(mark=mark).uuid
         self.pcb.append(node)
 
     # TODO
@@ -571,10 +573,21 @@ class PCB_Transformer:
             raise Exception(f"Zone already exists in {layer=}")
 
         vias = self.pcb.vias
+        pads = [(pad, fp) for fp in self.pcb.footprints for pad in fp.pads]
+
         net_vias = [via for via in vias if via.net == net.id]
-        if not net_vias:
-            return
-        bbox = Geometry.bbox([via.at.coord for via in net_vias], tolerance=tolerance)
+        net_pads = [
+            (pad, fp) for pad, fp in pads if pad.net == net.id and layer in pad.layers
+        ]
+        coords = [via.at.coord for via in net_vias] + [
+            Geometry.abs_pos(fp.at.coord, pad.at.coord) for pad, fp in net_pads
+        ]
+
+        if not coords:
+            coords = [(-1e3, -1e3), (1e3, 1e3)]
+
+        bbox = Geometry.bbox(coords, tolerance=tolerance)
+
         bbox_polygon = Geometry.rect_to_polygon(bbox)
 
         self.insert(

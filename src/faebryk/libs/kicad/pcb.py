@@ -85,6 +85,10 @@ class UUID(Node):
     def uuid(self) -> str:
         return self.node[1]
 
+    @uuid.setter
+    def uuid(self, value: str):
+        self.node[1] = value
+
     @staticmethod
     def gen_uuid(mark: str = ""):
         # format: d864cebe-263c-4d3f-bbd6-bb51c6d2a608
@@ -600,8 +604,11 @@ class Pad(Node):
         return self.node[1]
 
     @property
-    def net(self) -> str:
-        return self.get_prop("net")[0].node[1]
+    def net(self) -> str | None:
+        net = self.get_prop("net")
+        if not net:
+            return None
+        return net[0].node[1]
 
     @property
     def size(self) -> Tuple[float, float]:

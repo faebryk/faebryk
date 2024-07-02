@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, eq=True)
 class LayoutExtrude(Layout):
-    vector: tuple[float, float, float]
+    vector: tuple[float, float] | tuple[float, float, float]
     base: has_pcb_position.Point = has_pcb_position.Point(
         (0, 0, 0, has_pcb_position.layer_type.NONE)
     )
@@ -28,11 +28,14 @@ class LayoutExtrude(Layout):
         """
         Tip: Make sure at least one parent of node has an absolute position defined
         """
+
+        vector = self.vector if len(self.vector) == 3 else (*self.vector, 0)
+
         for i, n in enumerate(node):
             vec_i = (
-                self.vector[0] * i,
-                self.vector[1] * i,
-                self.vector[2],
+                vector[0] * i,
+                vector[1] * i,
+                vector[2],
                 has_pcb_position.layer_type.NONE,
             )
             pos = Geometry.abs_pos(self.base, vec_i)

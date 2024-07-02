@@ -111,7 +111,7 @@ class PCB_Router:
                     stroke=GR_Circle.Stroke.factory(0, "default"),
                     fill_type="solid",
                     layer=f"User.{GRID_START_LAYER-int(c.z)}",
-                    tstamp=self.transformer.gen_tstamp(),
+                    uuid=self.transformer.gen_uuid(),
                 )
             )
 
@@ -123,7 +123,7 @@ class PCB_Router:
                 stroke=GR_Circle.Stroke.factory(0.1, "default"),
                 fill_type="none",
                 layer=layer,
-                tstamp=self.transformer.gen_tstamp(),
+                uuid=self.transformer.gen_uuid(),
             )
         )
 
@@ -229,6 +229,7 @@ class PCB_Router:
                 transformer.insert_via(
                     coord=out_to_pcb(switch_point),
                     net=pcb_net.id,
+                    size_drill=(0.45, 0.25),
                 )
 
             # build track
@@ -263,7 +264,7 @@ class PCB_Router:
                         stroke=GR_Rect.Stroke.factory(0.1, "default"),
                         fill_type="none",
                         layer=f"User.{self.copper_layers[layer] + 1}",
-                        tstamp=self.transformer.gen_tstamp(),
+                        uuid=self.transformer.gen_uuid(),
                     )
                 )
 
@@ -273,7 +274,7 @@ class PCB_Router:
                     *(out_to_pcb(OutCoord(*c, 0)) for c in (c1, c2)),
                     stroke=GR_Line.Stroke.factory(0.1, "default"),
                     layer="User.9",
-                    tstamp=self.transformer.gen_tstamp(),
+                    uuid=self.transformer.gen_uuid(),
                 )
             )
 

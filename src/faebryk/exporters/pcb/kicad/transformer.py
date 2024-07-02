@@ -1,10 +1,8 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-import itertools
 import logging
 import pprint
-import random
 import re
 from abc import abstractmethod
 from operator import add
@@ -109,13 +107,7 @@ class PCB_Transformer:
         )
         self.font = FONT
 
-        # After finalized, vias get changed to 0.45
-        self.via_size_drill = (0.46, 0.2)
-        self.track_widths = [0.111]
-
-        self.tstamp_i = itertools.count()
         self.cleanup()
-
         self.attach()
 
     def attach(self):
@@ -171,7 +163,7 @@ class PCB_Transformer:
         # delete auto-placed vias
         # determined by their size_drill values
         for via in self.pcb.vias:
-            if via.size_drill == self.via_size_drill:
+            if via.uuid.uuid.endswith("_FBRK_AUTO"):
                 via.delete()
 
         for trace in self.pcb.segments:
@@ -196,8 +188,8 @@ class PCB_Transformer:
     def flipped(input_list: list[tuple[T, int]]) -> list[tuple[T, int]]:
         return [(x, (y + 180) % 360) for x, y in reversed(input_list)]
 
-    def gen_tstamp(self):
-        return str(next(self.tstamp_i))
+    def gen_uuid(self, mark: bool = False):
+        return UUID.factory(UUID.gen_uuid(suffix="_FBRK_AUTO" if mark else ""))
 
     # Getter ---------------------------------------------------------------------------
     @staticmethod
@@ -385,14 +377,16 @@ class PCB_Transformer:
     def insert_plane(self, layer: str, net: Any):
         raise NotImplementedError()
 
-    def insert_via(self, coord: tuple[float, float], net: str):
+    def insert_via(
+        self, coord: tuple[float, float], net: str, size_drill: tuple[float, float]
+    ):
         self.insert(
             Via.factory(
                 at=At.factory(coord),
-                size_drill=self.via_size_drill,
+                size_drill=size_drill,
                 layers=("F.Cu", "B.Cu"),
                 net=net,
-                tstamp=self.gen_tstamp(),
+                uuid=self.gen_uuid(mark=True),
             )
         )
 
@@ -406,7 +400,7 @@ class PCB_Transformer:
                 at=at,
                 layer="F.SilkS",
                 font=font,
-                tstamp=self.gen_tstamp(),
+                uuid=self.gen_uuid(mark=True),
             )
         )
 
@@ -430,7 +424,7 @@ class PCB_Transformer:
                         width=width,
                         layer=layer,
                         net_id=net_id,
-                        uuid=UUID.factory(self.gen_tstamp() + "_FBRK_AUTO"),
+                        uuid=self.gen_uuid(mark=True),
                     )
                 )
         else:
@@ -442,7 +436,7 @@ class PCB_Transformer:
                         width=width,
                         layer=layer,
                         net_id=net_id,
-                        uuid=UUID.factory(self.gen_tstamp() + "_FBRK_AUTO"),
+                        uuid=self.gen_uuid(mark=True),
                     )
                 )
 
@@ -452,20 +446,29 @@ class PCB_Transformer:
     def insert_geo(self, geo: Geom):
         self.insert(geo)
 
-    def insert_via_next_to(self, intf: ModuleInterface, clearance: tuple[float, float]):
+    def insert_via_next_to(
+        self,
+        intf: ModuleInterface,
+        clearance: tuple[float, float],
+        size_drill: tuple[float, float],
+    ):
         fp, pad, _ = self.get_pad(intf)
 
         rel_target = tuple(map(add, pad.at.coord, clearance))
         coord = Geometry.abs_pos(fp.at.coord, rel_target)
 
-        self.insert_via(coord[:2], pad.net)
+        self.insert_via(coord[:2], pad.net, size_drill)
 
         # print("Inserting via for", ".".join([y for x,y in intf.get_hierarchy()]),
         # "at:", coord, "in net:", net)
         ...
 
     def insert_via_triangle(
-        self, intfs: list[ModuleInterface], depth: float, clearance: float
+        self,
+        intfs: list[ModuleInterface],
+        depth: float,
+        clearance: float,
+        size_drill: tuple[float, float],
     ):
         # get pcb pads
         fp_pads = list(map(self.get_pad, intfs))
@@ -493,7 +496,7 @@ class PCB_Transformer:
 
         # place vias
         for pad, point in zip(pads, shape):
-            self.insert_via(point, pad.net)
+            self.insert_via(point, pad.net, size_drill)
 
     def insert_via_line(
         self,
@@ -501,6 +504,7 @@ class PCB_Transformer:
         length: float,
         clearance: float,
         angle_deg: float,
+        size_drill: tuple[float, float],
     ):
         raise NotImplementedError()
         # get pcb pads
@@ -529,13 +533,14 @@ class PCB_Transformer:
 
         # place vias
         for pad, point in zip(pads, shape):
-            self.insert_via(point, pad.net)
+            self.insert_via(point, pad.net, size_drill)
 
     def insert_via_line2(
         self,
         intfs: list[ModuleInterface],
         length: tuple[float, float],
         clearance: tuple[float, float],
+        size_drill: tuple[float, float],
     ):
         # get pcb pads
         fp_pads = list(map(self.get_pad, intfs))
@@ -554,7 +559,7 @@ class PCB_Transformer:
 
         # place vias
         for pad, point in zip(pads, shape):
-            self.insert_via(point, pad.net)
+            self.insert_via(point, pad.net, size_drill)
 
     # Positioning ----------------------------------------------------------------------
     def move_footprints(self):
@@ -624,7 +629,7 @@ class PCB_Transformer:
                 text="FBRK:autoplaced",
                 at=At.factory((0, 0, 0)),
                 font=self.font,
-                uuid=UUID.factory(),
+                uuid=self.gen_uuid(),
                 layer="User.5",
             )
         )
@@ -722,7 +727,7 @@ class PCB_Transformer:
             end=arc_end,
             stroke=GR_Line.Stroke.factory(0.05, "default"),
             layer="Edge.Cuts",
-            tstamp=str(int(random.random() * 100000)),
+            uuid=self.gen_uuid(),
         )
 
         # Create new lines
@@ -731,14 +736,14 @@ class PCB_Transformer:
             end=arc_start,
             stroke=GR_Line.Stroke.factory(0.05, "default"),
             layer="Edge.Cuts",
-            tstamp=str(int(random.random() * 100000)),
+            uuid=self.gen_uuid(),
         )
         new_line2 = GR_Line.factory(
             start=arc_end,
             end=line2_end,
             stroke=GR_Line.Stroke.factory(0.05, "default"),
             layer="Edge.Cuts",
-            tstamp=str(int(random.random() * 100000)),
+            uuid=self.gen_uuid(),
         )
 
         return new_line1, arc, new_line2
@@ -760,28 +765,28 @@ class PCB_Transformer:
                 end=(width_mm, 0),
                 stroke=GR_Line.Stroke.factory(0.05, "default"),
                 layer="Edge.Cuts",
-                tstamp=str(int(random.random() * 100000)),
+                uuid=self.gen_uuid(),
             ),
             GR_Line.factory(
                 start=(width_mm, 0),
                 end=(width_mm, height_mm),
                 stroke=GR_Line.Stroke.factory(0.05, "default"),
                 layer="Edge.Cuts",
-                tstamp=str(int(random.random() * 100000)),
+                uuid=self.gen_uuid(),
             ),
             GR_Line.factory(
                 start=(width_mm, height_mm),
                 end=(0, height_mm),
                 stroke=GR_Line.Stroke.factory(0.05, "default"),
                 layer="Edge.Cuts",
-                tstamp=str(int(random.random() * 100000)),
+                uuid=self.gen_uuid(),
             ),
             GR_Line.factory(
                 start=(0, height_mm),
                 end=(0, 0),
                 stroke=GR_Line.Stroke.factory(0.05, "default"),
                 layer="Edge.Cuts",
-                tstamp=str(int(random.random() * 100000)),
+                uuid=self.gen_uuid(),
             ),
         ]
         if rounded_corners:

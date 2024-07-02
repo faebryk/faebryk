@@ -15,7 +15,10 @@ from faebryk.libs.geometry.basic import Geometry
 # logging settings
 logger = logging.getLogger(__name__)
 
-# TODO move functions somewhere else
+
+# TODO remove
+DEFAULT_TRACE_WIDTH = 0.1
+DEFAULT_VIA_SIZE_DRILL = (0.45, 0.25)
 
 
 @dataclass
@@ -25,19 +28,21 @@ class Route:
 
     @dataclass
     class Trace(Obj):
+        width: float
+
+    @dataclass
+    class Line(Trace):
         start: Geometry.Point
         end: Geometry.Point
 
     @dataclass
-    class Line(Trace): ...
-
-    @dataclass
-    class Track(Obj):
+    class Track(Trace):
         points: Sequence[Geometry.Point]
 
     @dataclass
     class Via(Obj):
         pos: Geometry.Point
+        size_drill: tuple[float, float]
 
     path: list[Obj]
 
@@ -58,7 +63,7 @@ def apply_route_in_pcb(net: Net, route: Route, transformer: PCB_Transformer):
             transformer.insert_track(
                 net_id=pcb_net.id,
                 points=path,
-                width=0.111,
+                width=obj.width,
                 layer="F.Cu",
                 arc=False,
             )
@@ -69,7 +74,7 @@ def apply_route_in_pcb(net: Net, route: Route, transformer: PCB_Transformer):
                     (round(obj.start[0], 2), round(obj.start[1], 2)),
                     (round(obj.end[0], 2), round(obj.end[1], 2)),
                 ],
-                width=0.111,
+                width=obj.width,
                 layer="F.Cu",
                 arc=False,
             )
@@ -80,8 +85,7 @@ def apply_route_in_pcb(net: Net, route: Route, transformer: PCB_Transformer):
             transformer.insert_via(
                 net=pcb_net.id,
                 coord=coord,
-                # size=0.6,
-                # drill=0.3,
+                size_drill=obj.size_drill,
             )
 
 

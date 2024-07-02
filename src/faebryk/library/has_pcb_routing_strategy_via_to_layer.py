@@ -5,6 +5,8 @@ import logging
 
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.exporters.pcb.routing.util import (
+    DEFAULT_TRACE_WIDTH,
+    DEFAULT_VIA_SIZE_DRILL,
     Route,
     apply_route_in_pcb,
     get_internal_nets_of_node,
@@ -49,8 +51,8 @@ class has_pcb_routing_strategy_via_to_layer(has_pcb_routing_strategy.impl()):
                 if pos[3] == layer:
                     continue
                 via_pos: Geometry.Point = Geometry.add_points(pos, self.vec)
-                route.add(Route.Via(via_pos))
-                route.add(Route.Line(pos, via_pos))
+                route.add(Route.Via(via_pos, size_drill=DEFAULT_VIA_SIZE_DRILL))
+                route.add(Route.Line(DEFAULT_TRACE_WIDTH, pos, via_pos))
 
             return route
 

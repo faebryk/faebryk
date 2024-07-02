@@ -85,10 +85,16 @@ class UUID(Node):
     def uuid(self) -> str:
         return self.node[1]
 
+    @staticmethod
+    def gen_uuid(suffix: str = ""):
+        value = uuid.uuid4().hex
+        value = value[: -len(suffix)] + suffix
+        return value
+
     @classmethod
     def factory(cls, value: str | None = None):
         # generate uuid
-        value = value or uuid.uuid4().hex
+        value = value or cls.gen_uuid()
 
         return cls([Symbol("uuid"), value])
 
@@ -193,7 +199,7 @@ class Zone(Node):
         hatch_fill_orientation: float = 0,
         hatch_fill_smoothing_level: int = 1,
         hatch_fill_smoothing_value: float = 0,
-        hatch_fill_border_algorithm: HatchFillBorderAlgorithm = HatchFillBorderAlgorithm.HATCH_THICKNESS,
+        hatch_fill_border_algorithm: HatchFillBorderAlgorithm = HatchFillBorderAlgorithm.HATCH_THICKNESS,  # noqa: E501
         hatch_fill_min_hole_area: float = 0.3,
         pad_connection_thermal_gap: float = 0.5,
         pad_connection_thermal_bridge_width: float = 0.25,
@@ -262,7 +268,7 @@ class Line(Geom):
         end: Geom.Coord,
         stroke: Geom.Stroke,
         layer: str,
-        tstamp: str,
+        uuid: UUID,
     ):
         assert cls.sym is not None
         return cls(
@@ -272,7 +278,7 @@ class Line(Geom):
                 [Symbol("end"), *end],
                 stroke.node,
                 [Symbol("layer"), layer],
-                [Symbol("tstamp"), tstamp],
+                uuid.node,
             ]
         )
 
@@ -306,7 +312,7 @@ class Arc(Geom):
         end: Geom.Coord,
         stroke: Geom.Stroke,
         layer: str,
-        tstamp: str,
+        uuid: UUID,
     ):
         assert cls.sym is not None
         return cls(
@@ -317,7 +323,7 @@ class Arc(Geom):
                 [Symbol("end"), *end],
                 stroke.node,
                 [Symbol("layer"), layer],
-                [Symbol("tstamp"), tstamp],
+                uuid.node,
             ]
         )
 
@@ -347,7 +353,7 @@ class Rect(Geom):
         stroke: Geom.Stroke,
         fill_type: str,
         layer: str,
-        tstamp: str,
+        uuid: Node,
     ):
         assert cls.sym is not None
         return cls(
@@ -358,7 +364,7 @@ class Rect(Geom):
                 stroke.node,
                 [Symbol("fill"), Symbol(fill_type)],
                 [Symbol("layer"), layer],
-                [Symbol("tstamp"), tstamp],
+                uuid.node,
             ]
         )
 
@@ -388,7 +394,7 @@ class Circle(Geom):
         stroke: Geom.Stroke,
         fill_type: str,
         layer: str,
-        tstamp: str,
+        uuid: UUID,
     ):
         assert cls.sym is not None
         return cls(
@@ -399,7 +405,7 @@ class Circle(Geom):
                 stroke.node,
                 [Symbol("fill"), Symbol(fill_type)],
                 [Symbol("layer"), layer],
-                [Symbol("tstamp"), tstamp],
+                uuid.node,
             ]
         )
 
@@ -588,6 +594,10 @@ class Via(Node):
     def size_drill(self):
         return (self.get_prop("size")[0].node[1], self.get_prop("drill")[0].node[1])
 
+    @property
+    def uuid(self) -> UUID:
+        return UUID.from_node(self.get_prop("uuid")[0])
+
     @classmethod
     def factory(
         cls,
@@ -595,7 +605,7 @@ class Via(Node):
         size_drill: Dimensions,
         layers: Tuple[str, str],
         net: str,
-        tstamp: str,
+        uuid: UUID,
     ):
         return cls(
             [
@@ -605,7 +615,7 @@ class Via(Node):
                 [Symbol("drill"), size_drill[1]],
                 [Symbol("layers"), *layers],
                 [Symbol("net"), net],
-                [Symbol("tstamp"), tstamp],
+                uuid.node,
             ]
         )
 

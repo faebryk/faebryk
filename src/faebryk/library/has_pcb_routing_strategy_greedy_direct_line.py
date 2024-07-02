@@ -5,6 +5,7 @@ import logging
 
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.exporters.pcb.routing.util import (
+    DEFAULT_TRACE_WIDTH,
     Route,
     apply_route_in_pcb,
     get_internal_nets_of_node,
@@ -63,7 +64,7 @@ class has_pcb_routing_strategy_greedy_direct_line(has_pcb_routing_strategy.impl(
                 sets.remove(closest[1])
                 sets.append(closest[0].union(closest[1]))
 
-                route.add(Route.Track(points=closest[3]))
+                route.add(Route.Track(width=DEFAULT_TRACE_WIDTH, points=closest[3]))
 
             return route
 

@@ -113,6 +113,139 @@ class Geom(Node):
         return self.get_prop("layer")[0].node[1]
 
 
+class Zone(Node):
+    class OutlineHatchMode(StrEnum):
+        EDGE = "edge"
+        FULL = "full"
+        NONE = "none"
+
+    class PadConnectMode(StrEnum):
+        NONE = "no"
+        SOLID = "yes"
+        THERMAL_RELIEFS = ""
+        THRU_HOLE_ONLY = "thru_hole_only"
+
+    class FillMode(StrEnum):
+        SOLID = ""
+        HATCHED = "hatch"
+
+    class HatchFillBorderAlgorithm(StrEnum):
+        HATCH_THICKNESS = "hatch_thickness"
+
+    class CornerSmoothingMode(StrEnum):
+        NONE = ""
+        FILLET = "fillet"
+        CHAMFER = "chamfer"
+
+    class IslandRemovalMode(StrEnum):
+        DO_NOT_REMOVE = "1"
+        REMOVE_ALL = ""
+        BELOW_AREA_LIMIT = "2"
+
+    @property
+    def net(self) -> int:
+        return int(self.get_prop("net")[0].node[1])
+
+    @property
+    def net_name(self) -> str:
+        return self.get_prop("net_name")[0].node[1]
+
+    @property
+    def layer(self) -> str:
+        return self.get_prop("layer")[0].node[1]
+
+    @property
+    def name(self) -> str:
+        return self.get_prop("name")[0].node[1]
+
+    @property
+    def hatch_outline_mode(self) -> OutlineHatchMode:
+        return self.get_prop("hatch")[0].node[1]
+
+    @property
+    def hatch_outline_pitch(self) -> float:
+        return self.get_prop("hatch")[0].node[2]
+
+    @property
+    def priority(self) -> int:
+        return self.get_prop("priority")[0].node[1]
+
+    @classmethod
+    def factory(
+        cls,
+        net: int,
+        net_name: str,
+        layer: str,
+        uuid: UUID,
+        name: str,
+        polygon: List[Geom.Coord],
+        locked: bool = False,
+        outline_hatch_mode: OutlineHatchMode = OutlineHatchMode.EDGE,
+        outline_hatch_pitch: float = 0.5,
+        priority: int = 0,
+        connect_pads_mode: PadConnectMode = PadConnectMode.SOLID,
+        zone_pad_clearance: float = 0.5,
+        zone_min_thickness: float = 0.25,
+        filled_areas_thickness: bool = False,
+        fill_mode: FillMode = FillMode.SOLID,
+        hatch_fill_thickness: float = 1,
+        hatch_fill_gap: float = 1.5,
+        hatch_fill_orientation: float = 0,
+        hatch_fill_smoothing_level: int = 1,
+        hatch_fill_smoothing_value: float = 0,
+        hatch_fill_border_algorithm: HatchFillBorderAlgorithm = HatchFillBorderAlgorithm.HATCH_THICKNESS,
+        hatch_fill_min_hole_area: float = 0.3,
+        pad_connection_thermal_gap: float = 0.5,
+        pad_connection_thermal_bridge_width: float = 0.25,
+        corner_smoothing_mode: CornerSmoothingMode = CornerSmoothingMode.NONE,
+        corner_smoothing_radius: float = 1,
+        island_removal_mode: IslandRemovalMode = IslandRemovalMode.DO_NOT_REMOVE,
+        island_removal_min_area: float = 10.0,
+    ):
+        return Zone(
+            [
+                Symbol("zone"),
+                [Symbol("net"), net],
+                [Symbol("net_name"), net_name],
+                [Symbol("layer"), layer],
+                uuid.node,
+                [Symbol("name"), name],
+                [Symbol("locked"), yes_no(locked)],
+                [Symbol("hatch"), Symbol(outline_hatch_mode), outline_hatch_pitch],
+                [Symbol("priority"), priority],
+                [
+                    Symbol("connect_pads"),
+                    Symbol(connect_pads_mode),
+                    [Symbol("clearance"), zone_pad_clearance],
+                ],
+                [Symbol("min_thickness"), zone_min_thickness],
+                [Symbol("filled_areas_thickness"), yes_no(filled_areas_thickness)],
+                [
+                    Symbol("fill"),
+                    Symbol("yes"),
+                    [Symbol("mode"), Symbol(fill_mode)],
+                    [Symbol("hatch_thickness"), hatch_fill_thickness],
+                    [Symbol("hatch_gap"), hatch_fill_gap],
+                    [Symbol("hatch_orientation"), hatch_fill_orientation],
+                    [Symbol("hatch_smoothing"), hatch_fill_smoothing_level],
+                    [Symbol("hatch_smoothing_value"), hatch_fill_smoothing_value],
+                    [Symbol("hatch_border_algorithm"), hatch_fill_border_algorithm],
+                    [Symbol("hatch_min_hole_area"), hatch_fill_min_hole_area],
+                    [Symbol("thermal_gap"), pad_connection_thermal_gap],
+                    [
+                        Symbol("thermal_bridge_width"),
+                        pad_connection_thermal_bridge_width,
+                    ],
+                    [Symbol("smoothing"), Symbol(corner_smoothing_mode)],
+                    [Symbol("radius"), corner_smoothing_radius],
+                    [Symbol("island_removal_mode"), Symbol(island_removal_mode)],
+                    [Symbol("island_area_min"), island_removal_min_area],
+                ],
+                [Symbol("polygon"), [Symbol("pts"), [Symbol("xy"), polygon]]],
+            ]
+        )
+
+
 class Line(Geom):
     @property
     def start(self) -> Geom.Coord:

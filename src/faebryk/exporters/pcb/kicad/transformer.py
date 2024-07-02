@@ -44,6 +44,7 @@ from faebryk.libs.kicad.pcb import (
     Rect,
     Segment,
     Segment_Arc,
+    Text,
     Via,
     Zone,
 )
@@ -392,14 +393,15 @@ class PCB_Transformer:
             )
         )
 
-    def insert_text(self, text: str, at: "At", font: Font):
+    def insert_text(self, text: str, at: "At", font: Font, front: bool = True):
         self.insert(
             GR_Text.factory(
                 text=text,
                 at=at,
-                layer="F.SilkS",
+                layer=f"{'F' if front else 'B'}.SilkS",
                 font=font,
                 uuid=self.gen_uuid(mark=True),
+                lrjustify=Text.Justify.MIRROR if not front else Text.Justify.CENTER,
             )
         )
 

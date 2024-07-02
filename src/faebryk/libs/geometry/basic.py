@@ -320,3 +320,27 @@ class Geometry:
     @staticmethod
     def distance_euclid(p1: Point, p2: Point):
         return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+
+    @staticmethod
+    def bbox(points: list[Point | Point2D], tolerance=0.0) -> tuple[Point2D, Point2D]:
+        min_x = min(p[0] for p in points)
+        min_y = min(p[1] for p in points)
+        max_x = max(p[0] for p in points)
+        max_y = max(p[1] for p in points)
+
+        return (
+            min_x - tolerance,
+            min_y - tolerance,
+        ), (
+            max_x + tolerance,
+            max_y + tolerance,
+        )
+
+    @staticmethod
+    def rect_to_polygon(rect: tuple[Point2D, Point2D]) -> list[Point2D]:
+        return [
+            (rect[0][0], rect[0][1]),
+            (rect[1][0], rect[0][1]),
+            (rect[1][0], rect[1][1]),
+            (rect[0][0], rect[1][1]),
+        ]

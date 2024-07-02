@@ -176,6 +176,10 @@ class Zone(Node):
     def priority(self) -> int:
         return self.get_prop("priority")[0].node[1]
 
+    @property
+    def uuid(self) -> UUID:
+        return UUID.from_node(self.get_prop("uuid")[0])
+
     @classmethod
     def factory(
         cls,
@@ -229,25 +233,33 @@ class Zone(Node):
                 [
                     Symbol("fill"),
                     Symbol("yes"),
-                    [Symbol("mode"), Symbol(fill_mode)],
+                    [Symbol("mode"), Symbol(fill_mode)] if fill_mode else [],
                     [Symbol("hatch_thickness"), hatch_fill_thickness],
                     [Symbol("hatch_gap"), hatch_fill_gap],
                     [Symbol("hatch_orientation"), hatch_fill_orientation],
-                    [Symbol("hatch_smoothing"), hatch_fill_smoothing_level],
+                    [Symbol("hatch_smoothing_level"), hatch_fill_smoothing_level],
                     [Symbol("hatch_smoothing_value"), hatch_fill_smoothing_value],
-                    [Symbol("hatch_border_algorithm"), hatch_fill_border_algorithm],
+                    [
+                        Symbol("hatch_border_algorithm"),
+                        Symbol(hatch_fill_border_algorithm),
+                    ],
                     [Symbol("hatch_min_hole_area"), hatch_fill_min_hole_area],
                     [Symbol("thermal_gap"), pad_connection_thermal_gap],
                     [
                         Symbol("thermal_bridge_width"),
                         pad_connection_thermal_bridge_width,
                     ],
-                    [Symbol("smoothing"), Symbol(corner_smoothing_mode)],
+                    [Symbol("smoothing"), Symbol(corner_smoothing_mode)]
+                    if corner_smoothing_mode
+                    else [],
                     [Symbol("radius"), corner_smoothing_radius],
                     [Symbol("island_removal_mode"), Symbol(island_removal_mode)],
                     [Symbol("island_area_min"), island_removal_min_area],
                 ],
-                [Symbol("polygon"), [Symbol("pts"), [Symbol("xy"), polygon]]],
+                [
+                    Symbol("polygon"),
+                    [Symbol("pts"), *[[Symbol("xy"), *p] for p in polygon]],
+                ],
             ]
         )
 
@@ -449,6 +461,10 @@ class PCB(Node):
         return [Via.from_node(n) for n in self.get_prop("via")]
 
     @property
+    def zones(self) -> List["Zone"]:
+        return [Zone.from_node(n) for n in self.get_prop("zone")]
+
+    @property
     def text(self) -> List["GR_Text"]:
         return [GR_Text.from_node(n) for n in self.get_prop("gr_text")]
 
@@ -597,6 +613,10 @@ class Via(Node):
     @property
     def uuid(self) -> UUID:
         return UUID.from_node(self.get_prop("uuid")[0])
+
+    @property
+    def net(self) -> str:
+        return self.get_prop("net")[0].node[1]
 
     @classmethod
     def factory(

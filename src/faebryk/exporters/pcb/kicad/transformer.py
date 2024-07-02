@@ -45,6 +45,7 @@ from faebryk.libs.kicad.pcb import (
     Segment,
     Segment_Arc,
     Via,
+    Zone,
 )
 from faebryk.libs.kicad.pcb import (
     Node as PCB_Node,
@@ -162,7 +163,9 @@ class PCB_Transformer:
 
     def cleanup(self):
         # delete auto-placed objects
-        candidates = flatten([self.pcb.vias, self.pcb.segments, self.pcb.text])
+        candidates = flatten(
+            [self.pcb.vias, self.pcb.segments, self.pcb.text, self.pcb.zones]
+        )
         for obj in candidates:
             if self.is_marked(obj):
                 obj.delete()
@@ -554,6 +557,36 @@ class PCB_Transformer:
         # place vias
         for pad, point in zip(pads, shape):
             self.insert_via(point, pad.net, size_drill)
+
+    def insert_layer_zone_for_net_for_via_bbox(
+        self, net: Net, layer: str, tolerance=0.0
+    ):
+        # check if exists
+        zones = self.pcb.zones
+        if any([zone.net == net.id for zone in zones]):
+            raise Exception(f"Zone already exists for {net=}")
+
+        # TODO check bbox
+        if any([zone.layer == layer for zone in zones]):
+            raise Exception(f"Zone already exists in {layer=}")
+
+        vias = self.pcb.vias
+        net_vias = [via for via in vias if via.net == net.id]
+        if not net_vias:
+            return
+        bbox = Geometry.bbox([via.at.coord for via in net_vias], tolerance=tolerance)
+        bbox_polygon = Geometry.rect_to_polygon(bbox)
+
+        self.insert(
+            Zone.factory(
+                net=net.id,
+                net_name=net.name,
+                layer=layer,
+                uuid=self.gen_uuid(mark=True),
+                name=f"layer_fill_{net.name}",
+                polygon=bbox_polygon,
+            )
+        )
 
     # Positioning ----------------------------------------------------------------------
     def move_footprints(self):

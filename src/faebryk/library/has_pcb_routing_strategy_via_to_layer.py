@@ -65,3 +65,9 @@ class has_pcb_routing_strategy_via_to_layer(has_pcb_routing_strategy.impl()):
     def apply(self, transformer: PCB_Transformer):
         for net, route in self.routes.items():
             apply_route_in_pcb(net, route, transformer)
+
+            transformer.insert_layer_zone_for_net_for_via_bbox(
+                transformer.get_net(net),
+                self.layer,
+                tolerance=Geometry.distance_euclid((0, 0, 0, 0), self.vec),
+            )

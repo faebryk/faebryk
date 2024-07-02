@@ -401,7 +401,8 @@ class PCB_Transformer:
                 layer=f"{'F' if front else 'B'}.SilkS",
                 font=font,
                 uuid=self.gen_uuid(mark=True),
-                lrjustify=Text.Justify.MIRROR if not front else Text.Justify.CENTER,
+                lrjustify=Text.Justify.MIRROR if not front else Text.Justify.LEFT,
+                udjustify=Text.Justify.TOP,
             )
         )
 

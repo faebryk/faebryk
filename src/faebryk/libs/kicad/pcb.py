@@ -1,6 +1,8 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
+import uuid
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable, Generic, List, Tuple, TypeVar
 
@@ -76,6 +78,19 @@ class Node:
 
     def __eq__(self, __value: object) -> bool:
         return str(self) == str(__value)
+
+
+class UUID(Node):
+    @property
+    def uuid(self) -> str:
+        return self.node[1]
+
+    @classmethod
+    def factory(cls, value: str | None = None):
+        # generate uuid
+        value = value or uuid.uuid4().hex
+
+        return cls([Symbol("uuid"), value])
 
 
 class Geom(Node):
@@ -462,9 +477,37 @@ class Via(Node):
         )
 
 
+class Font(Node):
+    @classmethod
+    def factory(
+        cls,
+        size: Tuple[float, float],
+        thickness: float,
+        bold: bool = False,
+        face: str = "",
+    ):
+        return cls(
+            [
+                Symbol("font"),
+                [Symbol("size"), *size],
+                [Symbol("thickness"), thickness],
+                [Symbol("bold"), Symbol("yes" if bold else "no")],
+                [Symbol("face"), face],
+            ]
+        )
+
+
 class Text(Node):
-    Font = Tuple[float, float, float]
+    class Justify(StrEnum):
+        MIRROR = "mirror"
+        LEFT = "left"
+        RIGHT = "right"
+        CENTER = ""
+        BOTTOM = "bottom"
+        TOP = "top"
+
     TEXT_IDX = None
+    TEXT_TYPE = None
 
     @property
     def layer(self) -> Node:
@@ -497,57 +540,88 @@ class Text(Node):
 
     @font.setter
     def font(self, value: Font):
-        font = self.get_prop("effects")[0].get_prop("font")[0]
-        font.get_prop("size")[0].node[1:3] = value[0:2]
-        font.get_prop("thickness")[0].node[1] = value[2]
+        self.get_prop("effects")[0].node[1][:] = value.node[:]
 
     def __repr__(self) -> str:
         return f"Text[{self.node}]"
 
     @classmethod
     def factory(
-        cls, text: str, at: "At", layer: str, font: Font, tstamp: str, text_type: str
+        cls,
+        text: str,
+        at: "At",
+        layer: str,
+        font: Font,
+        uuid: UUID,
+        text_type: str | None = None,
+        locked: bool = False,
+        knockout: bool = False,
+        lrjustify: Justify = Justify.CENTER,
+        udjustify: Justify = Justify.CENTER,
     ):
+        text_type = text_type or cls.TEXT_TYPE
+        assert text_type
+
         # TODO make more generic
         return Text(
             [
                 Symbol(text_type),
                 text,
+                [Symbol("locked"), yes_no(locked)],
                 at.node,
-                [Symbol("layer"), layer],
+                [Symbol("layer"), layer, Symbol("knockout") if knockout else None],
                 [
                     Symbol("effects"),
-                    [
-                        Symbol("font"),
-                        [Symbol("size"), *font[0:2]],
-                        [Symbol("thickness"), font[2]],
-                    ],
+                    font.node,
+                    [Symbol("justify"), Symbol(lrjustify), Symbol(udjustify)],
                 ],
-                [Symbol("tstamp"), tstamp],
+                uuid.node,
             ]
         )
 
 
 class FP_Text(Text):
     TEXT_IDX = 2
+    TEXT_TYPE = "fp_text"
 
     @property
     def text_type(self) -> str:
         return self.node[1].value()
 
     @classmethod
-    def factory(cls, text: str, at: "At", layer: str, font: Text.Font, tstamp: str):
-        generic = Text.factory(text, at, layer, font, tstamp, text_type="fp_text")
+    def factory(
+        cls,
+        text: str,
+        at: "At",
+        layer: str,
+        font: Font,
+        uuid: UUID,
+        locked: bool = False,
+        knockout: bool = False,
+        lrjustify: Text.Justify = Text.Justify.CENTER,
+        udjustify: Text.Justify = Text.Justify.CENTER,
+    ):
+        generic = Text.factory(
+            text_type=cls.TEXT_TYPE,
+            text=text,
+            at=at,
+            layer=layer,
+            font=font,
+            uuid=uuid,
+            locked=locked,
+            knockout=knockout,
+            lrjustify=lrjustify,
+            udjustify=udjustify,
+        )
+
+        # TODO: Why is this needed?
         generic.node.insert(1, Symbol("user"))
         return generic
 
 
 class GR_Text(Text):
     TEXT_IDX = 1
-
-    @classmethod
-    def factory(cls, text: str, at: "At", layer: str, font: Text.Font, tstamp: str):
-        return Text.factory(text, at, layer, font, tstamp, text_type="gr_text")
+    TEXT_TYPE = "gr_text"
 
 
 T = TypeVar("T", Tuple[float, float], Tuple[float, float, float])
@@ -557,18 +631,18 @@ class At(Generic[T], Node):
     Coord = T
 
     @property
-    def coord(self) -> Coord:
+    def coord(self) -> T:
         # TODO
         if len(self.node[1:]) < 3:
             return tuple(self.node[1:] + [0])
         return tuple(self.node[1:4])
 
     @coord.setter
-    def coord(self, value: Coord):
+    def coord(self, value: T):
         self.node[1:4] = list(value)
 
     @classmethod
-    def factory(cls, value: Coord):
+    def factory(cls, value: T):
         out = cls([Symbol("at")])
         out.coord = value
         return out
@@ -646,3 +720,7 @@ class Segment_Arc(Node):
                 [Symbol("tstamp"), tstamp],
             ]
         )
+
+
+def yes_no(value: bool) -> Symbol:
+    return Symbol("yes" if value else "no")

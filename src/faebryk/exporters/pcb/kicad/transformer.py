@@ -30,8 +30,10 @@ from faebryk.library.Net import Net as FNet
 from faebryk.libs.geometry.basic import Geometry
 from faebryk.libs.kicad.pcb import (
     PCB,
+    UUID,
     Arc,
     At,
+    Font,
     Footprint,
     FP_Text,
     Geom,
@@ -94,7 +96,10 @@ class PCB_Transformer:
         self.dimensions = None
 
         FONT_SCALE = 8
-        FONT = (1 / FONT_SCALE, 1 / FONT_SCALE, 0.15 / FONT_SCALE)
+        FONT = Font.factory(
+            size=(1 / FONT_SCALE, 1 / FONT_SCALE),
+            thickness=0.15 / FONT_SCALE,
+        )
         self.font = FONT
 
         # After finalized, vias get changed to 0.45
@@ -359,7 +364,7 @@ class PCB_Transformer:
             )
         )
 
-    def insert_text(self, text: str, at: "At", font: FP_Text.Font, permanent: bool):
+    def insert_text(self, text: str, at: "At", font: Font, permanent: bool):
         # TODO find a better way for this
         if not permanent:
             text = text + "_FBRK_AUTO"
@@ -589,7 +594,7 @@ class PCB_Transformer:
                 text="FBRK:autoplaced",
                 at=At.factory((0, 0, 0)),
                 font=self.font,
-                tstamp=str(next(self.tstamp_i)),
+                uuid=UUID.factory(),
                 layer="User.5",
             )
         )

@@ -18,64 +18,47 @@ from faebryk.libs.geometry.basic import Geometry
 logger = logging.getLogger(__name__)
 
 
-class has_pcb_routing_strategy_greedy_direct_line(has_pcb_routing_strategy.impl()):
+class has_pcb_routing_strategy_via_to_layer(has_pcb_routing_strategy.impl()):
+    def __init__(self, layer: str, vec: Geometry.Point2D):
+        super().__init__()
+        self.vec = vec
+        self.layer = layer
+
     def calculate(self, transformer: PCB_Transformer):
+        copper_layers = {
+            layer: i for i, layer in enumerate(transformer.get_copper_layers())
+        }
+        layer = copper_layers[self.layer]
+
         node = self.get_obj()
         nets = get_internal_nets_of_node(node)
 
         logger.debug(f"Routing {node} {'-'*40}")
 
         def get_route_for_net(net: Net, mifs) -> Route | None:
-            if not net:
-                return None
             net_name = net.get_trait(has_overriden_name).get_name()
 
             pads = get_pads_pos_of_mifs(mifs)
 
-            if len(pads) < 2:
-                return None
-
             logger.debug(f"Routing net {net_name} with pads: {pads}")
-
-            sets = [{pad} for pad in pads.values()]
 
             route = Route(path=[])
 
-            # TODO avoid crossing pads
-            # might make this very complex though
-
-            while len(sets) > 1:
-                # find closest pads
-                closest = min(
-                    (
-                        (set1, set2, Geometry.distance_euclid(p1, p2), [p1, p2])
-                        for set1 in sets
-                        for set2 in sets
-                        for p1 in set1
-                        for p2 in set2
-                        if set1 != set2
-                    ),
-                    key=lambda t: t[2],
-                )
-
-                # merge closest pads
-                sets.remove(closest[0])
-                sets.remove(closest[1])
-                sets.append(closest[0].union(closest[1]))
-
-                route.add(Route.Track(points=closest[3]))
+            for _, pos in pads.items():
+                # No need to add via if on same layer already
+                if pos[3] == layer:
+                    continue
+                via_pos: Geometry.Point = Geometry.add_points(pos, self.vec)
+                route.add(Route.Via(via_pos))
+                route.add(Route.Line(pos, via_pos))
 
             return route
 
         self.routes: dict[Net, Route] = {
             net: route
             for net, mifs in nets.items()
-            if net
-            and not net.has_trait(has_pcb_routing_strategy)
-            and (route := get_route_for_net(net, mifs))
+            if net and (route := get_route_for_net(net, mifs))
         }
-
-        self.route = route
 
     def apply(self, transformer: PCB_Transformer):
         for net, route in self.routes.items():

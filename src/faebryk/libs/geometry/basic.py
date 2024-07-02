@@ -81,11 +81,68 @@ def transform_polygons(
 # TODO: cleanup and merge
 class Geometry:
     Point2D = tuple[float, float]
-    # TODO fix all Point2D functions to use Point
-
-    # TODO more generic
-    # x,y, rotation, layer
     Point = tuple[float, float, float, int]
+
+    @staticmethod
+    def add_points(p1: Point | Point2D, p2: Point | Point2D) -> Point | Point2D:
+        p1e = p1 + (0,) * (4 - len(p1))
+        p2e = p2 + (0,) * (4 - len(p2))
+        out = tuple(map(add, p1e, p2e))
+        if len(p1) == len(p2) == 2:
+            return out[:2]
+        return out
+
+    # class Point2D(tuple[float, float]):
+    #    def __add__(self, other: "Geometry.Point2D") -> "Geometry.Point2D":
+    #        return Geometry.Point2D(self[0] + other[0], self[1] + other[1])
+
+    ## TODO fix all Point2D functions to use Point
+
+    ## TODO more generic
+    ## x,y, rotation, layer
+    ## Point = tuple[float, float, float, int]
+
+    # class Point(tuple[float, float, float, int]):
+    #    def __round__(self, ndigits=None) -> Point:
+    #        return Point(
+    #            round(self[0], ndigits=ndigits),
+    #            round(self[1], ndigits=ndigits),
+    #            round(self[2], ndigits=ndigits),
+    #            self[3],
+    #        )
+
+    #    def twod(self) -> "Geometry.Point2D":
+    #        return Geometry.Point2D(self[:2])
+
+    #    @property
+    #    def x(self) -> float:
+    #        return self[0]
+
+    #    @property
+    #    def y(self) -> float:
+    #        return self[1]
+
+    #    @property
+    #    def rotation_deg(self) -> float:
+    #        return self[2]
+
+    #    @property
+    #    def layer(self) -> int:
+    #        return self[3]
+
+    #    def __add__(self, other: "Point | Geometry.Point2D") -> Point:
+    #        if isinstance(other, Geometry.Point2D):
+    #            other = Point(other[0], other[1], 0, self.layer)
+
+    #        assert self.layer == other.layer
+
+    #        return Point(
+    #            self.x + other.x,
+    #            self.y + other.y,
+    #            # TODO does this make sense?
+    #            self.rotation_deg + other.rotation_deg,
+    #            self.layer,
+    #        )
 
     @staticmethod
     def mirror(axis: tuple[float | None, float | None], structure: list[Point2D]):

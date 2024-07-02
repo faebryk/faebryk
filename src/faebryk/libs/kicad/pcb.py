@@ -668,7 +668,17 @@ class Net(Node):
         )
 
 
-class Segment(Node):
+class _Segment(Node):
+    @property
+    def width(self) -> float:
+        return self.get_prop("width")[0].node[1]
+
+    @property
+    def uuid(self) -> UUID:
+        return UUID.from_node(self.get_prop("uuid")[0])
+
+
+class Segment(_Segment):
     Coord = Tuple[float, float]
 
     @classmethod
@@ -679,7 +689,7 @@ class Segment(Node):
         width: float,
         layer: str,
         net_id: int,
-        tstamp: str,
+        uuid: UUID,
     ):
         return cls(
             [
@@ -689,12 +699,12 @@ class Segment(Node):
                 [Symbol("width"), width],
                 [Symbol("layer"), layer],
                 [Symbol("net"), net_id],
-                [Symbol("tstamp"), tstamp],
+                uuid.node,
             ]
         )
 
 
-class Segment_Arc(Node):
+class Segment_Arc(_Segment):
     Coord = Tuple[float, float]
 
     @classmethod
@@ -706,7 +716,7 @@ class Segment_Arc(Node):
         width: float,
         layer: str,
         net_id: int,
-        tstamp: str,
+        uuid: UUID,
     ):
         return cls(
             [
@@ -717,7 +727,7 @@ class Segment_Arc(Node):
                 [Symbol("width"), width],
                 [Symbol("layer"), layer],
                 [Symbol("net"), net_id],
-                [Symbol("tstamp"), tstamp],
+                uuid.node,
             ]
         )
 

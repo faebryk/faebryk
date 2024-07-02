@@ -63,15 +63,22 @@ class PCB_Transformer:
         """
 
         @abstractmethod
+        def get_transformer(self) -> "PCB_Transformer": ...
+
+        @abstractmethod
         def get_fp(self) -> Footprint: ...
 
     class has_linked_kicad_footprint_defined(has_linked_kicad_footprint.impl()):
-        def __init__(self, fp: Footprint) -> None:
+        def __init__(self, fp: Footprint, transformer: "PCB_Transformer") -> None:
             super().__init__()
             self.fp = fp
+            self.transformer = transformer
 
         def get_fp(self):
             return self.fp
+
+        def get_transformer(self):
+            return self.transformer
 
     class has_linked_kicad_pad(ModuleInterfaceTrait):
         @abstractmethod
@@ -104,6 +111,7 @@ class PCB_Transformer:
 
         # After finalized, vias get changed to 0.45
         self.via_size_drill = (0.46, 0.2)
+        self.track_widths = [0.111]
 
         self.tstamp_i = itertools.count()
         self.cleanup()
@@ -135,7 +143,7 @@ class PCB_Transformer:
             )
             fp = footprints[(fp_ref, fp_name)]
 
-            node.add_trait(self.has_linked_kicad_footprint_defined(fp))
+            node.add_trait(self.has_linked_kicad_footprint_defined(fp, self))
 
         # TODO implement above
         # way faster because can skip fp lookup
@@ -145,7 +153,7 @@ class PCB_Transformer:
                 continue
 
             try:
-                fp, pad = PCB_Transformer.get_pad(node)
+                fp, pad, _ = PCB_Transformer.get_pad(node)
             # TODO
             except Exception:
                 continue
@@ -165,6 +173,10 @@ class PCB_Transformer:
         for via in self.pcb.vias:
             if via.size_drill == self.via_size_drill:
                 via.delete()
+
+        for trace in self.pcb.segments:
+            if trace.uuid.uuid.endswith("_FBRK_AUTO"):
+                trace.delete()
 
         for text in self.pcb.text:
             if text.text.endswith("_FBRK_AUTO"):
@@ -300,7 +312,7 @@ class PCB_Transformer:
         return obj.get_trait(has_footprint).get_footprint(), obj
 
     @staticmethod
-    def get_pad(intf: ModuleInterface) -> tuple[Footprint, Pad]:
+    def get_pad(intf: ModuleInterface) -> tuple[Footprint, Pad, Module]:
         cfp, obj = PCB_Transformer.get_corresponding_fp(intf)
         pin_map = cfp.get_trait(has_kicad_footprint).get_pin_names()
         cfg_if = [
@@ -313,7 +325,27 @@ class PCB_Transformer:
         fp = PCB_Transformer.get_fp(obj)
         pad = fp.get_pad(pin_name)
 
-        return fp, pad
+        return fp, pad, obj
+
+    @staticmethod
+    def get_pad_pos(intf: ModuleInterface) -> Geometry.Point:
+        fp, pad, mod = PCB_Transformer.get_pad(intf)
+        point3d = Geometry.abs_pos(fp.at.coord, pad.at.coord)
+
+        transformer = mod.get_trait(
+            PCB_Transformer.has_linked_kicad_footprint
+        ).get_transformer()
+
+        layers = transformer.get_copper_layers_pad(pad)
+        if len(layers) != 1:
+            layer = 0
+        else:
+            copper_layers = {
+                layer: i for i, layer in enumerate(transformer.get_copper_layers())
+            }
+            layer = copper_layers[layers.pop()]
+
+        return point3d[:3] + (layer,)
 
     def get_copper_layers(self):
         COPPER = re.compile(r"^.*\.Cu$")
@@ -386,8 +418,6 @@ class PCB_Transformer:
         layer: str,
         arc: bool,
     ):
-        # TODO marker
-
         parts = []
         if arc:
             start_and_ends = points[::2]
@@ -400,7 +430,7 @@ class PCB_Transformer:
                         width=width,
                         layer=layer,
                         net_id=net_id,
-                        tstamp=self.gen_tstamp(),
+                        uuid=UUID.factory(self.gen_tstamp() + "_FBRK_AUTO"),
                     )
                 )
         else:
@@ -412,7 +442,7 @@ class PCB_Transformer:
                         width=width,
                         layer=layer,
                         net_id=net_id,
-                        tstamp=self.gen_tstamp(),
+                        uuid=UUID.factory(self.gen_tstamp() + "_FBRK_AUTO"),
                     )
                 )
 
@@ -423,7 +453,7 @@ class PCB_Transformer:
         self.insert(geo)
 
     def insert_via_next_to(self, intf: ModuleInterface, clearance: tuple[float, float]):
-        fp, pad = self.get_pad(intf)
+        fp, pad, _ = self.get_pad(intf)
 
         rel_target = tuple(map(add, pad.at.coord, clearance))
         coord = Geometry.abs_pos(fp.at.coord, rel_target)
@@ -610,8 +640,6 @@ class PCB_Transformer:
         def calculate_arc_coordinates(
             A: Tuple, B: Tuple, C: Tuple, r: float
         ) -> tuple[Geom.Coord, Geom.Coord, Geom.Coord]:
-            # TODO: remove
-            logger.setLevel(logging.DEBUG)
             # Calculate the vectors
             vector_ab = np.array([A[0] - B[0], A[1] - B[1]])
             vector_bc = np.array([C[0] - B[0], C[1] - B[1]])
@@ -667,8 +695,6 @@ class PCB_Transformer:
             logger.debug(f"         Arc Center: {arc_center}")
 
             logger.debug("")
-            # TODO: remove
-            logger.setLevel(logging.INFO)
 
             return (arc_start, arc_center, arc_end)
 

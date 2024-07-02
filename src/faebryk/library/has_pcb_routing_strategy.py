@@ -8,9 +8,10 @@ from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 
 
 class has_pcb_routing_strategy(ModuleTrait):
-    @abstractmethod
-    def calculate(self): ...
-
     # TODO remove transformer from here
+
+    @abstractmethod
+    def calculate(self, transformer: PCB_Transformer): ...
+
     @abstractmethod
     def apply(self, transformer: PCB_Transformer): ...

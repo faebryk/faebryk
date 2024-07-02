@@ -34,7 +34,7 @@ def apply_routing(app: Module, transformer: PCB_Transformer):
     for level in iter_tree_by_depth(tree):
         for n in level:
             if n.has_trait(has_pcb_routing_strategy):
-                n.get_trait(has_pcb_routing_strategy).calculate()
+                n.get_trait(has_pcb_routing_strategy).calculate(transformer)
 
     # TODO think about order and cancel
     for level in iter_tree_by_depth(tree):

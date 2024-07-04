@@ -17,9 +17,11 @@ from faebryk.core.core import (
     Node,
 )
 from faebryk.core.graph import Graph
+from faebryk.library.Electrical import Electrical
 from faebryk.library.Footprint import (
-    Footprint as Core_Footprint,
+    Footprint as FFootprint,
 )
+from faebryk.library.Footprint import Pad as FPad
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
@@ -51,7 +53,7 @@ from faebryk.libs.kicad.pcb import (
 from faebryk.libs.kicad.pcb import (
     Node as PCB_Node,
 )
-from faebryk.libs.util import flatten
+from faebryk.libs.util import find, flatten
 
 logger = logging.getLogger(__name__)
 
@@ -85,14 +87,23 @@ class PCB_Transformer:
         @abstractmethod
         def get_pad(self) -> tuple[Footprint, Pad]: ...
 
+        @abstractmethod
+        def get_transformer(self) -> "PCB_Transformer": ...
+
     class has_linked_kicad_pad_defined(has_linked_kicad_pad.impl()):
-        def __init__(self, fp: Footprint, pad: Pad) -> None:
+        def __init__(
+            self, fp: Footprint, pad: Pad, transformer: "PCB_Transformer"
+        ) -> None:
             super().__init__()
             self.fp = fp
             self.pad = pad
+            self.transformer = transformer
 
         def get_pad(self):
             return self.fp, self.pad
+
+        def get_transformer(self):
+            return self.transformer
 
     def __init__(
         self, pcb: PCB, graph: Graph, app: Module, cleanup: bool = True
@@ -138,22 +149,16 @@ class PCB_Transformer:
             )
             fp = footprints[(fp_ref, fp_name)]
 
+            g_fp.add_trait(self.has_linked_kicad_footprint_defined(fp, self))
             node.add_trait(self.has_linked_kicad_footprint_defined(fp, self))
 
-        # TODO implement above
-        # way faster because can skip fp lookup
-        for node in {gif.node for gif in self.graph.G.nodes}:
-            assert isinstance(node, Node)
-            if not isinstance(node, ModuleInterface):
-                continue
-
-            try:
-                fp, pad, _ = PCB_Transformer.get_pad(node)
-            # TODO
-            except Exception:
-                continue
-
-            node.add_trait(PCB_Transformer.has_linked_kicad_pad_defined(fp, pad))
+            pin_names = g_fp.get_trait(has_kicad_footprint).get_pin_names()
+            for fpad in g_fp.IFs.get_all():
+                assert isinstance(fpad, FPad)
+                pad = fp.get_pad(pin_names[fpad])
+                fpad.add_trait(
+                    PCB_Transformer.has_linked_kicad_pad_defined(fp, pad, self)
+                )
 
         attached = {
             gif.node: gif.node.get_trait(self.has_linked_kicad_footprint).get_fp()
@@ -290,45 +295,53 @@ class PCB_Transformer:
         return get_geometry(polys, 0).exterior.coords
 
     @staticmethod
-    def get_corresponding_fp(
-        intf: ModuleInterface,
-    ) -> tuple[Core_Footprint, Module]:
-        obj = intf
+    def _get_pad(ffp: FFootprint, intf: Electrical):
+        pin_map = ffp.get_trait(has_kicad_footprint).get_pin_names()
+        pin_name = find(
+            pin_map.items(),
+            lambda pad_and_name: intf.is_connected_to(pad_and_name[0].IFs.net)
+            is not None,
+        )[1]
 
-        while not obj.has_trait(has_footprint):
-            parent = obj.get_parent()
-            if parent is None:
-                raise Exception
-            obj = parent[0]
+        fp = PCB_Transformer.get_fp(ffp)
+        pad = fp.get_pad(pin_name)
 
-        assert isinstance(obj, Module)
-        return obj.get_trait(has_footprint).get_footprint(), obj
+        return fp, pad
 
     @staticmethod
-    def get_pad(intf: ModuleInterface) -> tuple[Footprint, Pad, Module]:
-        cfp, obj = PCB_Transformer.get_corresponding_fp(intf)
-        pin_map = cfp.get_trait(has_kicad_footprint).get_pin_names()
-        cfg_if = [
-            (pin, name)
-            for pin, name in pin_map.items()
-            if intf.is_connected_to(pin.IFs.net)
-        ]
-        assert len(cfg_if) == 1
-
-        pin_name = cfg_if[0][1]
-
-        fp = PCB_Transformer.get_fp(obj)
-        pad = fp.get_pad(pin_name)
+    def get_pad(intf: Electrical) -> tuple[Footprint, Pad, Node]:
+        obj, ffp = FFootprint.get_footprint_of_parent(intf)
+        fp, pad = PCB_Transformer._get_pad(ffp, intf)
 
         return fp, pad, obj
 
     @staticmethod
-    def get_pad_pos(intf: ModuleInterface) -> Geometry.Point:
-        fp, pad, mod = PCB_Transformer.get_pad(intf)
+    def get_pad_pos_any(intf: Electrical) -> list[tuple[FPad, Geometry.Point]]:
+        try:
+            fpads = FPad.find_pad_for_intf_with_parent_that_has_footprint(intf)
+        except ValueError:
+            # intf has no parent with footprint
+            return []
+
+        return [PCB_Transformer._get_pad_pos(fpad) for fpad in fpads]
+
+    @staticmethod
+    def get_pad_pos(intf: Electrical) -> tuple[FPad, Geometry.Point] | None:
+        try:
+            fpad = FPad.find_pad_for_intf_with_parent_that_has_footprint_unique(intf)
+        except ValueError:
+            return None
+
+        return PCB_Transformer._get_pad_pos(fpad)
+
+    @staticmethod
+    def _get_pad_pos(fpad: FPad):
+        fp, pad = fpad.get_trait(PCB_Transformer.has_linked_kicad_pad).get_pad()
+
         point3d = Geometry.abs_pos(fp.at.coord, pad.at.coord)
 
-        transformer = mod.get_trait(
-            PCB_Transformer.has_linked_kicad_footprint
+        transformer = fpad.get_trait(
+            PCB_Transformer.has_linked_kicad_pad
         ).get_transformer()
 
         layers = transformer.get_copper_layers_pad(pad)
@@ -340,7 +353,7 @@ class PCB_Transformer:
             }
             layer = copper_layers[layers.pop()]
 
-        return point3d[:3] + (layer,)
+        return fpad, point3d[:3] + (layer,)
 
     def get_copper_layers(self):
         COPPER = re.compile(r"^.*\.Cu$")

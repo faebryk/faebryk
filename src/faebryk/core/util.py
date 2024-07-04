@@ -23,6 +23,7 @@ from faebryk.core.core import (
     ModuleInterface,
     Node,
     Parameter,
+    Trait,
 )
 from faebryk.library.ANY import ANY
 from faebryk.library.can_bridge_defined import can_bridge_defined
@@ -568,3 +569,13 @@ def use_interface_names_as_net_names(node: Node, name: str | None = None):
         net.IFs.part_of.connect(el_if)
         logger.debug(f"Created {net_name} for {el_if}")
         nets[net_name] = net, el_if
+
+
+TR = TypeVar("TR", bound=Trait)
+
+
+def get_parent_with_trait(node: Node, trait: type[TR]):
+    for parent, _ in reversed(node.get_hierarchy()):
+        if parent.has_trait(trait):
+            return parent, parent.get_trait(trait)
+    raise ValueError("No parent with trait found")

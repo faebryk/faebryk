@@ -3,15 +3,12 @@
 
 from abc import abstractmethod
 
-from faebryk.core.core import ModuleTrait
+from faebryk.core.core import NodeTrait
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
+from faebryk.exporters.pcb.routing.util import Route
 
 
-class has_pcb_routing_strategy(ModuleTrait):
-    # TODO remove transformer from here
-
+# TODO remove transformer from here
+class has_pcb_routing_strategy(NodeTrait):
     @abstractmethod
-    def calculate(self, transformer: PCB_Transformer): ...
-
-    @abstractmethod
-    def apply(self, transformer: PCB_Transformer): ...
+    def calculate(self, transformer: PCB_Transformer) -> list[Route]: ...

@@ -394,7 +394,7 @@ class GraphInterface(FaebrykLibObject):
         return set(self.cache.keys())
 
     def _is_connected(self, other: GraphInterface):
-        return self.cache.get(other)
+        return self is other or self.cache.get(other)
 
     def is_connected(self, other: GraphInterface):
         return self._is_connected(other) or other._is_connected(self)

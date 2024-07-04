@@ -16,4 +16,4 @@ class can_attach_via_pinmap_pinlist(can_attach_via_pinmap.impl()):
             assert (
                 no in self.pin_list
             ), f"Pin {no} not in pin list: {self.pin_list.keys()}"
-            self.pin_list[no].IFs.net.connect(intf)
+            self.pin_list[no].attach(intf)

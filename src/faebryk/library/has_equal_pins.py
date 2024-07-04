@@ -3,10 +3,9 @@
 
 from abc import abstractmethod
 
-from faebryk.library.Electrical import Electrical
-from faebryk.library.Footprint import FootprintTrait
+from faebryk.library.Footprint import FootprintTrait, Pad
 
 
 class has_equal_pins(FootprintTrait):
     @abstractmethod
-    def get_pin_map(self) -> dict[Electrical, str]: ...
+    def get_pin_map(self) -> dict[Pad, str]: ...

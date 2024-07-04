@@ -4,8 +4,9 @@
 from enum import Enum
 
 from faebryk.library.can_attach_via_pinmap_equal import can_attach_via_pinmap_equal
-from faebryk.library.Footprint import Footprint, Pad
+from faebryk.library.Footprint import Footprint
 from faebryk.library.has_equal_pins_in_ifs import has_equal_pins_in_ifs
+from faebryk.library.Pad import Pad
 from faebryk.libs.util import times
 
 

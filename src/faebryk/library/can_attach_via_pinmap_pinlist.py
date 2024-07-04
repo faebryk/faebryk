@@ -3,7 +3,7 @@
 
 from faebryk.library.can_attach_via_pinmap import can_attach_via_pinmap
 from faebryk.library.Electrical import Electrical
-from faebryk.library.Footprint import Pad
+from faebryk.library.Pad import Pad
 
 
 class can_attach_via_pinmap_pinlist(can_attach_via_pinmap.impl()):

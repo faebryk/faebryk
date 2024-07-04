@@ -1,8 +1,8 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from faebryk.library.Footprint import Pad
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
+from faebryk.library.Pad import Pad
 
 
 class has_kicad_manual_footprint(has_kicad_footprint.impl()):

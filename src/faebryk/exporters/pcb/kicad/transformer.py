@@ -21,12 +21,12 @@ from faebryk.library.Electrical import Electrical
 from faebryk.library.Footprint import (
     Footprint as FFootprint,
 )
-from faebryk.library.Footprint import Pad as FPad
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.Net import Net as FNet
+from faebryk.library.Pad import Pad as FPad
 from faebryk.libs.geometry.basic import Geometry
 from faebryk.libs.kicad.pcb import (
     PCB,

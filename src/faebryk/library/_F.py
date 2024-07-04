@@ -33,6 +33,7 @@ from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.Electrical import Electrical
 from faebryk.library.Ethernet import Ethernet
 from faebryk.library.Footprint import Footprint
+from faebryk.library.FootprintTrait import FootprintTrait
 from faebryk.library.Fuse import Fuse
 from faebryk.library.I2C import I2C
 from faebryk.library.JTAG import JTAG
@@ -50,6 +51,7 @@ from faebryk.library.MultiSPI import MultiSPI
 from faebryk.library.Net import Net
 from faebryk.library.Operation import Operation
 from faebryk.library.PJ398SM import PJ398SM
+from faebryk.library.Pad import Pad
 from faebryk.library.Potentiometer import Potentiometer
 from faebryk.library.Power import Power
 from faebryk.library.PowerSwitch import PowerSwitch
@@ -118,6 +120,8 @@ from faebryk.library.has_kicad_footprint_equal_ifs import has_kicad_footprint_eq
 from faebryk.library.has_kicad_footprint_equal_ifs_defined import has_kicad_footprint_equal_ifs_defined
 from faebryk.library.has_kicad_manual_footprint import has_kicad_manual_footprint
 from faebryk.library.has_kicad_ref import has_kicad_ref
+from faebryk.library.has_linked_pad import has_linked_pad
+from faebryk.library.has_linked_pad_defined import has_linked_pad_defined
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
 from faebryk.library.has_pcb_layout import has_pcb_layout

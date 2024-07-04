@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.library.can_attach_via_pinmap_pinlist import can_attach_via_pinmap_pinlist
-from faebryk.library.Footprint import Footprint, Pad
+from faebryk.library.Footprint import Footprint
 from faebryk.library.has_kicad_manual_footprint import has_kicad_manual_footprint
+from faebryk.library.Pad import Pad
 from faebryk.libs.util import times
 
 

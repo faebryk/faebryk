@@ -6,9 +6,10 @@ import logging
 from faebryk.core.core import Module
 from faebryk.core.util import get_connected_mifs, get_parent_of_type
 from faebryk.library.Electrical import Electrical
-from faebryk.library.Footprint import Footprint, Pad
+from faebryk.library.Footprint import Footprint
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
+from faebryk.library.Pad import Pad
 
 logger = logging.getLogger(__name__)
 

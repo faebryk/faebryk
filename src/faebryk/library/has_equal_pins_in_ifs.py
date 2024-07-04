@@ -1,8 +1,8 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from faebryk.library.Footprint import Pad
 from faebryk.library.has_equal_pins import has_equal_pins
+from faebryk.library.Pad import Pad
 
 
 class has_equal_pins_in_ifs(has_equal_pins.impl()):

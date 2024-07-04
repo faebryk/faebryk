@@ -3,8 +3,9 @@
 
 from faebryk.library.can_attach_to_footprint import can_attach_to_footprint
 from faebryk.library.Electrical import Electrical
-from faebryk.library.Footprint import Footprint, Pad
+from faebryk.library.Footprint import Footprint
 from faebryk.library.has_defined_footprint import has_defined_footprint
+from faebryk.library.Pad import Pad
 
 
 class can_attach_to_footprint_symmetrically(can_attach_to_footprint.impl()):

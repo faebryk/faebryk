@@ -18,8 +18,8 @@ from faebryk.core.util import (
 )
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.library.Electrical import Electrical
-from faebryk.library.Footprint import Pad
 from faebryk.library.Net import Net
+from faebryk.library.Pad import Pad
 from faebryk.libs.geometry.basic import Geometry
 
 # logging settings

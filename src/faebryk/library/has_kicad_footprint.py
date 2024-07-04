@@ -3,7 +3,8 @@
 
 from abc import abstractmethod
 
-from faebryk.library.Footprint import FootprintTrait, Pad
+from faebryk.library.FootprintTrait import FootprintTrait
+from faebryk.library.Pad import Pad
 
 
 class has_kicad_footprint(FootprintTrait):

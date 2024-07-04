@@ -13,7 +13,7 @@ from faebryk.core.graph import Graph
 from faebryk.core.util import get_all_nodes_graph, get_connected_mifs
 from faebryk.exporters.netlist.netlist import Component
 from faebryk.library.Electrical import Electrical
-from faebryk.library.Footprint import FootprintTrait, Pad
+from faebryk.library.FootprintTrait import FootprintTrait
 from faebryk.library.has_defined_descriptive_properties import (
     has_defined_descriptive_properties,
 )
@@ -26,6 +26,7 @@ from faebryk.library.has_simple_value_representation import (
     has_simple_value_representation,
 )
 from faebryk.library.Net import Net
+from faebryk.library.Pad import Pad
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@
 from abc import abstractmethod
 
 from faebryk.library.Electrical import Electrical
-from faebryk.library.Footprint import FootprintTrait
+from faebryk.library.FootprintTrait import FootprintTrait
 
 
 class can_attach_via_pinmap(FootprintTrait):

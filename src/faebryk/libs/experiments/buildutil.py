@@ -42,12 +42,12 @@ def tag_and_export_module_to_netlist(m: Module, pcb_transform: bool = False):
     """
 
     logger.info("Filling unspecified parameters")
-    import faebryk.libs.app.parameters as p_mod
+    # import faebryk.libs.app.parameters as p_mod
 
-    lvl = p_mod.logger.getEffectiveLevel()
-    p_mod.logger.setLevel(logging.DEBUG)
+    # lvl = p_mod.logger.getEffectiveLevel()
+    # p_mod.logger.setLevel(logging.DEBUG)
     replace_tbd_with_any(m, recursive=True)
-    p_mod.logger.setLevel(lvl)
+    # p_mod.logger.setLevel(lvl)
 
     pick_part_recursively(m, pick_parts_for_examples)
     G = m.get_graph()

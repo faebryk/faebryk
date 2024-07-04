@@ -344,3 +344,14 @@ class Geometry:
             (rect[1][0], rect[1][1]),
             (rect[0][0], rect[1][1]),
         ]
+
+    @staticmethod
+    def average(points: list[Point2D | Point]) -> Point:
+        points4d = [p + (0,) * (4 - len(p)) for p in points]
+        # same layer
+        assert len({p[3] for p in points4d}) == 1
+        points2d = [p[:2] for p in points4d]
+
+        out = tuple(np.mean(points2d, axis=0))
+        if any(len(p) > 2 for p in points):
+            return out + (0, points[0][3])

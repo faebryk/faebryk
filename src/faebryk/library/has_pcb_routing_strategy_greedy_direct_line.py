@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from enum import Enum, auto
 
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.exporters.pcb.routing.util import (
@@ -20,6 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 class has_pcb_routing_strategy_greedy_direct_line(has_pcb_routing_strategy.impl()):
+    class Topology(Enum):
+        STAR = auto()
+        DIRECT = auto()
+        # CHAIN = auto()
+
+    def __init__(self, topology: Topology = Topology.DIRECT):
+        super().__init__()
+        self.topology = topology
+
     def calculate(self, transformer: PCB_Transformer):
         node = self.get_obj()
         nets = get_internal_nets_of_node(node)
@@ -38,35 +48,54 @@ class has_pcb_routing_strategy_greedy_direct_line(has_pcb_routing_strategy.impl(
 
             logger.debug(f"Routing net {net_name} with pads: {pads}")
 
-            sets = [{pad} for pad in pads.values()]
+            def get_route_for_net_star():
+                pads = get_pads_pos_of_mifs(mifs)
+                route = Route(path=[])
 
-            route = Route(path=[])
+                center = Geometry.average([pos for _, pos in pads.items()])
 
-            # TODO avoid crossing pads
-            # might make this very complex though
+                for _, pos in pads.items():
+                    route.add(Route.Line(DEFAULT_TRACE_WIDTH, pos, center))
 
-            while len(sets) > 1:
-                # find closest pads
-                closest = min(
-                    (
-                        (set1, set2, Geometry.distance_euclid(p1, p2), [p1, p2])
-                        for set1 in sets
-                        for set2 in sets
-                        for p1 in set1
-                        for p2 in set2
-                        if set1 != set2
-                    ),
-                    key=lambda t: t[2],
-                )
+                return route
 
-                # merge closest pads
-                sets.remove(closest[0])
-                sets.remove(closest[1])
-                sets.append(closest[0].union(closest[1]))
+            def get_route_for_direct():
+                sets = [{pad} for pad in pads.values()]
 
-                route.add(Route.Track(width=DEFAULT_TRACE_WIDTH, points=closest[3]))
+                route = Route(path=[])
 
-            return route
+                # TODO avoid crossing pads
+                # might make this very complex though
+
+                while len(sets) > 1:
+                    # find closest pads
+                    closest = min(
+                        (
+                            (set1, set2, Geometry.distance_euclid(p1, p2), [p1, p2])
+                            for set1 in sets
+                            for set2 in sets
+                            for p1 in set1
+                            for p2 in set2
+                            if set1 != set2
+                        ),
+                        key=lambda t: t[2],
+                    )
+
+                    # merge closest pads
+                    sets.remove(closest[0])
+                    sets.remove(closest[1])
+                    sets.append(closest[0].union(closest[1]))
+
+                    route.add(Route.Track(width=DEFAULT_TRACE_WIDTH, points=closest[3]))
+
+                return route
+
+            if self.topology == self.Topology.STAR:
+                return get_route_for_net_star()
+            elif self.topology == self.Topology.DIRECT:
+                return get_route_for_direct()
+            else:
+                raise NotImplementedError
 
         self.routes: dict[Net, Route] = {
             net: route

@@ -613,7 +613,9 @@ class PCB_Transformer:
         zones = self.pcb.zones
         # TODO check bbox
         if any([zone.layer == layer for zone in zones]):
-            raise Exception(f"Zone already exists in {layer=}")
+            # raise Exception(f"Zone already exists in {layer=}")
+            logger.warning(f"Zone already exists in {layer=}")
+            return
 
         self.insert(
             Zone.factory(

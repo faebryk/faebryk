@@ -579,3 +579,15 @@ def get_parent_with_trait(node: Node, trait: type[TR]):
         if parent.has_trait(trait):
             return parent, parent.get_trait(trait)
     raise ValueError("No parent with trait found")
+
+
+def get_children_of_type(node: Node, child_type: type[U]) -> list[U]:
+    return [child for child in get_all_nodes(node) if isinstance(child, child_type)]
+
+
+def get_first_child_of_type(node: Node, child_type: type[U]) -> U:
+    for level in iter_tree_by_depth(get_node_tree(node)):
+        for child in level:
+            if isinstance(child, child_type):
+                return child
+    raise ValueError("No child of type found")

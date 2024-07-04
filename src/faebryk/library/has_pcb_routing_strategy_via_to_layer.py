@@ -55,17 +55,18 @@ class has_pcb_routing_strategy_via_to_layer(has_pcb_routing_strategy.impl()):
                 )
             }
 
-            logger.debug(f"Routing net {net_name} with pads: {pads}")
+            logger.debug(f"Routing net {net_name} with pads: {pads_filtered}")
 
             path = Path()
 
             for _, pos in pads_filtered.items():
                 # No need to add via if on same layer already
-                if pos[3] == layer:
+                pad_layer = pos[3]
+                if pad_layer == layer:
                     continue
                 via_pos: Geometry.Point = Geometry.add_points(pos, self.vec)
                 path.add(Path.Via(via_pos, size_drill=DEFAULT_VIA_SIZE_DRILL))
-                path.add(Path.Line(DEFAULT_TRACE_WIDTH, layer, pos, via_pos))
+                path.add(Path.Line(DEFAULT_TRACE_WIDTH, pad_layer, pos, via_pos))
 
             path.add(
                 Path.Zone(

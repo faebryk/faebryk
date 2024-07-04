@@ -31,12 +31,24 @@ def apply_layouts(app: Module):
 
 
 def apply_routing(app: Module, transformer: PCB_Transformer):
-    # bottom up order
+    strategies: list[tuple[has_pcb_routing_strategy, int]] = []
 
     tree = get_node_tree(app)
-    for level in reversed(list(iter_tree_by_depth(tree))):
+    for i, level in enumerate(list(iter_tree_by_depth(tree))):
         for n in level:
-            if n.has_trait(has_pcb_routing_strategy):
-                routes = n.get_trait(has_pcb_routing_strategy).calculate(transformer)
-                for route in routes:
-                    apply_route_in_pcb(route, transformer)
+            if not n.has_trait(has_pcb_routing_strategy):
+                continue
+
+            strategies.append((n.get_trait(has_pcb_routing_strategy), i))
+
+    logger.info("Applying routes")
+
+    # sort by (prio, level)
+    for strategy, level in sorted(
+        strategies, key=lambda x: (x[0].priority, x[1]), reverse=True
+    ):
+        logger.debug(f"{strategy} | {level=}")
+
+        routes = strategy.calculate(transformer)
+        for route in routes:
+            apply_route_in_pcb(route, transformer)

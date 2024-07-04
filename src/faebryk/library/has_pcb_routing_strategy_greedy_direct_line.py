@@ -25,7 +25,7 @@ class has_pcb_routing_strategy_greedy_direct_line(has_pcb_routing_strategy.impl(
         DIRECT = auto()
         # CHAIN = auto()
 
-    def __init__(self, topology: Topology = Topology.DIRECT):
+    def __init__(self, topology: Topology = Topology.DIRECT, priority: float = 0.0):
         super().__init__()
         self.topology = topology
 

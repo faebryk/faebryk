@@ -105,8 +105,6 @@ class has_pcb_routing_strategy_greedy_direct_line(has_pcb_routing_strategy.impl(
             and (route := get_route_for_net(net, mifs))
         }
 
-        self.route = route
-
     def apply(self, transformer: PCB_Transformer):
         for net, route in self.routes.items():
             apply_route_in_pcb(net, route, transformer)

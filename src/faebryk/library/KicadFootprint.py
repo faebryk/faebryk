@@ -1,9 +1,8 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from faebryk.core.core import Footprint
 from faebryk.library.can_attach_via_pinmap_pinlist import can_attach_via_pinmap_pinlist
-from faebryk.library.Electrical import Electrical
+from faebryk.library.Footprint import Footprint, Pad
 from faebryk.library.has_kicad_manual_footprint import has_kicad_manual_footprint
 from faebryk.libs.util import times
 
@@ -15,7 +14,7 @@ class KicadFootprint(Footprint):
         unique_pin_names = sorted(set(pin_names))
 
         class _IFS(Footprint.IFS()):
-            pins = times(len(unique_pin_names), Electrical)
+            pins = times(len(unique_pin_names), Pad)
 
         pin_names_sorted = list(enumerate(unique_pin_names))
 

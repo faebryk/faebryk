@@ -3,9 +3,8 @@
 
 from enum import Enum
 
-from faebryk.core.core import Footprint
 from faebryk.library.can_attach_via_pinmap_equal import can_attach_via_pinmap_equal
-from faebryk.library.Electrical import Electrical
+from faebryk.library.Footprint import Footprint, Pad
 from faebryk.library.has_equal_pins_in_ifs import has_equal_pins_in_ifs
 from faebryk.libs.util import times
 
@@ -27,7 +26,7 @@ class SMDTwoPin(Footprint):
         super().__init__()
 
         class _IFs(Footprint.IFS()):
-            pins = times(2, Electrical)
+            pins = times(2, Pad)
 
         self.IFs = _IFs(self)
         from faebryk.library.has_kicad_footprint_equal_ifs import (

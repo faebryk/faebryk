@@ -10,9 +10,6 @@ from typing import Any, List, Tuple, TypeVar
 
 import numpy as np
 from faebryk.core.core import (
-    Footprint as Core_Footprint,
-)
-from faebryk.core.core import (
     Module,
     ModuleInterface,
     ModuleInterfaceTrait,
@@ -20,6 +17,9 @@ from faebryk.core.core import (
     Node,
 )
 from faebryk.core.graph import Graph
+from faebryk.library.Footprint import (
+    Footprint as Core_Footprint,
+)
 from faebryk.library.has_footprint import has_footprint
 from faebryk.library.has_kicad_footprint import has_kicad_footprint
 from faebryk.library.has_overriden_name import has_overriden_name
@@ -309,7 +309,9 @@ class PCB_Transformer:
         cfp, obj = PCB_Transformer.get_corresponding_fp(intf)
         pin_map = cfp.get_trait(has_kicad_footprint).get_pin_names()
         cfg_if = [
-            (pin, name) for pin, name in pin_map.items() if intf.is_connected_to(pin)
+            (pin, name)
+            for pin, name in pin_map.items()
+            if intf.is_connected_to(pin.IFs.net)
         ]
         assert len(cfg_if) == 1
 
@@ -369,6 +371,14 @@ class PCB_Transformer:
         }
 
         return matching_layers
+
+    def get_layer_id(self, layer: str) -> int:
+        copper_layers = {layer: i for i, layer in enumerate(self.get_copper_layers())}
+        return copper_layers[layer]
+
+    def get_layer_name(self, layer_id: int) -> str:
+        copper_layers = {i: layer for i, layer in enumerate(self.get_copper_layers())}
+        return copper_layers[layer_id]
 
     # Insert ---------------------------------------------------------------------------
     def insert(self, node: PCB_Node, mark: bool = True):
@@ -563,18 +573,7 @@ class PCB_Transformer:
         for pad, point in zip(pads, shape):
             self.insert_via(point, pad.net, size_drill)
 
-    def insert_layer_zone_for_net_for_via_bbox(
-        self, net: Net, layer: str, tolerance=0.0
-    ):
-        # check if exists
-        zones = self.pcb.zones
-        if any([zone.net == net.id for zone in zones]):
-            raise Exception(f"Zone already exists for {net=}")
-
-        # TODO check bbox
-        if any([zone.layer == layer for zone in zones]):
-            raise Exception(f"Zone already exists in {layer=}")
-
+    def get_net_obj_bbox(self, net: Net, layer: str, tolerance=0.0):
         vias = self.pcb.vias
         pads = [(pad, fp) for fp in self.pcb.footprints for pad in fp.pads]
 
@@ -586,12 +585,22 @@ class PCB_Transformer:
             Geometry.abs_pos(fp.at.coord, pad.at.coord) for pad, fp in net_pads
         ]
 
+        # TODO ugly, better get pcb boundaries
         if not coords:
             coords = [(-1e3, -1e3), (1e3, 1e3)]
 
         bbox = Geometry.bbox(coords, tolerance=tolerance)
 
-        bbox_polygon = Geometry.rect_to_polygon(bbox)
+        return Geometry.rect_to_polygon(bbox)
+
+    def insert_zone(self, net: Net, layer: str, polygon: list[Geometry.Point2D]):
+        zones = self.pcb.zones
+
+        # check if exists
+        zones = self.pcb.zones
+        # TODO check bbox
+        if any([zone.layer == layer for zone in zones]):
+            raise Exception(f"Zone already exists in {layer=}")
 
         self.insert(
             Zone.factory(
@@ -600,7 +609,7 @@ class PCB_Transformer:
                 layer=layer,
                 uuid=self.gen_uuid(mark=True),
                 name=f"layer_fill_{net.name}",
-                polygon=bbox_polygon,
+                polygon=polygon,
             )
         )
 

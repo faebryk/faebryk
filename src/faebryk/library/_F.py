@@ -32,6 +32,7 @@ from faebryk.library.ElectricLogicGates import ElectricLogicGates
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.Electrical import Electrical
 from faebryk.library.Ethernet import Ethernet
+from faebryk.library.Footprint import Footprint
 from faebryk.library.Fuse import Fuse
 from faebryk.library.I2C import I2C
 from faebryk.library.JTAG import JTAG

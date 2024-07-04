@@ -1231,18 +1231,4 @@ class Module(Node):
         return next(iter(specialest_next))
 
 
-TF = TypeVar("TF", bound="Footprint")
-
-
-class _FootprintTrait(Generic[TF], _ModuleTrait[TF]): ...
-
-
-class FootprintTrait(_FootprintTrait["Footprint"]): ...
-
-
-class Footprint(Module):
-    def __init__(self) -> None:
-        super().__init__()
-
-
 # -----------------------------------------------------------------------------

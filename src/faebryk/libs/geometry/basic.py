@@ -263,7 +263,6 @@ def get_random_points_in_polygon(polygon: Polygon, num_points: int) -> list[Poin
     """
     points = []
     min_x, min_y, max_x, max_y = polygon.bounds
-    logger.info(f"min_x: {min_x}, min_y: {min_y}, max_x: {max_x}, max_y: {max_y}")
     while len(points) < num_points:
         p = Point(np.random.uniform(min_x, max_x), np.random.uniform(min_y, max_y))
         if polygon.contains(p) and p not in points:

@@ -278,50 +278,6 @@ def polygon_to_lines(polygon: Polygon) -> Generator[tuple[Point, Point]]:
         yield (coords[i], coords[i + 1])
 
 
-def polygon_to_triangles(polygon: Polygon) -> list[Polygon]:
-    """
-    Convert a polygon to a list of triangles using the ear clipping method
-
-    :param polygon: The polygon to convert
-    :return: A list of triangles
-    """
-
-    assert len(polygon.exterior.coords) >= 3
-
-    if len(polygon.exterior.coords) == 3:
-        return [polygon]
-
-    triangles = []
-    for i in range(len(polygon.exterior.coords) - 2):
-        triangle_coords = [
-            polygon.exterior.coords[i],
-            polygon.exterior.coords[i + 1],
-            polygon.exterior.coords[i + 2],
-        ]
-
-        triangle = Polygon(triangle_coords)
-
-        remaining_points = (
-            polygon.exterior.coords[: i + 1] + polygon.exterior.coords[i + 2 :]
-        )
-
-        remaining_polygon = Polygon(remaining_points)
-
-        if triangle.area == 0:
-            continue
-
-        if len(remaining_points) == 3:
-            triangles.append(Polygon(triangle_coords))
-            triangles.append(remaining_polygon)
-            continue
-
-        for line in polygon_to_lines(Polygon(remaining_points)):
-            if remaining_polygon.contains(line[0]):
-                continue
-
-    return triangles
-
-
 def intersect_polygon_with_grid(
     polys: list[Polygon],
     grid_pitch: tuple[float, float],

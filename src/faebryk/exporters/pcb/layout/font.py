@@ -11,6 +11,7 @@ from faebryk.library.has_pcb_position_defined_relative_to_parent import (
 )
 from faebryk.libs.font import Font
 from faebryk.libs.geometry.basic import get_distributed_points_in_polygon
+from rich.progress import track
 
 logger = logging.getLogger(__name__)
 
@@ -19,45 +20,39 @@ class FontLayout(Layout):
     def __init__(
         self,
         font: Font,
+        font_size: float,
         text: str,
-        resolution: tuple[float, float],
+        density: float,
         bbox: tuple[float, float] | None = None,
-        char_dimensions: tuple[float, float] | None = None,
-        kerning: float = 1,
+        scale_to_fit: bool = False,
     ) -> None:
         """
-        Map a text string with a given font to a grid with a given resolution and map
-        a node on each node of the grid that is inside the string.
+        Create a layout that distributes nodes in a font
 
-        :param ttf: Path to the ttf font file
-        :param text: Text to render
-        :param char_dimensions: Bounding box of a single character (x, y) in mm
-        :param resolution: Resolution (x, y) in nodes/mm
-        :param kerning: Distance between characters, relative to the resolution of a
-        single character in mm
+        :param font: The font to use
+        :param font_size: The font size to use in points
+        :param text: The text to distribute
+        :param density: The density of the distribution in nodes/point
+        :param bbox: The bounding box to distribute the nodes in
+        :param scale_to_fit: Whether to scale the font to fit the bounding box
         """
         super().__init__()
 
         self.font = font
 
-        polys = font.string_to_polygons(text, font_size=30)
+        logger.info(f"Creating font layout for text: {text}")
+        polys = font.string_to_polygons(
+            text, font_size, bbox=bbox, scale_to_fit=scale_to_fit
+        )
 
-        # set grid offset to half a grid pitch to center the nodes
-        grid_offset = (1 / resolution[0] / 2, 1 / resolution[1] / 2)
-        grid_pitch = (1 / resolution[0], 1 / resolution[1])
-
-        logger.debug(f"Grid pitch: {grid_pitch}")
-        logger.debug(f"Grid offset: {grid_offset}")
-
+        logger.info(f"Finding points in polygons with density: {density}")
         nodes = []
-        for p in polys:
-            nodes.extend(get_distributed_points_in_polygon ( polygon=p, density=0.1) )
+        for p in track(polys, description="Finding points in polygons"):
+            nodes.extend(get_distributed_points_in_polygon(polygon=p, density=density))
+
+        logger.info(f"Creating {len(nodes)} nodes in polygons")
 
         self.coords = [(n.x, n.y) for n in nodes]
-
-        # Move down because the font has the origin in the bottom left while KiCad has
-        # it in the top left
-        self.coords = [(c[0], -c[1]) for c in self.coords]
 
     def get_count(self) -> int:
         """
@@ -80,9 +75,7 @@ class FontLayout(Layout):
             node.add_trait(
                 has_pcb_position_defined_relative_to_parent(
                     (
-                        coord[0],
-                        # TODO mirrored Y-axis bug
-                        -coord[1],
+                        *coord,
                         0,
                         has_pcb_position.layer_type.NONE,
                     )

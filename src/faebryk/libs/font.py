@@ -6,10 +6,8 @@ from math import inf
 from pathlib import Path
 
 import freetype
-import matplotlib.pyplot as plt
 from faebryk.libs.geometry.basic import (
     flatten_polygons,
-    get_distributed_points_in_polygon,
     transform_polygon,
 )
 from fontTools.pens.boundsPen import BoundsPen
@@ -75,8 +73,8 @@ class Font:
     def string_to_polygons(
         self,
         string: str,
-        font_size: int,
-        bbox: tuple[int, int] | None = None,
+        font_size: float,
+        bbox: tuple[float, float] | None = None,
         wrap: bool = False,
         scale_to_fit: bool = False,
     ) -> list[Polygon]:
@@ -98,19 +96,25 @@ class Font:
         if scale_to_fit and not bbox:
             raise ValueError("Bounding box must be given when fitting text")
 
+        if wrap and scale_to_fit:
+            raise NotImplementedError("Cannot wrap and scale to fit at the same time")
+
         # TODO: use bezier control points in outline.tags
 
         face = freetype.Face(str(self.path))
-        polys = []
+        polygons = []
         offset = Point(0, 0)
+
         if scale_to_fit:
-            raise NotImplementedError("Scaling to fit is not yet implemented")
+            font_size = 1
+
+        text_size = Point(0, 0)
 
         scale = font_size / face.units_per_EM
         for char in string:
             face.load_char(char)
 
-            if bbox:
+            if bbox and not scale_to_fit:
                 if offset.x + face.glyph.advance.x > bbox[0] / scale:
                     if not wrap:
                         break
@@ -121,16 +125,16 @@ class Font:
             points = face.glyph.outline.points
             contours = face.glyph.outline.contours
 
+            start = 0
+
             for contour in contours:
-                if not points:
-                    break
-                contour_points = [Point(p) for p in points[: contour + 1]]
+                contour_points = [Point(p) for p in points[start : contour + 1]]
                 contour_points.append(contour_points[0])
-                points = points[contour + 1 :]
+                start = contour + 1
                 contour_points = [
                     Point(p.x + offset.x, p.y + offset.y) for p in contour_points
                 ]
-                polys.append(Polygon(contour_points))
+                polygons.append(Polygon(contour_points))
 
             offset = Point(offset.x + face.glyph.advance.x, offset.y)
 
@@ -142,52 +146,39 @@ class Font:
                 if offset.y > bbox[1]:
                     break
 
-        # for zone in polys:
-        #    contour_points = list(zone.exterior.coords)
-        #    plt.plot(*zip(*contour_points), marker="o")
+        bounds = [p.bounds for p in polygons]
+        min_x, min_y, max_x, max_y = (
+            min(b[0] for b in bounds),
+            min(b[1] for b in bounds),
+            max(b[2] for b in bounds),
+            max(b[3] for b in bounds),
+        )
+        offset = Point(
+            -min_x,
+            -min_y,
+        )
 
-        # plt.axis("equal")
-        # plt.show()
+        if scale_to_fit and bbox:
+            scale = min(bbox[0] / (max_x - min_x), bbox[1] / (max_y - min_y))
 
-        polys = flatten_polygons(polys)
-        polys = [transform_polygon(p, scale=scale, offset=(0, 0)) for p in polys]
+        logger.debug(f"Text size: {text_size}")
+        logger.debug(f"Offset: {offset}")
+        logger.debug(f"Scale: {scale}")
 
-        # points = []
-        # for poly in polys:
-        #     points.extend(get_distributed_points_in_polygon(poly, 0.1))
-
-        # exlcude_poly = Polygon(
-        #     [
-        #         (0, 5),
-        #         (100, 5),
-        #         (100, 10),
-        #         (0, 10),
-        #         (0, 5),
-        #     ]
-        # )
-        # polys = [poly.difference(exlcude_poly) for poly in polys]
-
-        # for zone in polys:
-        #     contour_points = list(zone.exterior.coords)
-        #     plt.plot(*zip(*contour_points), marker="o")
-
-        # points = [(p.x, p.y) for p in points]
-        # plt.plot(
-        #     *zip(*points),
-        #     marker="x",
-        #     linestyle="None",
-        # )
-
-        # plt.axis("equal")
-        # plt.show()
-
-        # Invert the y-axis
-        polys = [
-            Polygon([(p[0], -p[1] + font_size) for p in polygon.exterior.coords])
-            for polygon in polys
+        polygons = flatten_polygons(polygons)
+        polygons = [
+            transform_polygon(p, scale=scale, offset=(offset.x, offset.y))
+            for p in polygons
         ]
 
-        return polys
+        # Invert the y-axis
+        max_y = max(p.bounds[3] for p in polygons)
+        polygons = [
+            Polygon([(p[0], -p[1] + max_y) for p in polygon.exterior.coords])
+            for polygon in polygons
+        ]
+
+        return polygons
 
     @staticmethod
     def extract_contours(glyph) -> list[list[tuple[float, float]]]:

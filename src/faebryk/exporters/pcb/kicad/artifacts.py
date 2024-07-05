@@ -7,25 +7,13 @@ import tempfile
 from pathlib import Path
 from zipfile import ZipFile
 
+from kicadcliwrapper.generated.kicad_cli import kicad_cli as k
+
 logger = logging.getLogger(__name__)
 
 
-def _check_kicad_cli() -> None:
-    """Check if kicad-cli 8 is installed and of correct version"""
-    try:
-        sp.check_output("which kicad-cli", shell=True)
-    except sp.CalledProcessError:
-        raise Exception("kicad-cli is not installed")
-
-    # check if kicad-cli is version 8+
-    try:
-        version = sp.check_output("kicad-cli --version", shell=True).decode("utf-8")
-        if not int(version.split(".")[0]) >= 8:
-            raise Exception(
-                f"kicad-cli is not version 8.x.x or higher but version {version}"
-            )
-    except sp.CalledProcessError:
-        raise Exception("Failed to check kicad-cli version")
+def _export(cmd):
+    return k(k.pcb(k.pcb.export(cmd))).exec()
 
 
 def export_step(pcb_file: Path, step_file: Path) -> None:
@@ -33,28 +21,18 @@ def export_step(pcb_file: Path, step_file: Path) -> None:
     3D PCBA STEP file export using the kicad-cli
     """
 
-    _check_kicad_cli()
-
-    logger.info(f"Exporting step file to {step_file}")
-    step_file.parent.mkdir(parents=True, exist_ok=True)
     try:
-        sp.check_output(
-            [
-                "kicad-cli",
-                "pcb",
-                "export",
-                "step",
-                "--force",
-                "--no-dnp",
-                "--subst-models",
-                "--output",
-                f"{step_file.absolute()}",
-                f"{pcb_file}",
-            ],
-            shell=False,
+        _export(
+            k.pcb.export.step(
+                INPUT_FILE=str(pcb_file),
+                force=True,
+                no_dnp=True,
+                subst_models=True,
+                output=str(step_file.absolute()),
+            )
         )
-    except sp.CalledProcessError:
-        raise Exception("Failed to export step file")
+    except sp.CalledProcessError as e:
+        raise Exception("Failed to export step file") from e
 
 
 def export_dxf(pcb_file: Path, dxf_file: Path) -> None:
@@ -62,35 +40,19 @@ def export_dxf(pcb_file: Path, dxf_file: Path) -> None:
     PCB outline export using the kicad-cli
     """
 
-    _check_kicad_cli()
-
-    logger.info(f"Exporting dxf file to {dxf_file}")
-    dxf_file.parent.mkdir(parents=True, exist_ok=True)
-
     try:
-        try:
-            sp.check_output(
-                [
-                    "kicad-cli",
-                    "pcb",
-                    "export",
-                    "dxf",
-                    "--exclude-refdes",
-                    "--exclude-value",
-                    "--output-units",
-                    "mm",
-                    "--layers",
-                    "Edge.Cuts",
-                    "--output",
-                    f"{dxf_file}",
-                    f"{pcb_file}",
-                ],
-                shell=False,
+        _export(
+            k.pcb.export.dxf(
+                INPUT_FILE=str(pcb_file),
+                exclude_refdes=True,
+                exclude_value=True,
+                output_units="mm",
+                layers="Edge.Cuts",
+                output=str(dxf_file),
             )
-        except sp.CalledProcessError:
-            raise Exception("Failed to export dxf file")
-    except sp.CalledProcessError:
-        raise Exception("Failed to export dxf file")
+        )
+    except sp.CalledProcessError as e:
+        raise Exception("Failed to export dxf file") from e
 
 
 def export_glb(pcb_file: Path, glb_file: Path) -> None:
@@ -98,32 +60,21 @@ def export_glb(pcb_file: Path, glb_file: Path) -> None:
     3D PCBA GLB file export using the kicad-cli
     """
 
-    _check_kicad_cli()
-
-    logger.info(f"Exporting glb file to {glb_file}")
-    glb_file.parent.mkdir(parents=True, exist_ok=True)
-
     try:
-        sp.check_output(
-            [
-                "kicad-cli",
-                "pcb",
-                "export",
-                "glb",
-                "--force",
-                "--include-tracks",
-                "--include-zones",
-                "--grid-origin",
-                "--subst-models",
-                "--no-dnp",
-                "--output",
-                f"{glb_file.absolute()}",
-                f"{pcb_file}",
-            ],
-            shell=False,
+        _export(
+            k.pcb.export.glb(
+                INPUT_FILE=str(pcb_file),
+                force=True,
+                include_tracks=True,
+                include_zones=True,
+                grid_origin=True,
+                subst_models=True,
+                no_dnp=True,
+                output=str(glb_file.absolute()),
+            )
         )
-    except sp.CalledProcessError:
-        raise Exception("Failed to export glb file")
+    except sp.CalledProcessError as e:
+        raise Exception("Failed to export glb file") from e
 
 
 def export_svg(pcb_file: Path, svg_file: Path, flip_board: bool = False) -> None:
@@ -131,33 +82,22 @@ def export_svg(pcb_file: Path, svg_file: Path, flip_board: bool = False) -> None
     2D PCBA SVG file export using the kicad-cli
     """
 
-    _check_kicad_cli()
-
-    logger.info(f"Exporting svg file to {svg_file}")
-    svg_file.parent.mkdir(parents=True, exist_ok=True)
+    layers = "F.Cu,F.Paste,F.SilkS,F.Mask,Edge.Cuts"
+    if flip_board:
+        layers = layers.replace("F.", "B.")
 
     try:
-        sp.check_output(
-            [
-                "kicad-cli",
-                "pcb",
-                "export",
-                "svg",
-                "--layers",
-                "F.Cu,F.Paste,F.SilkS,F.Mask,Edge.Cuts"
-                if not flip_board
-                else "B.Cu,B.Paste,B.SilkS,B.Mask,Edge.Cuts",
-                "--page-size-mode",
-                "2"  # Fit PSB to page
-                "--exclude-drawing-sheet",
-                "--output",
-                f"{svg_file}",
-                f"{pcb_file}",
-            ],
-            shell=False,
+        _export(
+            k.pcb.export.svg(
+                INPUT_FILE=str(pcb_file),
+                layers=layers,
+                page_size_mode="2",
+                exclude_drawing_sheet=True,
+                output=str(svg_file),
+            )
         )
-    except sp.CalledProcessError:
-        raise Exception("Failed to export svg file")
+    except sp.CalledProcessError as e:
+        raise Exception("Failed to export svg file") from e
 
 
 def export_gerber(pcb_file: Path, gerber_zip_file: Path) -> None:
@@ -165,53 +105,39 @@ def export_gerber(pcb_file: Path, gerber_zip_file: Path) -> None:
     Gerber export using the kicad-cli
     """
 
-    _check_kicad_cli()
-
     logger.info(f"Exporting gerber files to {gerber_zip_file}")
     gerber_dir = gerber_zip_file.parent
     gerber_dir.mkdir(parents=True, exist_ok=True)
 
     # Create a temporary folder to export the gerber and drill files to
     with tempfile.TemporaryDirectory(dir=gerber_dir) as temp_dir:
-        try:
-            sp.check_output(
-                [
-                    "kicad-cli",
-                    "pcb",
-                    "export",
-                    "gerbers",
-                    "--layers",
-                    "F.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,F.CrtYd,B.CrtYd,F.Fab,B.Fab,Edge.Cuts",
-                    "--output",
-                    f"{temp_dir}",
-                    f"{pcb_file}",
-                ],
-                shell=False,
-            )
-        except sp.CalledProcessError:
-            raise Exception("Failed to export gerber files")
+        out_dir = temp_dir if temp_dir.endswith("/") else f"{temp_dir}/"
 
         try:
-            sp.check_output(
-                [
-                    "kicad-cli",
-                    "pcb",
-                    "export",
-                    "drill",
-                    "--format",
-                    "excellon",
-                    "--excellon-separate-th",
-                    "--generate-map",
-                    "--map-format",
-                    "gerberx2",
-                    "--output",
-                    f"{temp_dir}/",  # trailing slash is KiCad bug
-                    f"{pcb_file}",
-                ],
-                shell=False,
+            _export(
+                k.pcb.export.gerbers(
+                    INPUT_FILE=str(pcb_file),
+                    layers="F.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,F.CrtYd,B.CrtYd,F.Fab,B.Fab,Edge.Cuts",
+                    output=out_dir,
+                )
             )
-        except sp.CalledProcessError:
-            raise Exception("Failed to export drill files")
+        except sp.CalledProcessError as e:
+            raise Exception("Failed to export gerber files") from e
+
+        try:
+            _export(
+                k.pcb.export.drill(
+                    INPUT_FILE=str(pcb_file),
+                    format="excellon",
+                    excellon_separate_th=True,
+                    generate_map=True,
+                    map_format="gerberx2",
+                    output=out_dir,
+                )
+            )
+
+        except sp.CalledProcessError as e:
+            raise Exception("Failed to export drill files") from e
 
         # Zip the gerber files
         with ZipFile(gerber_zip_file, "w") as zipf:
@@ -225,30 +151,16 @@ def export_pick_and_place(pcb_file: Path, pick_and_place_file: Path) -> None:
     Pick and place export using the kicad-cli
     """
 
-    _check_kicad_cli()
-
-    logger.info(f"Exporting pick and place file to {pick_and_place_file}")
-    pick_and_place_file.parent.mkdir(parents=True, exist_ok=True)
-
     try:
-        sp.check_output(
-            [
-                "kicad-cli",
-                "pcb",
-                "export",
-                "pos",
-                "--side",
-                "both",
-                "--format",
-                "csv",
-                "--units",
-                "mm",
-                "--exclude-dnp",
-                "--output",
-                f"{pick_and_place_file}",
-                f"{pcb_file}",
-            ],
-            shell=False,
+        _export(
+            k.pcb.export.pos(
+                INPUT_FILE=str(pcb_file),
+                side="both",
+                format="csv",
+                units="mm",
+                exclude_dnp=True,
+                output=str(pick_and_place_file),
+            )
         )
-    except sp.CalledProcessError:
-        raise Exception("Failed to export pick and place file")
+    except sp.CalledProcessError as e:
+        raise Exception("Failed to export pick and place file") from e

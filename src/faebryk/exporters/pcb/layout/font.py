@@ -10,7 +10,7 @@ from faebryk.library.has_pcb_position_defined_relative_to_parent import (
     has_pcb_position_defined_relative_to_parent,
 )
 from faebryk.libs.font import Font
-from faebryk.libs.geometry.basic import fill_poly_with_nodes_on_grid, get_distributed_points_in_polygon
+from faebryk.libs.geometry.basic import get_distributed_points_in_polygon
 
 logger = logging.getLogger(__name__)
 

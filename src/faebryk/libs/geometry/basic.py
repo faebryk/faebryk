@@ -184,7 +184,9 @@ def get_distributed_points_in_polygon(
             progress.update(
                 task_id,
                 completed=max(
-                    (100 * convergence_threshold) / max(point_distance_travel), 100
+                    (100 * convergence_threshold)
+                    / max(point_distance_travel + [convergence_threshold]),
+                    100,
                 ),
             )
 

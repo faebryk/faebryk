@@ -7,6 +7,7 @@ from operator import add
 from typing import Iterable, TypeVar
 
 import numpy as np
+from rich.progress import Progress, TaskID
 from shapely import MultiPolygon, Point, Polygon, transform
 
 logger = logging.getLogger(__name__)
@@ -80,16 +81,24 @@ def flatten_polygons(polygons: list[Polygon]) -> list[Polygon]:
 def get_distributed_points_in_polygon(
     polygon: Polygon,
     density: float,
+    max_points: int = 50,
+    convergence_threshold: float = 0.05,
+    progress: Progress | None = None,
+    task_id: TaskID | None = None,
 ) -> list[Point]:
     """
     Get a list of points that are distributed in a polygon
-
     :param polygon: The polygon to distribute the points in
     :param density: The density of the points
+    :param density: The desired density of the points
+    :param max_points: The maximum number of points to distribute, used to limit the
+    execution time. Takes precedence over density
+    :param convergence_threshold: The threshold for the convergence of the points. The
+    algorithm will stop when the maximum distance between points is less than this value
     :return: A list of points that are distributed in the polygon
     """
 
-    num_points = int(polygon.area * density)
+    num_points = min(int(polygon.area * density), max_points)
     if polygon.area > 0 and num_points == 0:
         num_points = 1
 
@@ -171,7 +180,15 @@ def get_distributed_points_in_polygon(
 
             points[i] = new_point
 
-        if max(point_distance_travel) < density / 100:
+        if progress and task_id:
+            progress.update(
+                task_id,
+                completed=max(
+                    (100 * convergence_threshold) / max(point_distance_travel), 100
+                ),
+            )
+
+        if max(point_distance_travel) < convergence_threshold:
             break
 
     return points

@@ -53,7 +53,6 @@ class Font:
 
         face = freetype.Face(str(self.path))
         polygons = []
-        offset = Point(0, 0)
 
         if scale_to_fit:
             font_size = 1
@@ -61,40 +60,44 @@ class Font:
         text_size = Point(0, 0)
 
         scale = font_size / face.units_per_EM
-        for char in string:
-            face.load_char(char)
+        for i, line in enumerate(reversed(string.split("\\n"))):
+            offset = Point(0, i * face.units_per_EM)
 
-            if bbox and not scale_to_fit:
-                if offset.x + face.glyph.advance.x > bbox[0] / scale:
-                    if not wrap:
-                        break
+            for char in line:
+                face.load_char(char)
+
+                if bbox and not scale_to_fit:
+                    if offset.x + face.glyph.advance.x > bbox[0] / scale:
+                        if not wrap:
+                            break
+                        offset = Point(0, offset.y + face.glyph.advance.y)
+                        if offset.y > bbox[1] / scale:
+                            break
+
+                points = face.glyph.outline.points
+                contours = face.glyph.outline.contours
+
+                start = 0
+
+                for contour in contours:
+                    contour_points = [Point(p) for p in points[start : contour + 1]]
+                    contour_points.append(contour_points[0])
+                    start = contour + 1
+                    contour_points = [
+                        Point(p.x + offset.x, p.y + offset.y) for p in contour_points
+                    ]
+                    polygons.append(Polygon(contour_points))
+
+                offset = Point(offset.x + face.glyph.advance.x, offset.y)
+
+                if not wrap or not bbox:
+                    continue
+
+                if offset.x > bbox[0]:
                     offset = Point(0, offset.y + face.glyph.advance.y)
-                    if offset.y > bbox[1] / scale:
+                    if offset.y > bbox[1]:
+                        logger.warning("Text does not fit in bounding box")
                         break
-
-            points = face.glyph.outline.points
-            contours = face.glyph.outline.contours
-
-            start = 0
-
-            for contour in contours:
-                contour_points = [Point(p) for p in points[start : contour + 1]]
-                contour_points.append(contour_points[0])
-                start = contour + 1
-                contour_points = [
-                    Point(p.x + offset.x, p.y + offset.y) for p in contour_points
-                ]
-                polygons.append(Polygon(contour_points))
-
-            offset = Point(offset.x + face.glyph.advance.x, offset.y)
-
-            if not wrap or not bbox:
-                continue
-
-            if offset.x > bbox[0]:
-                offset = Point(0, offset.y + face.glyph.advance.y)
-                if offset.y > bbox[1]:
-                    break
 
         bounds = [p.bounds for p in polygons]
         min_x, min_y, max_x, max_y = (

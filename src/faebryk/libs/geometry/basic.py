@@ -14,6 +14,22 @@ from shapely.ops import nearest_points
 logger = logging.getLogger(__name__)
 
 
+def get_point_on_bezier_curve(p, t: float) -> np.ndarray:
+    """
+    Get a point on a quadratic bezier curve
+
+    :param p: The points, including the start and end points
+    :param t: The parameter t [0, 1]
+    :return: The point on the curve
+    """
+    if len(p) == 1:
+        return p[0]
+    else:
+        return (1 - t) * get_point_on_bezier_curve(
+            p[:-1], t
+        ) + t * get_point_on_bezier_curve(p[1:], t)
+
+
 def polygon_insert_cutout(polygon: Polygon, cutout: Polygon) -> Polygon:
     """
     Insert a cutout into a polygon

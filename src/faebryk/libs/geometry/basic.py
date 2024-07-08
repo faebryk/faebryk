@@ -82,7 +82,7 @@ def get_distributed_points_in_polygon(
     polygon: Polygon,
     density: float,
     max_points: int = 50,
-    convergence_threshold: float = 0.05,
+    convergence_threshold: float = 0.02,
     progress: Progress | None = None,
     task_id: TaskID | None = None,
 ) -> list[Point]:

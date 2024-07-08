@@ -9,6 +9,7 @@ from typing import Iterable, TypeVar
 import numpy as np
 from rich.progress import Progress, TaskID
 from shapely import MultiPolygon, Point, Polygon, transform
+from shapely.ops import nearest_points
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,9 @@ def get_distributed_points_in_polygon(
     :return: A list of points that are distributed in the polygon
     """
 
+    if polygon.area == 0:
+        return []
+
     num_points = min(int(polygon.area * density), max_points)
     if polygon.area > 0 and num_points == 0:
         num_points = 1
@@ -150,8 +154,6 @@ def get_distributed_points_in_polygon(
 
                 point_bubble = point_bubble.difference(exclusion_polygon)
 
-            assert point_bubble.contains(point)
-
             if isinstance(point_bubble, MultiPolygon):
                 for p in list(point_bubble.geoms):
                     if p.contains(point):
@@ -160,12 +162,8 @@ def get_distributed_points_in_polygon(
 
             new_point = point_bubble.centroid
 
-            # TODO: it is possible it will be outside, then just move it to the
-            # closest point on the polygon.
             if not point_bubble.contains(new_point):
-                continue
-
-            assert polygon.contains(new_point)
+                new_point, _ = nearest_points(polygon, new_point)
 
             point_distance_travel.append(
                 Geometry.distance_euclid(
@@ -180,7 +178,7 @@ def get_distributed_points_in_polygon(
 
             points[i] = new_point
 
-        if progress and task_id:
+        if progress is not None and task_id is not None:
             progress.update(
                 task_id,
                 completed=max(
@@ -190,7 +188,7 @@ def get_distributed_points_in_polygon(
                 ),
             )
 
-        if max(point_distance_travel) < convergence_threshold:
+        if max(point_distance_travel + [0]) < convergence_threshold:
             break
 
     return points

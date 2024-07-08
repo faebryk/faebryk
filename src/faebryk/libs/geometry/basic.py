@@ -128,6 +128,10 @@ def get_distributed_points_in_polygon(
     size_x = max_x - min_x
     size_y = max_y - min_y
 
+    # iterate until threshold, then force points to be inside the polygon and iterate
+    # again
+    force_in_polygon = False
+
     while True:
         point_distance_travel = []
         for i, point in enumerate(points):
@@ -178,7 +182,7 @@ def get_distributed_points_in_polygon(
 
             new_point = point_bubble.centroid
 
-            if not point_bubble.contains(new_point):
+            if force_in_polygon and not point_bubble.contains(new_point):
                 new_point, _ = nearest_points(polygon, new_point)
 
             point_distance_travel.append(
@@ -205,7 +209,9 @@ def get_distributed_points_in_polygon(
             )
 
         if max(point_distance_travel + [0]) < convergence_threshold:
-            break
+            if force_in_polygon:
+                break
+            force_in_polygon = True
 
     return points
 

@@ -51,7 +51,7 @@ def _convert(val, t):
             "Unions not supported, if you want to use '| None' use Optional instead"
         )
     if is_dataclass(t):
-        return _parse(val, t)
+        return _decode(val, t)
     if issubclass(t, bool):
         assert val in [Symbol("yes"), Symbol("no")]
         return val == Symbol("yes")
@@ -65,7 +65,7 @@ netlist_obj = str | Symbol | int | float | bool | list
 netlist_type = list[netlist_obj]
 
 
-def _parse(sexp: netlist_type, t: type[T]) -> T:
+def _decode(sexp: netlist_type, t: type[T]) -> T:
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug(f"parse into: {t.__name__} {'-'*40}")
         logger.debug(f"sexp: {sexp}")
@@ -231,7 +231,7 @@ def loads(s: str | Path | list, t: type[T]) -> T:
     if isinstance(text, str):
         sexp = sexpdata.loads(text)
 
-    return _parse([sexp], t)
+    return _decode([sexp], t)
 
 
 def dumps(obj, path: Path | None = None) -> str:

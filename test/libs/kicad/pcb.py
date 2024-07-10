@@ -4,7 +4,6 @@
 import unittest
 from pathlib import Path
 
-import faebryk.libs.examples.buildutil as B
 from faebryk.libs.kicad.pcbsexp import (
     C_kicad_footprint_file,
     C_kicad_netlist_file,
@@ -13,17 +12,17 @@ from faebryk.libs.kicad.pcbsexp import (
 )
 from faebryk.libs.kicad.sexp_parser import JSON_File, SEXP_File
 from faebryk.libs.logging import setup_basic_logging
-from rich.traceback import install
+from faebryk.libs.util import find
 
-# TODO paths
-EXAMPLE_FILES = Path(B.__file__).parent / "resources/example"
-PRJFILE = EXAMPLE_FILES / "example.kicad_pro"
-# PCBFILE = EXAMPLE_FILES / "example.kicad_pcb"
-PCBFILE = Path("build/kicad/source/example.kicad_pcb")
-FPFILE = Path(
-    "/usr/share/kicad/footprints/LED_SMD.pretty/LED_0201_0603Metric.kicad_mod"
+TEST_DIR = find(
+    Path(__file__).parents,
+    lambda p: p.name == "test" and (p / "common/resources").is_dir(),
 )
-NETFILE = Path(".local/test.net")
+TEST_FILES = TEST_DIR / "common/resources"
+PRJFILE = TEST_FILES / "test.kicad_pro"
+PCBFILE = TEST_FILES / "test.kicad_pcb"
+FPFILE = TEST_FILES / "test.kicad_mod"
+NETFILE = TEST_FILES / "test_e.net"
 
 
 class TestPCB(unittest.TestCase):
@@ -32,34 +31,42 @@ class TestPCB(unittest.TestCase):
         self.assertEqual(p.pcbnew.last_paths.netlist, "../../faebryk/faebryk.net")
 
     def test_parser(self):
-        install(
-            width=500,
-            extra_lines=3,
-            theme=None,
-            word_wrap=True,
-            show_locals=True,
-            locals_max_length=10,
-            locals_max_string=1000,
-            locals_max_depth=3,
-            locals_hide_dunder=True,
-            locals_hide_sunder=True,
-            locals_overflow="fold",
-            indent_guides=True,
-            suppress=(),
-            max_frames=10,
-        )
         pcb = C_kicad_pcb_file.loads(PCBFILE)
-        pcb.dumps(Path(".local/dump.kicad_pcb"))
-
-        print(pcb.kicad_pcb.layers[0])
-        print([f.name for f in pcb.kicad_pcb.footprints])
-        print(pcb.kicad_pcb.setup.pcbplotparams.usegerberextensions)
-
         fp = C_kicad_footprint_file.loads(FPFILE)
-        print([(p.name, p.type) for p in fp.footprint.pads])
-
         netlist = C_kicad_netlist_file.loads(NETFILE)
-        print([(c.ref, c.value) for c in netlist.export.components.comps][:10])
+
+        self.assertEqual(
+            [f.name for f in pcb.kicad_pcb.footprints],
+            ["lcsc:LED0603-RD-YELLOW", "lcsc:R0402", "lcsc:BAT-TH_BS-02-A1AJ010"],
+        )
+        self.assertFalse(pcb.kicad_pcb.setup.pcbplotparams.usegerberextensions)
+
+        padtype = pcb.C_kicad_pcb.C_pcb_footprint.C_pad.E_type
+        self.assertEqual(
+            [(p.name, p.type) for p in fp.footprint.pads],
+            [
+                ("", padtype.smd),
+                ("", padtype.smd),
+                ("1", padtype.smd),
+                ("2", padtype.smd),
+            ],
+        )
+
+        self.assertEqual(
+            [(c.ref, c.value) for c in netlist.export.components.comps][:10],
+            [
+                ("C1", "10uF"),
+                ("C2", "10uF"),
+                ("C3", "10uF"),
+                ("C4", "10uF"),
+                ("C5", "22uF"),
+                ("C6", "100nF"),
+                ("C7", "100nF"),
+                ("C8", "10uF"),
+                ("C9", "100nF"),
+                ("C10", "100nF"),
+            ],
+        )
 
     def test_dump_load_equality(self):
         def test_reload(path: Path, parser: type[SEXP_File | JSON_File]):

@@ -64,7 +64,7 @@ class C_effects:
     @dataclass
     class C_font:
         size: tuple[float, float]
-        thickness: float
+        thickness: Optional[float] = None
 
     font: C_font
 
@@ -102,8 +102,6 @@ class C_footprint:
         at: tuple[float, float, float]
         size: tuple[float, float]
         layers: list[str]
-        net: tuple[int, str]
-        uuid: str
         drill: Optional[float] = None
         remove_unused_layers: bool = False
 
@@ -170,8 +168,6 @@ class C_footprint:
 
     name: str = field(**sexp_field(positional=True))
     layer: str
-    uuid: str
-    at: tuple[float, float]
     propertys: list[C_property] = field(**sexp_field(multidict=True))
     attr: E_attr
     fp_lines: list[C_fp_line] = field(**sexp_field(multidict=True))
@@ -179,6 +175,18 @@ class C_footprint:
     fp_texts: list[C_fp_text] = field(**sexp_field(multidict=True))
     pads: list[C_pad] = field(**sexp_field(multidict=True))
     model: C_model
+
+
+@dataclass
+class C_pcb_footprint(C_footprint):
+    @dataclass
+    class C_pad(C_footprint.C_pad):
+        net: tuple[int, str] = field(kw_only=True)
+        uuid: str = field(kw_only=True)
+
+    at: tuple[float, float]
+    uuid: str
+    pads: list[C_pad] = field(**sexp_field(multidict=True))
 
 
 @dataclass

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import faebryk.libs.examples.buildutil as B
 import typer
-from faebryk.libs.kicad.pcbsexp import Project
+from faebryk.libs.kicad.pcbsexp import C_kicad_footprint_file, Project
 from faebryk.libs.logging import setup_basic_logging
 from rich.traceback import install
 
@@ -14,6 +14,9 @@ EXAMPLE_FILES = Path(B.__file__).parent / "resources/example"
 PRJFILE = EXAMPLE_FILES / "example.kicad_pro"
 # PCBFILE = EXAMPLE_FILES / "example.kicad_pcb"
 PCBFILE = Path("build/kicad/source/example.kicad_pcb")
+FPFILE = Path(
+    "/usr/share/kicad/footprints/LED_SMD.pretty/LED_0201_0603Metric.kicad_mod"
+)
 
 
 class TestPCB(unittest.TestCase):
@@ -51,7 +54,8 @@ class TestPCB(unittest.TestCase):
         print(out.kicad_pcb.layers[0])
         print([f.name for f in out.kicad_pcb.footprints])
 
-        # print(type(a.layers.number))
+        out = C_kicad_footprint_file.loads(FPFILE)
+        print(out)
 
 
 if __name__ == "__main__":

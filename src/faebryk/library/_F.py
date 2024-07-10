@@ -73,6 +73,8 @@ from faebryk.library.SPI import SPI
 from faebryk.library.SWD import SWD
 from faebryk.library.Sercom import Sercom
 from faebryk.library.Set import Set
+from faebryk.library.SignalBuffer import SignalBuffer
+from faebryk.library.SignalInverter import SignalInverter
 from faebryk.library.Switch import Switch
 from faebryk.library.TBD import TBD
 from faebryk.library.TI_CD4011BE import TI_CD4011BE

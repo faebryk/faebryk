@@ -16,7 +16,8 @@ from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.has_pcb_position_defined import has_pcb_position_defined
 from faebryk.library.has_pcb_routing_strategy import has_pcb_routing_strategy
 from faebryk.libs.app.kicad_netlist import write_netlist
-from faebryk.libs.kicad.pcb import PCB, Project, fp_lib_table
+from faebryk.libs.kicad.pcb import PCB, fp_lib_table
+from faebryk.libs.kicad.pcbsexp import Project
 
 logger = logging.getLogger(__name__)
 

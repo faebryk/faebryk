@@ -62,47 +62,36 @@ def _parse(sexp: list[str | Symbol | int | float | bool], t: type[T]) -> T:
 
     # check if t is dataclass type
     if not hasattr(t, "__dataclass_fields__"):
+        # is_dataclass(t) trips mypy
         raise TypeError(f"{t} is not a dataclass type")
 
     value_dict = {}
 
     # Fields
     fs = fields(t)
-    simple_key_fields = {
-        Symbol(f.name): f
-        for f in fs
-        if not (sf := sexp_field.from_field(f)).positional and not sf.multidict
-    }
-    multi_key_fields = {f.name: f for f in fs if sexp_field.from_field(f).multidict}
+    key_fields = {f.name: f for f in fs if not sexp_field.from_field(f).positional}
     positional_fields = {
         i: f for i, f in enumerate(fs) if sexp_field.from_field(f).positional
     }
 
-    logger.debug(f"simple_key_fields: {list(simple_key_fields.keys())}")
-    logger.debug(f"multi_key_fields: {list(multi_key_fields.keys())}")
+    logger.debug(f"key_fields: {list(key_fields.keys())}")
     logger.debug(
         f"positional_fields: {list(f.name for f in positional_fields.values())}"
     )
 
     # Values
-    key_values = {
-        val[0]: val
-        for val in sexp
-        if isinstance(val, list)
-        and len(val)
-        and isinstance(key := val[0], Symbol)
-        and key in simple_key_fields
-    }
-    multi_key_values = groupby(
+    key_values = groupby(
         (
             val
             for val in sexp
             if isinstance(val, list)
             and len(val)
             and isinstance(key := val[0], Symbol)
-            and str(key) + "s" in multi_key_fields
+            and (str(key) + "s" in key_fields or str(key) in key_fields)
         ),
-        lambda val: str(val[0]) + "s",
+        lambda val: str(val[0]) + "s"
+        if str(val[0]) + "s" in key_fields
+        else str(val[0]),
     )
     pos_values = {
         i: val
@@ -117,45 +106,34 @@ def _parse(sexp: list[str | Symbol | int | float | bool], t: type[T]) -> T:
     logger.debug(f"pos_values: {pos_values}")
 
     # Parse
-    for s_name, f in simple_key_fields.items():
+    for s_name, f in key_fields.items():
         name = f.name
+        sp = sexp_field.from_field(f)
         if s_name not in key_values:
-            # TODO remove
-            logger.warning(f"missing key: {s_name}")
             # will be automatically filled by factory
             continue
 
-        val: list[str | Symbol | int | float | bool] = key_values[s_name][1:]
-        assert all(isinstance(v, (str, int, float, Symbol, bool, list)) for v in val)
-
-        value_dict[name] = _convert(
-            val[0] if len(val) == 1 and not isinstance(val[0], list) else val, f.type
-        )
-
-    for s_name, f in multi_key_fields.items():
-        name = f.name
-        if s_name not in multi_key_values:
-            # TODO remove
-            logger.warning(f"missing key: {s_name}")
-            # will be automatically filled by factory
-            continue
-
-        out = []
-        for _val in multi_key_values[s_name]:
-            logger.debug(f"multi_key_values: {_val}")
+        def _parse_single(_val, _t):
+            logger.debug(f"key_val: {_val}")
             val: list[list[str | Symbol | int | float | bool]] = _val[1:]
             assert all(
                 isinstance(v, (str, int, float, Symbol, bool, list)) for v in val
             )
 
-            assert isinstance(f.type, GenericAlias)
-            out.append(
-                _convert(
-                    val[0] if len(val) == 1 and not isinstance(val[0], list) else val,
-                    f.type.__args__[0],
-                )
+            return _convert(
+                val[0] if len(val) == 1 and not isinstance(val[0], list) else val,
+                _t,
             )
-        value_dict[name] = out
+
+        values = key_values[s_name]
+        if sp.multidict:
+            assert isinstance(f.type, GenericAlias) and f.type.__origin__ == list
+            value_dict[name] = [
+                _parse_single(_val, f.type.__args__[0]) for _val in values
+            ]
+        else:
+            assert len(values) == 1, f"Duplicate key: {name}"
+            value_dict[name] = _parse_single(values[0], f.type)
 
     for (i1, f), (i2, v) in zip(positional_fields.items(), pos_values.items()):
         name = f.name

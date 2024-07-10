@@ -281,3 +281,138 @@ class C_kicad_footprint_file(SEXP_File):
         generator_version: str
 
     footprint: C_footprint
+
+
+@dataclass
+class C_fields:
+    @dataclass
+    class C_field:
+        name: str
+        value: Optional[str] = field(**sexp_field(positional=True), default=None)
+
+    field: list[C_field] = field(**sexp_field(multidict=True))
+
+
+@dataclass
+class C_kicad_netlist_file(SEXP_File):
+    @dataclass
+    class C_netlist:
+        @dataclass
+        class C_components:
+            @dataclass
+            class C_component:
+                @dataclass
+                class C_property:
+                    name: str
+                    value: str
+
+                @dataclass
+                class C_libsource:
+                    lib: str
+                    part: str
+                    description: str
+
+                @dataclass
+                class C_sheetpath:
+                    names: str
+                    tstamps: str
+
+                ref: str
+                value: str
+                footprint: str
+                fields: C_fields
+                libsource: C_libsource
+                propertys: list[C_property] = field(**sexp_field(multidict=True))
+                sheetpath: C_sheetpath
+                tstamps: str
+
+            comps: list[C_component] = field(**sexp_field(multidict=True))
+
+        @dataclass
+        class C_nets:
+            @dataclass
+            class C_net:
+                @dataclass
+                class C_node:
+                    ref: str
+                    pin: str
+                    pintype: str
+                    pinfunction: Optional[str] = None
+
+                code: int
+                name: str
+                node: list[C_node] = field(**sexp_field(multidict=True))
+
+            nets: list[C_net] = field(**sexp_field(multidict=True))
+
+        @dataclass
+        class C_design:
+            @dataclass
+            class C_sheet:
+                @dataclass
+                class C_title_block:
+                    @dataclass
+                    class C_comment:
+                        number: str
+                        value: str
+
+                    title: str
+                    company: str
+                    rev: str
+                    date: str
+                    source: str
+                    comment: list[C_comment] = field(**sexp_field(multidict=True))
+
+                number: str
+                name: str
+                tstamps: str
+                title_block: C_title_block
+
+            source: str
+            date: str
+            tool: str
+            sheet: C_sheet
+
+        @dataclass
+        class C_libparts:
+            @dataclass
+            class C_libpart:
+                @dataclass
+                class C_footprints:
+                    @dataclass
+                    class C_fp:
+                        fp: str = field(**sexp_field(positional=True))
+
+                    fps: list[C_fp] = field(**sexp_field(multidict=True))
+
+                @dataclass
+                class C_pins:
+                    @dataclass
+                    class C_pin:
+                        num: str
+                        name: str
+                        type: str
+
+                    pin: list[C_pin] = field(**sexp_field(multidict=True))
+
+                lib: str
+                part: str
+                fields: C_fields
+                pins: Optional[C_pins] = None
+                footprints: Optional[C_footprints] = None
+
+            libparts: list[C_libpart] = field(**sexp_field(multidict=True))
+
+        @dataclass
+        class C_libraries:
+            # TODO
+            pass
+
+        version: str
+        design: C_design
+        components: C_components
+        libparts: C_libparts
+        libraries: C_libraries
+        nets: C_nets
+
+    export: C_netlist

@@ -6,7 +6,12 @@ from pathlib import Path
 
 import faebryk.libs.examples.buildutil as B
 import typer
-from faebryk.libs.kicad.pcbsexp import C_kicad_footprint_file, Project
+from faebryk.libs.kicad.pcbsexp import (
+    C_kicad_footprint_file,
+    C_kicad_netlist_file,
+    C_kicad_pcb_file,
+    Project,
+)
 from faebryk.libs.logging import setup_basic_logging
 from rich.traceback import install
 
@@ -17,6 +22,7 @@ PCBFILE = Path("build/kicad/source/example.kicad_pcb")
 FPFILE = Path(
     "/usr/share/kicad/footprints/LED_SMD.pretty/LED_0201_0603Metric.kicad_mod"
 )
+NETFILE = Path(".local/test.net")
 
 
 class TestPCB(unittest.TestCase):
@@ -25,8 +31,6 @@ class TestPCB(unittest.TestCase):
         self.assertEqual(p.pcbnew.last_paths.netlist, "../../faebryk/faebryk.net")
 
     def test_parser(self):
-        import logging
-
         install(
             width=500,
             extra_lines=3,
@@ -44,10 +48,9 @@ class TestPCB(unittest.TestCase):
             max_frames=10,
         )
 
-        from faebryk.libs.kicad.pcbsexp import C_kicad_pcb_file
-        from faebryk.libs.kicad.sexp_parser import logger
-
-        logger.setLevel(logging.DEBUG)
+        # from faebryk.libs.kicad.sexp_parser import logger
+        # import logging
+        # logger.setLevel(logging.DEBUG)
 
         out = C_kicad_pcb_file.loads(PCBFILE)
 
@@ -55,7 +58,10 @@ class TestPCB(unittest.TestCase):
         print([f.name for f in out.kicad_pcb.footprints])
 
         out = C_kicad_footprint_file.loads(FPFILE)
-        print(out)
+        print([(p.name, p.type) for p in out.footprint.pads])
+
+        out = C_kicad_netlist_file.loads(NETFILE)
+        print([(c.ref, c.value) for c in out.export.components.comps][:10])
 
 
 if __name__ == "__main__":

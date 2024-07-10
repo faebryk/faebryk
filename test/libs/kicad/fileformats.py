@@ -4,11 +4,12 @@
 import unittest
 from pathlib import Path
 
-from faebryk.libs.kicad.pcbsexp import (
+from faebryk.libs.kicad.fileformats import (
     C_kicad_footprint_file,
+    C_kicad_fp_lib_table_file,
     C_kicad_netlist_file,
     C_kicad_pcb_file,
-    Project,
+    C_kicad_project_file,
 )
 from faebryk.libs.kicad.sexp_parser import JSON_File, SEXP_File
 from faebryk.libs.logging import setup_basic_logging
@@ -23,17 +24,15 @@ PRJFILE = TEST_FILES / "test.kicad_pro"
 PCBFILE = TEST_FILES / "test.kicad_pcb"
 FPFILE = TEST_FILES / "test.kicad_mod"
 NETFILE = TEST_FILES / "test_e.net"
+FPLIBFILE = TEST_FILES / "fp-lib-table"
 
 
-class TestPCB(unittest.TestCase):
-    def test_project(self):
-        p = Project.loads(PRJFILE)
-        self.assertEqual(p.pcbnew.last_paths.netlist, "../../faebryk/faebryk.net")
-
+class TestFileFormats(unittest.TestCase):
     def test_parser(self):
         pcb = C_kicad_pcb_file.loads(PCBFILE)
         fp = C_kicad_footprint_file.loads(FPFILE)
         netlist = C_kicad_netlist_file.loads(NETFILE)
+        pro = C_kicad_project_file.loads(PRJFILE)
 
         self.assertEqual(
             [f.name for f in pcb.kicad_pcb.footprints],
@@ -68,10 +67,12 @@ class TestPCB(unittest.TestCase):
             ],
         )
 
+        self.assertEqual(pro.pcbnew.last_paths.netlist, "../../faebryk/faebryk.net")
+
     def test_dump_load_equality(self):
         def test_reload(path: Path, parser: type[SEXP_File | JSON_File]):
             loaded = parser.loads(path)
-            dump = loaded.dumps()
+            dump = loaded.dumps(Path(".local") / path.name)
             loaded_dump = parser.loads(dump)
             self.assertEqual(loaded, loaded_dump)
 
@@ -79,7 +80,8 @@ class TestPCB(unittest.TestCase):
             (C_kicad_pcb_file, PCBFILE),
             (C_kicad_footprint_file, FPFILE),
             (C_kicad_netlist_file, NETFILE),
-            (Project, PRJFILE),
+            (C_kicad_project_file, PRJFILE),
+            (C_kicad_fp_lib_table_file, FPLIBFILE),
         ]:
             test_reload(file, parser)
 

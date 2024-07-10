@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
-class Project(JSON_File):
+class C_kicad_project_file(JSON_File):
     @dataclass_json(undefined=Undefined.INCLUDE)
     @dataclass
-    class _pcbnew:
+    class C_pcbnew:
         @dataclass_json(undefined=Undefined.INCLUDE)
         @dataclass
-        class _last_paths:
+        class C_last_paths:
             gencad: str = ""
             idf: str = ""
             netlist: str = ""
@@ -30,10 +30,10 @@ class Project(JSON_File):
             vrml: str = ""
             unknown: CatchAll = None
 
-        last_paths: "_last_paths" = field(default_factory=_last_paths)
+        last_paths: C_last_paths = field(default_factory=C_last_paths)
         unknown: CatchAll = None
 
-    pcbnew: "_pcbnew" = field(default_factory=_pcbnew)
+    pcbnew: C_pcbnew = field(default_factory=C_pcbnew)
     unknown: CatchAll = None
 
 
@@ -60,6 +60,64 @@ class C_effects:
         thickness: Optional[float] = None
 
     font: C_font
+
+
+@dataclass
+class C_line:
+    start: tuple[float, float]
+    end: tuple[float, float]
+    stroke: C_Stroke
+    layer: str
+    uuid: str
+
+
+@dataclass
+class C_circle:
+    class E_fill(StrEnum):
+        none = auto()
+
+    center: tuple[float, float]
+    end: tuple[float, float]
+    stroke: C_Stroke
+    fill: E_fill
+    layer: str
+    uuid: str
+
+
+@dataclass
+class C_arc:
+    start: tuple[float, float]
+    mid: tuple[float, float]
+    end: tuple[float, float]
+    stroke: C_Stroke
+    layer: str
+    uuid: str
+
+
+@dataclass
+class C_text:
+    class E_type(StrEnum):
+        user = auto()
+
+    type: E_type = field(**sexp_field(positional=True))
+    text: str = field(**sexp_field(positional=True))
+    at: tuple[float, float, float]
+    layer: str
+    uuid: str
+    effects: C_effects
+
+
+@dataclass
+class C_rect:
+    class E_fill(StrEnum):
+        none = auto()
+
+    start: tuple[float, float]
+    end: tuple[float, float]
+    stroke: C_Stroke
+    fill: E_fill
+    layer: str
+    uuid: str
 
 
 @dataclass
@@ -118,55 +176,15 @@ class C_footprint:
         scale: C_scale
         rotate: C_rotate
 
-    @dataclass
-    class C_fp_line:
-        start: tuple[float, float]
-        end: tuple[float, float]
-        stroke: C_Stroke
-        layer: str
-        uuid: str
-
-    @dataclass
-    class C_fp_circle:
-        class E_fill(StrEnum):
-            none = auto()
-
-        center: tuple[float, float]
-        end: tuple[float, float]
-        stroke: C_Stroke
-        fill: E_fill
-        layer: str
-        uuid: str
-
-    @dataclass
-    class C_fp_arc:
-        start: tuple[float, float]
-        mid: tuple[float, float]
-        end: tuple[float, float]
-        stroke: C_Stroke
-        layer: str
-        uuid: str
-
-    @dataclass
-    class C_fp_text:
-        class E_type(StrEnum):
-            user = auto()
-
-        type: E_type = field(**sexp_field(positional=True))
-        text: str = field(**sexp_field(positional=True))
-        at: tuple[float, float, float]
-        layer: str
-        uuid: str
-        effects: C_effects
-
     name: str = field(**sexp_field(positional=True))
     layer: str
     propertys: list[C_property] = field(**sexp_field(multidict=True))
     attr: E_attr
-    fp_lines: list[C_fp_line] = field(**sexp_field(multidict=True))
-    fp_arcs: list[C_fp_arc] = field(**sexp_field(multidict=True))
-    fp_circles: list[C_fp_circle] = field(**sexp_field(multidict=True))
-    fp_texts: list[C_fp_text] = field(**sexp_field(multidict=True))
+    fp_lines: list[C_line] = field(**sexp_field(multidict=True))
+    fp_arcs: list[C_arc] = field(**sexp_field(multidict=True))
+    fp_circles: list[C_circle] = field(**sexp_field(multidict=True))
+    fp_rect: list[C_rect] = field(**sexp_field(multidict=True))
+    fp_texts: list[C_text] = field(**sexp_field(multidict=True))
     pads: list[C_pad] = field(**sexp_field(multidict=True))
     model: C_model
 
@@ -251,6 +269,108 @@ class C_kicad_pcb_file(SEXP_File):
             uuid: str
             pads: list[C_pad] = field(**sexp_field(multidict=True))
 
+        @dataclass
+        class C_via:
+            at: tuple[float, float]
+            size: tuple[float, float]
+            drill: float
+            net: str
+            uuid: str
+
+        @dataclass
+        class C_zone:
+            @dataclass
+            class C_hatch:
+                class E_mode(StrEnum):
+                    edge = auto()
+                    full = auto()
+                    none = auto()
+
+                mode: E_mode = field(**sexp_field(positional=True))
+                pitch: float = field(**sexp_field(positional=True))
+
+            @dataclass
+            class C_connect_pads:
+                class E_mode(StrEnum):
+                    none = "no"
+                    solid = "yes"
+                    thermal_reliefs = ""
+                    thru_hole_only = "thru_hole_only"
+
+                mode: E_mode = field(**sexp_field(positional=True))
+                clearance: float
+
+            @dataclass
+            class C_fill:
+                class E_mode(StrEnum):
+                    solid = auto()
+                    hatch = auto()
+
+                class E_hatch_border_algorithm(StrEnum):
+                    hatch_thickness = auto()
+
+                class E_smoothing(StrEnum):
+                    none = ""
+                    fillet = "fillet"
+                    chamfer = "chamfer"
+
+                class E_island_removal_mode(StrEnum):
+                    do_not_remove = "1"
+                    remove_all = ""
+                    below_area_limit = "2"
+
+                enable: bool = field(**sexp_field(positional=True))
+                mode: E_mode
+                hatch_thickness: float
+                hatch_gap: float
+                hatch_orientation: float
+                hatch_smoothing_level: float
+                hatch_smoothing_value: float
+                hatch_border_algorithm: E_hatch_border_algorithm
+                hatch_min_hole_area: float
+                thermal_gap: float
+                thermal_bridge_width: float
+                smoothing: E_smoothing
+                radius: float
+                island_removal_mode: E_island_removal_mode
+                island_area_min: float
+
+            @dataclass
+            class C_polygon:
+                @dataclass
+                class C_xy:
+                    x: float = field(**sexp_field(positional=True))
+                    y: float = field(**sexp_field(positional=True))
+
+                pts: list[C_xy] = field(**sexp_field(multidict=True))
+
+            net: int
+            net_name: str
+            layer: str
+            uuid: str
+            name: str
+            locked: bool
+            hatch: C_hatch
+            priority: int
+            connect_pads: C_connect_pads
+            min_thickness: float
+            filled_areas_thickness: bool
+            fill: C_fill
+            polygon: C_polygon
+
+        @dataclass
+        class C_segment:
+            start: tuple[float, float]
+            end: tuple[float, float]
+            width: float
+            layer: str
+            net: str
+            uuid: str
+
+        @dataclass
+        class C_arc_segment(C_segment):
+            mid: tuple[float, float]
+
         version: int
         generator: str
         generator_version: str
@@ -258,8 +378,19 @@ class C_kicad_pcb_file(SEXP_File):
         paper: str
         layers: list[C_layer]
         setup: C_setup
+
         nets: list[C_net] = field(**sexp_field(multidict=True))
         footprints: list[C_pcb_footprint] = field(**sexp_field(multidict=True))
+        vias: list[C_via] = field(**sexp_field(multidict=True))
+        zones: list[C_zone] = field(**sexp_field(multidict=True))
+        segment: list[C_segment] = field(**sexp_field(multidict=True))
+        arc: list[C_arc_segment] = field(**sexp_field(multidict=True))
+
+        gr_lines: list[C_line] = field(**sexp_field(multidict=True))
+        gr_arcs: list[C_arc] = field(**sexp_field(multidict=True))
+        gr_circles: list[C_circle] = field(**sexp_field(multidict=True))
+        gr_rect: list[C_rect] = field(**sexp_field(multidict=True))
+        gr_texts: list[C_text] = field(**sexp_field(multidict=True))
 
     kicad_pcb: C_kicad_pcb
 
@@ -410,3 +541,21 @@ class C_kicad_netlist_file(SEXP_File):
         nets: C_nets
 
     export: C_netlist
+
+
+@dataclass
+class C_kicad_fp_lib_table_file(SEXP_File):
+    @dataclass
+    class C_fp_lib_table:
+        @dataclass
+        class C_lib:
+            name: str
+            type: str
+            uri: str
+            options: str
+            descr: str
+
+        version: int
+        libs: list[C_lib] = field(**sexp_field(multidict=True))
+
+    fp_lib_table: C_fp_lib_table

@@ -43,6 +43,10 @@ class C_kicad_project_file(JSON_File):
 # multi-key dict
 
 
+class UUID(str):
+    pass
+
+
 @dataclass
 class C_Stroke:
     class E_type(StrEnum):
@@ -68,7 +72,7 @@ class C_line:
     end: tuple[float, float]
     stroke: C_Stroke
     layer: str
-    uuid: str
+    uuid: UUID
 
 
 @dataclass
@@ -81,7 +85,7 @@ class C_circle:
     stroke: C_Stroke
     fill: E_fill
     layer: str
-    uuid: str
+    uuid: UUID
 
 
 @dataclass
@@ -91,7 +95,7 @@ class C_arc:
     end: tuple[float, float]
     stroke: C_Stroke
     layer: str
-    uuid: str
+    uuid: UUID
 
 
 @dataclass
@@ -103,7 +107,7 @@ class C_text:
     text: str = field(**sexp_field(positional=True))
     at: tuple[float, float, float]
     layer: str
-    uuid: str
+    uuid: UUID
     effects: C_effects
 
 
@@ -117,7 +121,7 @@ class C_rect:
     stroke: C_Stroke
     fill: E_fill
     layer: str
-    uuid: str
+    uuid: UUID
 
 
 @dataclass
@@ -132,7 +136,7 @@ class C_footprint:
         value: str = field(**sexp_field(positional=True))
         at: tuple[float, float, float]
         layer: str
-        uuid: str
+        uuid: UUID
         effects: C_effects
         hide: bool = False
 
@@ -263,10 +267,10 @@ class C_kicad_pcb_file(SEXP_File):
             @dataclass
             class C_pad(C_footprint.C_pad):
                 net: tuple[int, str] = field(kw_only=True)
-                uuid: str = field(kw_only=True)
+                uuid: UUID = field(kw_only=True)
 
             at: tuple[float, float]
-            uuid: str
+            uuid: UUID
             pads: list[C_pad] = field(**sexp_field(multidict=True))
 
         @dataclass
@@ -275,7 +279,7 @@ class C_kicad_pcb_file(SEXP_File):
             size: tuple[float, float]
             drill: float
             net: str
-            uuid: str
+            uuid: UUID
 
         @dataclass
         class C_zone:
@@ -347,7 +351,7 @@ class C_kicad_pcb_file(SEXP_File):
             net: int
             net_name: str
             layer: str
-            uuid: str
+            uuid: UUID
             name: str
             locked: bool
             hatch: C_hatch
@@ -365,7 +369,7 @@ class C_kicad_pcb_file(SEXP_File):
             width: float
             layer: str
             net: str
-            uuid: str
+            uuid: UUID
 
         @dataclass
         class C_arc_segment(C_segment):

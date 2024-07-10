@@ -72,9 +72,10 @@ class TestFileFormats(unittest.TestCase):
     def test_dump_load_equality(self):
         def test_reload(path: Path, parser: type[SEXP_File | JSON_File]):
             loaded = parser.loads(path)
-            dump = loaded.dumps(Path(".local") / path.name)
+            dump = loaded.dumps()
             loaded_dump = parser.loads(dump)
-            self.assertEqual(loaded, loaded_dump)
+            dump2 = loaded_dump.dumps()
+            self.assertEqual(dump, dump2)
 
         for parser, file in [
             (C_kicad_pcb_file, PCBFILE),

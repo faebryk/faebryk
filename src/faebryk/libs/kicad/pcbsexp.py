@@ -5,14 +5,14 @@ from pathlib import Path
 from typing import Optional
 
 from dataclasses_json import CatchAll, Undefined, dataclass_json
-from faebryk.libs.kicad.sexp_parser import SEXP_File, sexp_field
+from faebryk.libs.kicad.sexp_parser import JSON_File, SEXP_File, sexp_field
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass_json(undefined=Undefined.INCLUDE)
 @dataclass
-class Project:
+class Project(JSON_File):
     @dataclass_json(undefined=Undefined.INCLUDE)
     @dataclass
     class _pcbnew:
@@ -36,13 +36,6 @@ class Project:
     pcbnew: "_pcbnew" = field(default_factory=_pcbnew)
     unknown: CatchAll = None
 
-    @classmethod
-    def load(cls, path: Path) -> "Project":
-        return cls.from_json(path.read_text())
-
-    def dump(self, path: Path):
-        return path.write_text(self.to_json(indent=4))
-
 
 # ---------------------------------------------------------------------
 # Kicad SEXP subset
@@ -55,7 +48,7 @@ class C_Stroke:
     class E_type(StrEnum):
         solid = auto()
 
-    width: str
+    width: float
     type: E_type
 
 
@@ -171,22 +164,11 @@ class C_footprint:
     propertys: list[C_property] = field(**sexp_field(multidict=True))
     attr: E_attr
     fp_lines: list[C_fp_line] = field(**sexp_field(multidict=True))
+    fp_arcs: list[C_fp_arc] = field(**sexp_field(multidict=True))
     fp_circles: list[C_fp_circle] = field(**sexp_field(multidict=True))
     fp_texts: list[C_fp_text] = field(**sexp_field(multidict=True))
     pads: list[C_pad] = field(**sexp_field(multidict=True))
     model: C_model
-
-
-@dataclass
-class C_pcb_footprint(C_footprint):
-    @dataclass
-    class C_pad(C_footprint.C_pad):
-        net: tuple[int, str] = field(kw_only=True)
-        uuid: str = field(kw_only=True)
-
-    at: tuple[float, float]
-    uuid: str
-    pads: list[C_pad] = field(**sexp_field(multidict=True))
 
 
 @dataclass
@@ -213,8 +195,8 @@ class C_kicad_pcb_file(SEXP_File):
         class C_setup:
             @dataclass
             class C_pcbplotparams:
-                layerselection: int
-                plot_on_all_layers_selection: int
+                layerselection: str
+                plot_on_all_layers_selection: str
                 disableapertmacros: bool
                 usegerberextensions: bool
                 usegerberattributes: bool
@@ -258,14 +240,26 @@ class C_kicad_pcb_file(SEXP_File):
             number: int = field(**sexp_field(positional=True))
             name: str = field(**sexp_field(positional=True))
 
+        @dataclass
+        class C_pcb_footprint(C_footprint):
+            @dataclass
+            class C_pad(C_footprint.C_pad):
+                net: tuple[int, str] = field(kw_only=True)
+                uuid: str = field(kw_only=True)
+
+            at: tuple[float, float]
+            uuid: str
+            pads: list[C_pad] = field(**sexp_field(multidict=True))
+
         version: int
         generator: str
         generator_version: str
         general: C_general
         paper: str
         layers: list[C_layer]
+        setup: C_setup
         nets: list[C_net] = field(**sexp_field(multidict=True))
-        footprints: list[C_footprint] = field(**sexp_field(multidict=True))
+        footprints: list[C_pcb_footprint] = field(**sexp_field(multidict=True))
 
     kicad_pcb: C_kicad_pcb
 

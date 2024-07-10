@@ -5,8 +5,10 @@ import logging
 from pathlib import Path
 
 import freetype
+import numpy as np
 from faebryk.libs.geometry.basic import (
     flatten_polygons,
+    get_point_on_bezier_curve,
     transform_polygon,
 )
 from shapely import Point, Polygon
@@ -27,6 +29,7 @@ class Font:
         bbox: tuple[float, float] | None = None,
         wrap: bool = False,
         scale_to_fit: bool = False,
+        resolution: int = 10,
     ) -> list[Polygon]:
         """
         Render the polygons of a string from a ttf font file
@@ -37,6 +40,7 @@ class Font:
         :param bbox: The bounding box to fit the text in, in points
         :param wrap: Wrap the text to fit the bounding box
         :param scale_to_fit: Scale the text to fit the bounding box
+        :param resolution: The resolution of the bezier curves
         :return: A list of polygons that represent the string
         """
 
@@ -53,7 +57,6 @@ class Font:
 
         face = freetype.Face(str(self.path))
         polygons = []
-        offset = Point(0, 0)
 
         if scale_to_fit:
             font_size = 1
@@ -61,40 +64,75 @@ class Font:
         text_size = Point(0, 0)
 
         scale = font_size / face.units_per_EM
-        for char in string:
-            face.load_char(char)
+        for i, line in enumerate(reversed(string.split("\\n"))):
+            offset = Point(0, i * face.units_per_EM)
 
-            if bbox and not scale_to_fit:
-                if offset.x + face.glyph.advance.x > bbox[0] / scale:
-                    if not wrap:
-                        break
+            for char in line:
+                face.load_char(char)
+
+                if bbox and not scale_to_fit:
+                    if offset.x + face.glyph.advance.x > bbox[0] / scale:
+                        if not wrap:
+                            break
+                        offset = Point(0, offset.y + face.glyph.advance.y)
+                        if offset.y > bbox[1] / scale:
+                            break
+
+                points = face.glyph.outline.points
+                tags = face.glyph.outline.tags
+                contours = face.glyph.outline.contours
+
+                start = 0
+
+                ts = np.linspace(0, 1, resolution)
+
+                for contour in contours:
+                    contour_points = []
+                    point_info = list(
+                        zip(points[start : contour + 1], tags[start : contour + 1])
+                    )
+                    point_info.append(point_info[0])
+                    i = 0
+                    while i < len(point_info):
+                        # find segment of points that are off curve
+                        segment = [point_info[i][0]]
+                        i += 1
+                        for j in range(i, len(point_info)):
+                            point, tag = point_info[j]
+                            segment.append(point)
+                            if tag & 1:
+                                i = j
+                                break
+
+                        contour_points.extend(
+                            [
+                                Point(
+                                    get_point_on_bezier_curve(
+                                        [np.array(s) for s in segment], ts
+                                    )
+                                )
+                                for ts in ts
+                            ]
+                        )
+
+                    # apply the offset
+                    contour_points = [
+                        Point(p.x + offset.x, p.y + offset.y) for p in contour_points
+                    ]
+                    polygons.append(Polygon(contour_points))
+
+                    start = contour + 1
+
+                offset = Point(offset.x + face.glyph.advance.x, offset.y)
+
+                if not wrap or not bbox:
+                    continue
+
+                if offset.x > bbox[0]:
                     offset = Point(0, offset.y + face.glyph.advance.y)
-                    if offset.y > bbox[1] / scale:
+                    if offset.y > bbox[1]:
+                        logger.warning("Text does not fit in bounding box")
                         break
-
-            points = face.glyph.outline.points
-            contours = face.glyph.outline.contours
-
-            start = 0
-
-            for contour in contours:
-                contour_points = [Point(p) for p in points[start : contour + 1]]
-                contour_points.append(contour_points[0])
-                start = contour + 1
-                contour_points = [
-                    Point(p.x + offset.x, p.y + offset.y) for p in contour_points
-                ]
-                polygons.append(Polygon(contour_points))
-
-            offset = Point(offset.x + face.glyph.advance.x, offset.y)
-
-            if not wrap or not bbox:
-                continue
-
-            if offset.x > bbox[0]:
-                offset = Point(0, offset.y + face.glyph.advance.y)
-                if offset.y > bbox[1]:
-                    break
 
         bounds = [p.bounds for p in polygons]
         min_x, min_y, max_x, max_y = (

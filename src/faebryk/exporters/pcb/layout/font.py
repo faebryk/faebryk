@@ -11,7 +11,7 @@ from faebryk.library.has_pcb_position_defined_relative_to_parent import (
 )
 from faebryk.libs.font import Font
 from faebryk.libs.geometry.basic import get_distributed_points_in_polygon
-from rich.progress import track
+from rich.progress import Progress
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +47,17 @@ class FontLayout(Layout):
 
         logger.info(f"Finding points in polygons with density: {density}")
         nodes = []
-        for p in track(polys, description="Finding points in polygons"):
-            nodes.extend(get_distributed_points_in_polygon(polygon=p, density=density))
+        with Progress(*Progress.get_default_columns()) as progress:
+            tasks = [
+                progress.add_task(f"Converging points for polygon {i}", total=100)
+                for i, _ in enumerate(polys)
+            ]
+            for i, p in enumerate(polys):
+                nodes.extend(
+                    get_distributed_points_in_polygon(
+                        polygon=p, density=density, progress=progress, task_id=tasks[i]
+                    )
+                )
 
         logger.info(f"Creating {len(nodes)} nodes in polygons")
 

@@ -7,9 +7,27 @@ from operator import add
 from typing import Iterable, TypeVar
 
 import numpy as np
+from rich.progress import Progress, TaskID
 from shapely import MultiPolygon, Point, Polygon, transform
+from shapely.ops import nearest_points
 
 logger = logging.getLogger(__name__)
+
+
+def get_point_on_bezier_curve(p, t: float) -> np.ndarray:
+    """
+    Get a point on a quadratic bezier curve
+
+    :param p: The points, including the start and end points
+    :param t: The parameter t [0, 1]
+    :return: The point on the curve
+    """
+    if len(p) == 1:
+        return p[0]
+    else:
+        return (1 - t) * get_point_on_bezier_curve(
+            p[:-1], t
+        ) + t * get_point_on_bezier_curve(p[1:], t)
 
 
 def polygon_insert_cutout(polygon: Polygon, cutout: Polygon) -> Polygon:
@@ -80,16 +98,27 @@ def flatten_polygons(polygons: list[Polygon]) -> list[Polygon]:
 def get_distributed_points_in_polygon(
     polygon: Polygon,
     density: float,
+    max_points: int = 50,
+    convergence_threshold: float = 0.02,
+    progress: Progress | None = None,
+    task_id: TaskID | None = None,
 ) -> list[Point]:
     """
     Get a list of points that are distributed in a polygon
-
     :param polygon: The polygon to distribute the points in
     :param density: The density of the points
+    :param density: The desired density of the points
+    :param max_points: The maximum number of points to distribute, used to limit the
+    execution time. Takes precedence over density
+    :param convergence_threshold: The threshold for the convergence of the points. The
+    algorithm will stop when the maximum distance between points is less than this value
     :return: A list of points that are distributed in the polygon
     """
 
-    num_points = int(polygon.area * density)
+    if polygon.area == 0:
+        return []
+
+    num_points = min(int(polygon.area * density), max_points)
     if polygon.area > 0 and num_points == 0:
         num_points = 1
 
@@ -98,6 +127,10 @@ def get_distributed_points_in_polygon(
     min_x, min_y, max_x, max_y = polygon.bounds
     size_x = max_x - min_x
     size_y = max_y - min_y
+
+    # iterate until threshold, then force points to be inside the polygon and iterate
+    # again
+    force_in_polygon = False
 
     while True:
         point_distance_travel = []
@@ -141,8 +174,6 @@ def get_distributed_points_in_polygon(
 
                 point_bubble = point_bubble.difference(exclusion_polygon)
 
-            assert point_bubble.contains(point)
-
             if isinstance(point_bubble, MultiPolygon):
                 for p in list(point_bubble.geoms):
                     if p.contains(point):
@@ -151,12 +182,8 @@ def get_distributed_points_in_polygon(
 
             new_point = point_bubble.centroid
 
-            # TODO: it is possible it will be outside, then just move it to the
-            # closest point on the polygon.
-            if not point_bubble.contains(new_point):
-                continue
-
-            assert polygon.contains(new_point)
+            if force_in_polygon and not point_bubble.contains(new_point):
+                new_point, _ = nearest_points(polygon, new_point)
 
             point_distance_travel.append(
                 Geometry.distance_euclid(
@@ -171,8 +198,20 @@ def get_distributed_points_in_polygon(
 
             points[i] = new_point
 
-        if max(point_distance_travel) < density / 100:
-            break
+        if progress is not None and task_id is not None:
+            progress.update(
+                task_id,
+                completed=max(
+                    (100 * convergence_threshold)
+                    / max(point_distance_travel + [convergence_threshold]),
+                    100,
+                ),
+            )
+
+        if max(point_distance_travel + [0]) < convergence_threshold:
+            if force_in_polygon:
+                break
+            force_in_polygon = True
 
     return points
 

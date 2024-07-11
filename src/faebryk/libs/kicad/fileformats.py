@@ -608,7 +608,9 @@ class C_footprint:
 
     name: str = field(**sexp_field(positional=True))
     layer: str
-    propertys: list[C_property] = field(**sexp_field(multidict=True))
+    propertys: dict[str, C_property] = field(
+        **sexp_field(multidict=True, key=lambda x: x.name)
+    )
     attr: E_attr
     fp_lines: list[C_line] = field(**sexp_field(multidict=True))
     fp_arcs: list[C_arc] = field(**sexp_field(multidict=True))
@@ -845,7 +847,9 @@ class C_fields:
         name: str
         value: Optional[str] = field(**sexp_field(positional=True), default=None)
 
-    fields: list[C_field] = field(**sexp_field(multidict=True), default_factory=list)
+    fields: dict[str, C_field] = field(
+        **sexp_field(multidict=True, key=lambda x: x.name), default_factory=dict
+    )
 
 
 @dataclass
@@ -875,7 +879,9 @@ class C_kicad_netlist_file(SEXP_File):
                 ref: str
                 value: str
                 footprint: str
-                propertys: list[C_property] = field(**sexp_field(multidict=True))
+                propertys: dict[str, C_property] = field(
+                    **sexp_field(multidict=True, key=lambda x: x.name)
+                )
                 tstamps: str
                 fields: C_fields = field(default_factory=C_fields)
                 sheetpath: Optional[C_sheetpath] = None

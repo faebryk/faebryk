@@ -3,11 +3,11 @@ from dataclasses import Field, dataclass, fields, is_dataclass
 from enum import Enum
 from pathlib import Path
 from types import GenericAlias
-from typing import Any, TypeVar
+from typing import Any, Callable, TypeVar
 
 import sexpdata
 from faebryk.libs.sexp.util import prettify_sexp_string
-from faebryk.libs.util import groupby
+from faebryk.libs.util import duplicates, groupby
 from sexpdata import Symbol
 
 logger = logging.getLogger(__name__)
@@ -27,11 +27,13 @@ It only supports a specific subset of sexp that is used by KiCAD with following 
 class sexp_field(dict[str, Any]):
     positional: bool = False
     multidict: bool = False
+    key: Callable[[Any], Any] | None = None
 
     def __post_init__(self):
         super().__init__({"metadata": {"sexp": self}})
 
         assert not (self.positional and self.multidict)
+        assert (self.key is None) or self.multidict, "Key only supported for multidict"
 
     @classmethod
     def from_field(cls, f: Field):
@@ -143,10 +145,27 @@ def _decode(sexp: netlist_type, t: type[T]) -> T:
 
         values = key_values[s_name]
         if sp.multidict:
-            assert isinstance(f.type, GenericAlias) and f.type.__origin__ == list
-            value_dict[name] = [
-                _parse_single(_val, f.type.__args__[0]) for _val in values
-            ]
+            if isinstance(f.type, GenericAlias) and f.type.__origin__ is list:
+                val_t = f.type.__args__[0]
+                value_dict[name] = [_parse_single(_val, val_t) for _val in values]
+            elif isinstance(f.type, GenericAlias) and f.type.__origin__ is dict:
+                if not sp.key:
+                    raise ValueError(f"Key function required for multidict: {f.name}")
+                key_t = f.type.__args__[0]
+                val_t = f.type.__args__[1]
+                converted_values = [_parse_single(_val, val_t) for _val in values]
+                values_with_key = [(sp.key(_val), _val) for _val in converted_values]
+
+                if not all(isinstance(k, key_t) for k, _ in values_with_key):
+                    raise KeyError(
+                        f"Key function returned invalid type in field {f.name}:"
+                        f" {key_t=} types={[v[0] for v in values_with_key]}"
+                    )
+                if d := duplicates(values_with_key, key=lambda v: v[0]):
+                    raise ValueError(f"Duplicate keys: {d}")
+                value_dict[name] = dict(values_with_key)
+            else:
+                raise NotImplementedError(f"Multidict not supported for {f.type}")
         else:
             assert len(values) == 1, f"Duplicate key: {name}"
             value_dict[name] = _parse_single(values[0], f.type)
@@ -158,7 +177,10 @@ def _decode(sexp: netlist_type, t: type[T]) -> T:
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug(f"value_dict: {value_dict}")
 
-    return t(**value_dict)
+    try:
+        return t(**value_dict)
+    except TypeError as e:
+        raise TypeError(f"Failed to create {t} with {value_dict}") from e
 
 
 def _convert2(val: Any) -> netlist_obj | None:
@@ -170,6 +192,8 @@ def _convert2(val: Any) -> netlist_obj | None:
         return [_convert2(v) for v in val]
     if isinstance(val, tuple):
         return [_convert2(v) for v in val]
+    if isinstance(val, dict):
+        return [_convert2(v) for v in val.values()]
     if isinstance(val, Enum):
         return Symbol(val)
     if isinstance(val, bool):
@@ -214,7 +238,16 @@ def _encode(t) -> netlist_type:
             _append([Symbol(name), converted])
 
         if sp.multidict:
-            for v in val:
+            if isinstance(val, list):
+                assert f.type.__origin__ is list
+                _val = val
+            elif isinstance(val, dict):
+                assert f.type.__origin__ is dict
+                _val = val
+                _val = val.values()
+            else:
+                raise TypeError()
+            for v in _val:
                 _append_kv(f.name.removesuffix("s"), v)
         else:
             _append_kv(f.name, val)

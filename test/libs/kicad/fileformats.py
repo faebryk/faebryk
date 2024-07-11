@@ -69,6 +69,22 @@ class TestFileFormats(unittest.TestCase):
 
         self.assertEqual(pro.pcbnew.last_paths.netlist, "../../faebryk/faebryk.net")
 
+    def test_write(self):
+        pcb = C_kicad_pcb_file.loads(PCBFILE)
+
+        def _d1(pcb: C_kicad_pcb_file):
+            return find(
+                pcb.kicad_pcb.footprints,
+                lambda f: f.propertys["Reference"].value == "D1",
+            )
+
+        led_p = _d1(pcb).propertys["Value"]
+        self.assertEqual(led_p.value, "LED")
+        led_p.value = "LED2"
+
+        pcb_reload = C_kicad_pcb_file.loads(pcb.dumps())
+        self.assertEqual(_d1(pcb_reload).propertys["Value"].value, "LED2")
+
     def test_dump_load_equality(self):
         def test_reload(path: Path, parser: type[SEXP_File | JSON_File]):
             loaded = parser.loads(path)

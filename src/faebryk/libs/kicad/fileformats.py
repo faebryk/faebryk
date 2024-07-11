@@ -419,7 +419,7 @@ class C_fields:
         name: str
         value: Optional[str] = field(**sexp_field(positional=True), default=None)
 
-    field: list[C_field] = field(**sexp_field(multidict=True))
+    fields: list[C_field] = field(**sexp_field(multidict=True), default_factory=list)
 
 
 @dataclass
@@ -449,9 +449,9 @@ class C_kicad_netlist_file(SEXP_File):
                 ref: str
                 value: str
                 footprint: str
-                fields: C_fields
                 propertys: list[C_property] = field(**sexp_field(multidict=True))
                 tstamps: str
+                fields: C_fields = field(default_factory=C_fields)
                 sheetpath: Optional[C_sheetpath] = None
                 libsource: Optional[C_libsource] = None
 
@@ -526,7 +526,7 @@ class C_kicad_netlist_file(SEXP_File):
 
                 lib: str
                 part: str
-                fields: C_fields
+                fields: C_fields = field(default_factory=C_fields)
                 pins: Optional[C_pins] = None
                 footprints: Optional[C_footprints] = None
 

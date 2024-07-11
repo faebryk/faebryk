@@ -834,7 +834,7 @@ class PCB_Transformer:
         return new_line1, arc, new_line2
 
     def round_corners(
-        self, geometry: list[Geom], corner_radius_mm: float
+        self, geometry: Sequence[Geom], corner_radius_mm: float
     ) -> list[Geom]:
         """
         Round the corners of a geometry by replacing line pairs with arcs.
@@ -853,7 +853,7 @@ class PCB_Transformer:
 
         return [
             t_geo
-            for pair in pairwise(geometry + [geometry[0]])
+            for pair in pairwise(list(geometry) + [geometry[0]])
             for t_geo in _transform(*pair)
         ]
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Generic, List, Tuple, TypeVar
 
 import sexpdata
-from faebryk.libs.kicad.sexp import prettify_sexp_string
+from faebryk.libs.sexp.util import prettify_sexp_string
 from sexpdata import Symbol
 
 

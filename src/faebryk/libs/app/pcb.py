@@ -171,7 +171,7 @@ def apply_netlist(pcb_path: Path, netlist_path: Path, netlist_has_changed: bool 
     if auto_mode:
         import subprocess
 
-        subprocess.Popen(["pcbnew", str(pcb_path)])
+        subprocess.Popen(["pcbnew", str(pcb_path)], stderr=subprocess.DEVNULL)
     else:
         print(f"PCB location: {pcb_path}")
 

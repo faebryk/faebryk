@@ -5,7 +5,7 @@ import logging
 import os
 import unittest
 
-from faebryk.libs.kicad.sexp import prettify_sexp_string
+from faebryk.libs.sexp.util import prettify_sexp_string
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class TestImportNetlistKicad(unittest.TestCase):
 
         t2 = to_faebryk_t2_netlist(test_netlist)
 
-        out_netlist = from_faebryk_t2_netlist(t2)
+        out_netlist = from_faebryk_t2_netlist(t2).dumps()
 
         pretty_test = prettify_sexp_string(test_netlist)
         pretty_out = prettify_sexp_string(out_netlist)

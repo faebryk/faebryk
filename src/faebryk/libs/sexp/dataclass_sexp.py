@@ -6,17 +6,21 @@ from types import GenericAlias
 from typing import Any, TypeVar
 
 import sexpdata
-from faebryk.libs.kicad.sexp import prettify_sexp_string
+from faebryk.libs.sexp.util import prettify_sexp_string
 from faebryk.libs.util import groupby
 from sexpdata import Symbol
 
 logger = logging.getLogger(__name__)
 
+# TODO: Should be its own repo
 
-# ---------------------------------------------------------------------
-# Kicad SEXP subset
-# only atom order is important
-# multi-key dict
+"""
+This is a generic sexp-dataclass converter (similar to dataclass_json).
+It is used to convert between dataclasses and sexp (s-expressions).
+It only supports a specific subset of sexp that is used by KiCAD with following rules:
+- Only atom order is important
+- Multi-key dict is supported
+"""
 
 
 @dataclass
@@ -252,6 +256,7 @@ class SEXP_File:
         return dumps(self, path)
 
 
+# TODO move
 class JSON_File:
     @classmethod
     def loads(cls: type[T], path: Path | str) -> T:

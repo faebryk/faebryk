@@ -13,7 +13,7 @@ from faebryk.core.util import (
     get_all_highest_parents_graph,
     get_all_nodes_graph,
 )
-from faebryk.exporters.netlist.netlist import Component
+from faebryk.exporters.netlist.netlist import T2Netlist
 from faebryk.library.has_designator import has_designator
 from faebryk.library.has_designator_defined import has_designator_defined
 from faebryk.library.has_designator_prefix import has_designator_prefix
@@ -104,7 +104,9 @@ def attach_hierarchical_designators(graph: Graph):
         ...
 
 
-def load_designators_from_netlist(graph: Graph, t2_netlist_comps: dict[str, Component]):
+def load_designators_from_netlist(
+    graph: Graph, t2_netlist_comps: dict[str, T2Netlist.Component]
+):
     designators: dict[str, str] = {
         comp.properties["faebryk_name"]: comp.name
         for comp in t2_netlist_comps.values()

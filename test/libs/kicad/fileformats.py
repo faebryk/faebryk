@@ -11,8 +11,8 @@ from faebryk.libs.kicad.fileformats import (
     C_kicad_pcb_file,
     C_kicad_project_file,
 )
-from faebryk.libs.kicad.sexp_parser import JSON_File, SEXP_File
 from faebryk.libs.logging import setup_basic_logging
+from faebryk.libs.sexp.dataclass_sexp import JSON_File, SEXP_File
 from faebryk.libs.util import find
 
 TEST_DIR = find(

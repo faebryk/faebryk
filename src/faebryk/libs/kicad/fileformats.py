@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from dataclasses_json import CatchAll, Undefined, dataclass_json
-from faebryk.libs.kicad.sexp_parser import JSON_File, SEXP_File, sexp_field
+from faebryk.libs.sexp.dataclass_sexp import JSON_File, SEXP_File, sexp_field
 
 logger = logging.getLogger(__name__)
 
@@ -450,10 +450,10 @@ class C_kicad_netlist_file(SEXP_File):
                 value: str
                 footprint: str
                 fields: C_fields
-                libsource: C_libsource
                 propertys: list[C_property] = field(**sexp_field(multidict=True))
-                sheetpath: C_sheetpath
                 tstamps: str
+                sheetpath: Optional[C_sheetpath] = None
+                libsource: Optional[C_libsource] = None
 
             comps: list[C_component] = field(**sexp_field(multidict=True))
 
@@ -465,12 +465,12 @@ class C_kicad_netlist_file(SEXP_File):
                 class C_node:
                     ref: str
                     pin: str
-                    pintype: str
+                    pintype: Optional[str] = None
                     pinfunction: Optional[str] = None
 
                 code: int
                 name: str
-                node: list[C_node] = field(**sexp_field(multidict=True))
+                nodes: list[C_node] = field(**sexp_field(multidict=True))
 
             nets: list[C_net] = field(**sexp_field(multidict=True))
 
@@ -530,7 +530,9 @@ class C_kicad_netlist_file(SEXP_File):
                 pins: Optional[C_pins] = None
                 footprints: Optional[C_footprints] = None
 
-            libparts: list[C_libpart] = field(**sexp_field(multidict=True))
+            libparts: list[C_libpart] = field(
+                **sexp_field(multidict=True), default_factory=list
+            )
 
         @dataclass
         class C_libraries:
@@ -538,11 +540,11 @@ class C_kicad_netlist_file(SEXP_File):
             pass
 
         version: str
-        design: C_design
         components: C_components
-        libparts: C_libparts
-        libraries: C_libraries
         nets: C_nets
+        design: Optional[C_design] = None
+        libparts: C_libparts = field(default_factory=C_libparts)
+        libraries: C_libraries = field(default_factory=C_libraries)
 
     export: C_netlist
 

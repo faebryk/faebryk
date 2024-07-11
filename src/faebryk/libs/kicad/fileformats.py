@@ -500,7 +500,7 @@ class C_wh:
 
 
 @dataclass
-class C_Stroke:
+class C_stroke:
     class E_type(StrEnum):
         solid = auto()
 
@@ -533,7 +533,7 @@ class C_effects:
 class C_line:
     start: C_xy
     end: C_xy
-    stroke: C_Stroke
+    stroke: C_stroke
     layer: str
     uuid: UUID
 
@@ -545,7 +545,7 @@ class C_circle:
 
     center: C_xy
     end: C_xy
-    stroke: C_Stroke
+    stroke: C_stroke
     fill: E_fill
     layer: str
     uuid: UUID
@@ -556,7 +556,7 @@ class C_arc:
     start: C_xy
     mid: C_xy
     end: C_xy
-    stroke: C_Stroke
+    stroke: C_stroke
     layer: str
     uuid: UUID
 
@@ -581,7 +581,7 @@ class C_rect:
 
     start: C_xy
     end: C_xy
-    stroke: C_Stroke
+    stroke: C_stroke
     fill: E_fill
     layer: str
     uuid: UUID

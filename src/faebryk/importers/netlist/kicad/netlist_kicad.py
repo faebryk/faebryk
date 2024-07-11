@@ -15,7 +15,7 @@ def to_faebryk_t2_netlist(kicad_netlist: str | Path | list) -> T2Netlist:
             name=comp.ref,
             value=comp.value,
             properties={"footprint": comp.footprint}
-            | {v.name: v.value for v in comp.propertys},
+            | {v.name: v.value for v in comp.propertys.values()},
         )
         for comp in netlist.export.components.comps
     }

@@ -28,6 +28,7 @@ class sexp_field(dict[str, Any]):
     positional: bool = False
     multidict: bool = False
     key: Callable[[Any], Any] | None = None
+    assert_value: Any | None = None
 
     def __post_init__(self):
         super().__init__({"metadata": {"sexp": self}})
@@ -127,7 +128,7 @@ def _decode(sexp: netlist_type, t: type[T]) -> T:
         sp = sexp_field.from_field(f)
         if s_name not in key_values:
             if sp.multidict:
-                value_dict[name] = []
+                value_dict[name] = f.type.__origin__()
             # will be automatically filled by factory
             continue
 
@@ -173,6 +174,14 @@ def _decode(sexp: netlist_type, t: type[T]) -> T:
     for (i1, f), (i2, v) in zip(positional_fields.items(), pos_values.items()):
         name = f.name
         value_dict[name] = _convert(v, f.type)
+
+    for f in fs:
+        sp = sexp_field.from_field(f)
+        if sp.assert_value is not None:
+            assert value_dict[f.name] == sp.assert_value, (
+                f"Fileformat assertion! {f.name} has to be"
+                f" {sp.assert_value} but is {value_dict[f.name]}"
+            )
 
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug(f"value_dict: {value_dict}")
@@ -278,18 +287,6 @@ def dumps(obj, path: Path | None = None) -> str:
     if path:
         path.write_text(text)
     return text
-
-
-def insert(root, node):
-    key = type(node).__name__.removeprefix("C_")
-
-    if key + "s" in root:
-        target = getattr(root, key + "s")
-        assert isinstance(target, list)
-        target.append(node)
-        return
-
-    raise ValueError()
 
 
 class SEXP_File:

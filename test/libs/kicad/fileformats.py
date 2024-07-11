@@ -91,7 +91,7 @@ class TestFileFormats(unittest.TestCase):
             dump = loaded.dumps()
             loaded_dump = parser.loads(dump)
             dump2 = loaded_dump.dumps()
-            self.assertEqual(dump, dump2)
+            self.assertEqual(dump, dump2, f"{parser.__name__}")
 
         for parser, file in [
             (C_kicad_pcb_file, PCBFILE),

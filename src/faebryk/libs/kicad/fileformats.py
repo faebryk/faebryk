@@ -524,9 +524,7 @@ class C_effects:
         top = auto()
 
     font: C_font
-    justify: tuple[E_justify, E_justify] = field(
-        default=(E_justify.center, E_justify.center)
-    )
+    justify: Optional[tuple[E_justify, E_justify]] = None
 
 
 @dataclass
@@ -836,7 +834,7 @@ class C_kicad_pcb_file(SEXP_File):
         class C_arc_segment(C_segment):
             mid: C_xy
 
-        version: int
+        version: int = field(**sexp_field(assert_value=20240108))
         generator: str
         generator_version: str
         general: C_general
@@ -866,7 +864,7 @@ class C_kicad_footprint_file(SEXP_File):
     class C_footprint_in_file(C_footprint):
         descr: str
         tags: list[str]
-        version: str
+        version: int = field(**sexp_field(assert_value=20240108))
         generator: str
         generator_version: str
 
@@ -1004,7 +1002,7 @@ class C_kicad_netlist_file(SEXP_File):
             # TODO
             pass
 
-        version: str
+        version: str = field(**sexp_field(assert_value="E"))
         components: C_components
         nets: C_nets
         design: Optional[C_design] = None
@@ -1026,7 +1024,7 @@ class C_kicad_fp_lib_table_file(SEXP_File):
             options: str
             descr: str
 
-        version: int
+        version: int = field(**sexp_field(assert_value=7))
         libs: list[C_lib] = field(**sexp_field(multidict=True))
 
     fp_lib_table: C_fp_lib_table

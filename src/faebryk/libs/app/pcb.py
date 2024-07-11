@@ -18,9 +18,9 @@ from faebryk.library.has_pcb_routing_strategy import has_pcb_routing_strategy
 from faebryk.libs.app.kicad_netlist import write_netlist
 from faebryk.libs.kicad.fileformats import (
     C_kicad_fp_lib_table_file,
+    C_kicad_pcb_file,
     C_kicad_project_file,
 )
-from faebryk.libs.kicad.pcb import PCB
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +76,9 @@ def apply_design(
     apply_netlist(pcb_path, netlist_path, changed)
 
     logger.info("Load PCB")
-    pcb = PCB.load(pcb_path)
+    pcb = C_kicad_pcb_file.loads(pcb_path)
 
-    transformer = PCB_Transformer(pcb, G, app)
+    transformer = PCB_Transformer(pcb.kicad_pcb, G, app)
 
     logger.info("Transform PCB")
     if transform:
@@ -90,7 +90,7 @@ def apply_design(
     apply_routing(app, transformer)
 
     logger.info(f"Writing pcbfile {pcb_path}")
-    pcb.dump(pcb_path)
+    pcb.dumps(pcb_path)
 
     print("Reopen PCB in kicad")
 

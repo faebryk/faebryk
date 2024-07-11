@@ -32,14 +32,17 @@ def from_faebryk_t2_netlist(t2_netlist: T2Netlist):
             ref=comp.name,
             value=comp.value,
             footprint=comp.properties["footprint"],
-            propertys=[
-                Component.C_property(k, v)
+            propertys={
+                k: Component.C_property(k, v)
                 for k, v in comp.properties.items()
                 if k != "footprint"
-            ],
+            },
             tstamps=str(next(tstamp)),
             fields=C_fields(
-                [C_fields.C_field(k, v) for k, v in comp.properties.get("fields", [])]
+                {
+                    k: C_fields.C_field(k, v)
+                    for k, v in comp.properties.get("fields", [])
+                }
             ),
         )
         # sort because tstamp determined by pos

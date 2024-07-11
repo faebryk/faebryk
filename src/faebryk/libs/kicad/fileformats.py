@@ -474,6 +474,32 @@ class UUID(str):
 
 
 @dataclass
+class C_xy:
+    x: float = field(**sexp_field(positional=True))
+    y: float = field(**sexp_field(positional=True))
+
+
+@dataclass
+class C_xyz:
+    x: float = field(**sexp_field(positional=True))
+    y: float = field(**sexp_field(positional=True))
+    z: float = field(**sexp_field(positional=True))
+
+
+@dataclass
+class C_xyr:
+    x: float = field(**sexp_field(positional=True))
+    y: float = field(**sexp_field(positional=True))
+    r: float = field(**sexp_field(positional=True), default=0)
+
+
+@dataclass
+class C_wh:
+    w: float = field(**sexp_field(positional=True))
+    h: float = field(**sexp_field(positional=True))
+
+
+@dataclass
 class C_Stroke:
     class E_type(StrEnum):
         solid = auto()
@@ -486,16 +512,27 @@ class C_Stroke:
 class C_effects:
     @dataclass
     class C_font:
-        size: tuple[float, float]
+        size: C_wh
         thickness: Optional[float] = None
 
+    class E_justify(StrEnum):
+        center = ""
+        mirror = auto()
+        left = auto()
+        right = auto()
+        bottom = auto()
+        top = auto()
+
     font: C_font
+    justify: tuple[E_justify, E_justify] = field(
+        default=(E_justify.center, E_justify.center)
+    )
 
 
 @dataclass
 class C_line:
-    start: tuple[float, float]
-    end: tuple[float, float]
+    start: C_xy
+    end: C_xy
     stroke: C_Stroke
     layer: str
     uuid: UUID
@@ -506,8 +543,8 @@ class C_circle:
     class E_fill(StrEnum):
         none = auto()
 
-    center: tuple[float, float]
-    end: tuple[float, float]
+    center: C_xy
+    end: C_xy
     stroke: C_Stroke
     fill: E_fill
     layer: str
@@ -516,9 +553,9 @@ class C_circle:
 
 @dataclass
 class C_arc:
-    start: tuple[float, float]
-    mid: tuple[float, float]
-    end: tuple[float, float]
+    start: C_xy
+    mid: C_xy
+    end: C_xy
     stroke: C_Stroke
     layer: str
     uuid: UUID
@@ -531,7 +568,7 @@ class C_text:
 
     type: E_type = field(**sexp_field(positional=True))
     text: str = field(**sexp_field(positional=True))
-    at: tuple[float, float, float]
+    at: C_xyr
     layer: str
     uuid: UUID
     effects: C_effects
@@ -542,8 +579,8 @@ class C_rect:
     class E_fill(StrEnum):
         none = auto()
 
-    start: tuple[float, float]
-    end: tuple[float, float]
+    start: C_xy
+    end: C_xy
     stroke: C_Stroke
     fill: E_fill
     layer: str
@@ -560,7 +597,7 @@ class C_footprint:
     class C_property:
         name: str = field(**sexp_field(positional=True))
         value: str = field(**sexp_field(positional=True))
-        at: tuple[float, float, float]
+        at: C_xyr
         layer: str
         uuid: UUID
         effects: C_effects
@@ -580,8 +617,8 @@ class C_footprint:
         name: str = field(**sexp_field(positional=True))
         type: E_type = field(**sexp_field(positional=True))
         shape: E_shape = field(**sexp_field(positional=True))
-        at: tuple[float, float, float]
-        size: tuple[float, float]
+        at: C_xyr
+        size: C_wh
         layers: list[str]
         drill: Optional[float] = None
         remove_unused_layers: bool = False
@@ -592,15 +629,15 @@ class C_footprint:
 
         @dataclass
         class C_offset:
-            xyz: tuple[float, float, float]
+            xyz: C_xyz
 
         @dataclass
         class C_scale:
-            xyz: tuple[float, float, float]
+            xyz: C_xyz
 
         @dataclass
         class C_rotate:
-            xyz: tuple[float, float, float]
+            xyz: C_xyz
 
         offset: C_offset
         scale: C_scale
@@ -615,7 +652,7 @@ class C_footprint:
     fp_lines: list[C_line] = field(**sexp_field(multidict=True))
     fp_arcs: list[C_arc] = field(**sexp_field(multidict=True))
     fp_circles: list[C_circle] = field(**sexp_field(multidict=True))
-    fp_rect: list[C_rect] = field(**sexp_field(multidict=True))
+    fp_rects: list[C_rect] = field(**sexp_field(multidict=True))
     fp_texts: list[C_text] = field(**sexp_field(multidict=True))
     pads: list[C_pad] = field(**sexp_field(multidict=True))
     model: C_model
@@ -697,17 +734,18 @@ class C_kicad_pcb_file(SEXP_File):
                 net: tuple[int, str] = field(kw_only=True)
                 uuid: UUID = field(kw_only=True)
 
-            at: tuple[float, float]
+            at: C_xyr
             uuid: UUID
             pads: list[C_pad] = field(**sexp_field(multidict=True))
 
         @dataclass
         class C_via:
-            at: tuple[float, float]
-            size: tuple[float, float]
+            at: C_xy
+            size: C_wh
             drill: float
             net: str
             uuid: UUID
+            layers: list[str] = field(default_factory=list)
 
         @dataclass
         class C_zone:
@@ -769,11 +807,6 @@ class C_kicad_pcb_file(SEXP_File):
 
             @dataclass
             class C_polygon:
-                @dataclass
-                class C_xy:
-                    x: float = field(**sexp_field(positional=True))
-                    y: float = field(**sexp_field(positional=True))
-
                 pts: list[C_xy] = field(**sexp_field(multidict=True))
 
             net: int
@@ -792,16 +825,16 @@ class C_kicad_pcb_file(SEXP_File):
 
         @dataclass
         class C_segment:
-            start: tuple[float, float]
-            end: tuple[float, float]
+            start: C_xy
+            end: C_xy
             width: float
             layer: str
-            net: str
+            net: int
             uuid: UUID
 
         @dataclass
         class C_arc_segment(C_segment):
-            mid: tuple[float, float]
+            mid: C_xy
 
         version: int
         generator: str
@@ -815,13 +848,13 @@ class C_kicad_pcb_file(SEXP_File):
         footprints: list[C_pcb_footprint] = field(**sexp_field(multidict=True))
         vias: list[C_via] = field(**sexp_field(multidict=True))
         zones: list[C_zone] = field(**sexp_field(multidict=True))
-        segment: list[C_segment] = field(**sexp_field(multidict=True))
-        arc: list[C_arc_segment] = field(**sexp_field(multidict=True))
+        segments: list[C_segment] = field(**sexp_field(multidict=True))
+        arcs: list[C_arc_segment] = field(**sexp_field(multidict=True))
 
         gr_lines: list[C_line] = field(**sexp_field(multidict=True))
         gr_arcs: list[C_arc] = field(**sexp_field(multidict=True))
         gr_circles: list[C_circle] = field(**sexp_field(multidict=True))
-        gr_rect: list[C_rect] = field(**sexp_field(multidict=True))
+        gr_rects: list[C_rect] = field(**sexp_field(multidict=True))
         gr_texts: list[C_text] = field(**sexp_field(multidict=True))
 
     kicad_pcb: C_kicad_pcb

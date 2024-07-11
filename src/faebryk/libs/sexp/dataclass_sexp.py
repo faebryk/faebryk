@@ -280,6 +280,18 @@ def dumps(obj, path: Path | None = None) -> str:
     return text
 
 
+def insert(root, node):
+    key = type(node).__name__.removeprefix("C_")
+
+    if key + "s" in root:
+        target = getattr(root, key + "s")
+        assert isinstance(target, list)
+        target.append(node)
+        return
+
+    raise ValueError()
+
+
 class SEXP_File:
     @classmethod
     def loads(cls, path_or_string_or_data: Path | str | list):

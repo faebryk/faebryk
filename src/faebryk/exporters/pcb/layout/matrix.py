@@ -36,10 +36,10 @@ class LayoutMatrix(Layout):
         vector = self.vector if len(self.vector) == 3 else (*self.vector, 0)
 
         number_of_nodes = len(node)
-        number_of_distributions = sum(self.distribution)
-        if number_of_nodes < number_of_distributions:
+        number_of_distributions = self.distribution[0] * self.distribution[1]
+        if number_of_nodes > number_of_distributions:
             raise ValueError(
-                f"Number of nodes ({number_of_nodes}) is less than we need to distribute ({number_of_distributions})"  # noqa E501
+                f"Number of nodes ({number_of_nodes}) is more than we can distribute ({number_of_distributions})"  # noqa E501
             )
         for i, n in enumerate(node):
             vec_i = (

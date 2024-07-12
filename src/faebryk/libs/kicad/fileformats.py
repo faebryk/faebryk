@@ -639,7 +639,7 @@ class C_footprint:
         at: C_xyr
         size: C_wh
         layers: list[str]
-        drill: C_drill | None = None
+        drill: Optional[C_drill] = None
         remove_unused_layers: bool = False
         options: Optional[C_options] = None
         # primitives

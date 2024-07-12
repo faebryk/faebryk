@@ -1,9 +1,9 @@
 import logging
 from dataclasses import Field, dataclass, fields, is_dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from pathlib import Path
-from types import GenericAlias
-from typing import Any, Callable, TypeVar
+from types import GenericAlias, UnionType
+from typing import Any, Callable, TypeVar, Union, get_args, get_origin
 
 import sexpdata
 from faebryk.libs.sexp.util import prettify_sexp_string
@@ -47,18 +47,28 @@ T = TypeVar("T")
 
 
 def _convert(val, t):
-    if isinstance(t, GenericAlias) and t.__origin__ == list:
-        return [_convert(_val, t.__args__[0]) for _val in val]
-    if isinstance(t, GenericAlias) and t.__origin__ == tuple:
-        return tuple(_convert(_val, _t) for _val, _t in zip(val, t.__args__))
-    if t.__name__ == "Optional":
-        return _convert(val, t.__args__[0]) if val is not None else None
-    if t.__name__ == "Union":
-        raise NotImplementedError(
-            "Unions not supported, if you want to use '| None' use Optional instead"
-        )
+    # Recurse (GenericAlias e.g list[])
+    if (origin := get_origin(t)) is not None:
+        args = get_args(t)
+        if origin is list:
+            return [_convert(_val, args[0]) for _val in val]
+        if origin is tuple:
+            return tuple(_convert(_val, _t) for _val, _t in zip(val, args))
+        if origin in (Union, UnionType) and len(args) == 2 and args[1] == type(None):
+            return _convert(val, t.__args__[0]) if val is not None else None
+
+        raise NotImplementedError(f"{origin} not supported")
+
+    #
     if is_dataclass(t):
         return _decode(val, t)
+
+    # Primitive
+
+    # Unpack list if single atom
+    if isinstance(val, list) and len(val) == 1 and not isinstance(val[0], list):
+        val = val[0]
+
     if issubclass(t, bool):
         assert val in [Symbol("yes"), Symbol("no")]
         return val == Symbol("yes")
@@ -122,7 +132,9 @@ def _decode(sexp: netlist_type, t: type[T]) -> T:
         logger.debug(f"key_values: {list(key_values.keys())}")
         logger.debug(f"pos_values: {pos_values}")
 
-    # Parse
+    # Parse --------------------------------------------------------------
+
+    # Key-Value
     for s_name, f in key_fields.items():
         name = f.name
         sp = sexp_field.from_field(f)
@@ -140,7 +152,8 @@ def _decode(sexp: netlist_type, t: type[T]) -> T:
             )
 
             return _convert(
-                val[0] if len(val) == 1 and not isinstance(val[0], list) else val,
+                # val[0] if len(val) == 1 and not isinstance(val[0], list) else val,
+                val,
                 t_,
             )
 
@@ -171,10 +184,29 @@ def _decode(sexp: netlist_type, t: type[T]) -> T:
             assert len(values) == 1, f"Duplicate key: {name}"
             value_dict[name] = _parse_single(values[0], f.type)
 
-    for (i1, f), (i2, v) in zip(positional_fields.items(), pos_values.items()):
-        name = f.name
-        value_dict[name] = _convert(v, f.type)
+    # Positional
+    i_f = iter(positional_fields.values())
+    i_v = iter(pos_values.values())
+    f, v = next(i_f, None), next(i_v, None)
+    while f is not None and v is not None:
+        # special case for missing positional empty StrEnum fields
+        if isinstance(f.type, type) and issubclass(f.type, StrEnum):
+            if "" in f.type and not isinstance(v, Symbol):
+                value_dict[f.name] = _convert(Symbol(""), f.type)
+                f = next(i_f, None)
+                # if no more positional fields, there shouldn't be any more values
+                if f is None:
+                    raise ValueError(f"Unexpected symbol {v}")
+                continue
 
+        value_dict[f.name] = _convert(v, f.type)
+        f, v = next(i_f, None), next(i_v, None)
+
+    # for (i1, f), (i2, v) in zip(positional_fields.items(), pos_values.items()):
+    #    name = f.name
+    #    value_dict[name] = _convert(v, f.type)
+
+    # Check assertions ----------------------------------------------------
     for f in fs:
         sp = sexp_field.from_field(f)
         if sp.assert_value is not None:

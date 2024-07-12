@@ -420,7 +420,7 @@ class PCB_Transformer:
             # intf has no parent with footprint
             return []
 
-        return [PCB_Transformer._get_pad_pos(fpad) for fpad in fpads]
+        return [PCB_Transformer.get_fpad_pos(fpad) for fpad in fpads]
 
     @staticmethod
     def get_pad_pos(intf: F.Electrical) -> tuple[FPad, Point] | None:
@@ -429,10 +429,10 @@ class PCB_Transformer:
         except ValueError:
             return None
 
-        return PCB_Transformer._get_pad_pos(fpad)
+        return PCB_Transformer.get_fpad_pos(fpad)
 
     @staticmethod
-    def _get_pad_pos(fpad: FPad):
+    def get_fpad_pos(fpad: FPad):
         fp, pad = fpad.get_trait(PCB_Transformer.has_linked_kicad_pad).get_pad()
         if len(pad) > 1:
             raise NotImplementedError(

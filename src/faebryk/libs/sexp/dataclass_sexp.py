@@ -7,7 +7,7 @@ from typing import Any, Callable, TypeVar, Union, get_args, get_origin
 
 import sexpdata
 from faebryk.libs.sexp.util import prettify_sexp_string
-from faebryk.libs.util import duplicates, groupby
+from faebryk.libs.util import duplicates, groupby, zip_non_locked
 from sexpdata import Symbol
 
 logger = logging.getLogger(__name__)
@@ -176,22 +176,18 @@ def _decode(sexp: netlist_type, t: type[T]) -> T:
             value_dict[name] = _convert(values[0][1:], f.type)
 
     # Positional
-    i_f = iter(positional_fields.values())
-    i_v = iter(pos_values.values())
-    f, v = next(i_f, None), next(i_v, None)
-    while f is not None and v is not None:
+    for f, v in (it := zip_non_locked(positional_fields.values(), pos_values.values())):
         # special case for missing positional empty StrEnum fields
         if isinstance(f.type, type) and issubclass(f.type, StrEnum):
             if "" in f.type and not isinstance(v, Symbol):
                 value_dict[f.name] = _convert(Symbol(""), f.type)
-                f = next(i_f, None)
+                # only advance field iterator
                 # if no more positional fields, there shouldn't be any more values
-                if f is None:
+                if it.next(0) is None:
                     raise ValueError(f"Unexpected symbol {v}")
                 continue
 
         value_dict[f.name] = _convert(v, f.type)
-        f, v = next(i_f, None), next(i_v, None)
 
     # Check assertions ----------------------------------------------------
     for f in fs:

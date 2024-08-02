@@ -668,7 +668,7 @@ class PCB_Transformer:
                 uuid=self.gen_uuid(mark=True),
                 name=f"layer_fill_{net.name}",
                 polygon=C_poly(C_poly.C_pts([point2d_to_coord(p) for p in polygon])),
-                min_thickness=0.25,
+                min_thickness=0.2,
                 filled_areas_thickness=False,
                 fill=Zone.C_fill(
                     enable=True,
@@ -680,8 +680,8 @@ class PCB_Transformer:
                     hatch_smoothing_value=0,
                     hatch_border_algorithm=Zone.C_fill.E_hatch_border_algorithm.hatch_thickness,
                     hatch_min_hole_area=0.3,
-                    thermal_gap=0.5,
-                    thermal_bridge_width=0.25,
+                    thermal_gap=0.2,
+                    thermal_bridge_width=0.2,
                     smoothing=None,
                     radius=1,
                     island_removal_mode=Zone.C_fill.E_island_removal_mode.do_not_remove.value,
@@ -691,7 +691,7 @@ class PCB_Transformer:
                 hatch=Zone.C_hatch(mode=Zone.C_hatch.E_mode.edge, pitch=0.5),
                 priority=0,
                 connect_pads=Zone.C_connect_pads(
-                    mode=Zone.C_connect_pads.E_mode.solid, clearance=0.5
+                    mode=Zone.C_connect_pads.E_mode.thermal_reliefs, clearance=0.2
                 ),
             )
         )

@@ -219,7 +219,7 @@ class Component(Model):
         self,
         module: Module,
         mapping: list[MappingParameterDB],
-        qty: int = 100,
+        qty: int = 1,
     ):
         F.has_defined_descriptive_properties.add_properties_to(
             module,
@@ -244,7 +244,7 @@ class Component(Model):
 
         attach_footprint(module, f"C{self.lcsc}", True)
 
-    async def find_by_lcsc_pn(self, partnumber: str, qty: int = 100):
+    async def find_by_lcsc_pn(self, partnumber: str, qty: int = 1):
         filter_query = Q(stock__gte=qty) & Q(id=partnumber.strip("C"))
         res = await self.filter(filter_query).order_by("-basic")
         if len(res) != 1:
@@ -253,7 +253,7 @@ class Component(Model):
             )
         await res[0]._attach_component_to_module(Module(), [], qty)
 
-    async def find_by_manufacturer_pn(self, partnumber: str, qty: int = 100):
+    async def find_by_manufacturer_pn(self, partnumber: str, qty: int = 1):
         filter_query = Q(stock__gte=qty) & Q(mfr__icontains=partnumber)
         res = await self.filter(filter_query).order_by("-basic")
         if len(res) < 1:
@@ -516,7 +516,7 @@ class JLCPCB_DB:
                 break
         subprocess.run(["7z", "x", str(zip_file), f"-o{self.db_path}"])
 
-    async def find_resistor(self, cmp: F.Resistor, qty: int = 100):
+    async def find_resistor(self, cmp: F.Resistor, qty: int = 1):
         """
         Find a resistor part in the JLCPCB database that matches the parameters of the
         provided resistor
@@ -547,7 +547,7 @@ class JLCPCB_DB:
 
         await self._filter_by_params_and_attach(cmp, resistors, mapping, qty)
 
-    async def find_capacitor(self, cmp: F.Capacitor, qty: int = 100):
+    async def find_capacitor(self, cmp: F.Capacitor, qty: int = 1):
         """
         Find a capacitor part in the JLCPCB database that matches the parameters of the
         provided capacitor
@@ -591,7 +591,7 @@ class JLCPCB_DB:
 
         await self._filter_by_params_and_attach(cmp, capacitors, mapping, qty)
 
-    async def find_inductor(self, cmp: F.Inductor, qty: int = 100):
+    async def find_inductor(self, cmp: F.Inductor, qty: int = 1):
         """
         Find an inductor part in the JLCPCB database that matches the parameters of the
         provided inductor.
@@ -632,7 +632,7 @@ class JLCPCB_DB:
 
         await self._filter_by_params_and_attach(cmp, inductors, mapping, qty)
 
-    async def find_tvs(self, cmp: F.TVS, qty: int = 100):
+    async def find_tvs(self, cmp: F.TVS, qty: int = 1):
         """
         Find a TVS diode part in the JLCPCB database that matches the parameters of the
         provided diode
@@ -678,7 +678,7 @@ class JLCPCB_DB:
 
         await self._filter_by_params_and_attach(cmp, diodes, mapping, qty)
 
-    async def find_diode(self, cmp: F.Diode, qty: int = 100):
+    async def find_diode(self, cmp: F.Diode, qty: int = 1):
         """
         Find a diode part in the JLCPCB database that matches the parameters of the
         provided diode
@@ -715,7 +715,7 @@ class JLCPCB_DB:
 
         await self._filter_by_params_and_attach(cmp, diodes, mapping, qty)
 
-    async def find_mosfet(self, cmp: F.MOSFET, qty: int = 100):
+    async def find_mosfet(self, cmp: F.MOSFET, qty: int = 1):
         """
         Find a MOSFET part in the JLCPCB database that matches the parameters of the
         provided MOSFET
@@ -766,7 +766,7 @@ class JLCPCB_DB:
 
         await self._filter_by_params_and_attach(cmp, mosfets, mapping, qty)
 
-    async def find_ldo(self, cmp: F.LDO, qty: int = 100):
+    async def find_ldo(self, cmp: F.LDO, qty: int = 1):
         """
         Find a LDO part in the JLCPCB database that matches the parameters of the
         provided LDO
@@ -835,7 +835,7 @@ class JLCPCB_DB:
         module: Module,
         components: list[Component],
         mapping: list[MappingParameterDB],
-        qty: int = 100,
+        qty: int = 1,
     ):
         for c in components:
             if not all(
@@ -877,7 +877,7 @@ class JLCPCB_DB:
         subcategory: str,
         si_values_from_param: Parameter | None = None,
         si_unit="",
-        qty: int = 100,
+        qty: int = 1,
     ) -> list[Component]:
         try:
             category_ids = await Category().get_ids(category, subcategory)

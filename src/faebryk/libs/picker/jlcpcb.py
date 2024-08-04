@@ -565,11 +565,6 @@ class jlcpcb_db:
                 ["Output Voltage"],
                 transform_fn=lambda x: self._db_field_to_parameter(x),
             ),
-            self.parameter_to_db_map(
-                "number_of_outputs",
-                ["Number of Outputs"],
-                transform_fn=lambda x: F.Constant(int(x)),
-            ),
         ]
 
         await self._filter_by_params_and_attach(cmp, ldos, mapping, qty)

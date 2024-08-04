@@ -207,7 +207,6 @@ class TestPickerJlcpcb(unittest.TestCase):
                 "output_polarity": F.Constant(F.LDO.OutputPolarity.POSITIVE),
                 "output_type": F.Constant(F.LDO.OutputType.FIXED),
                 "psrr": F.ANY(),
-                "number_of_outputs": F.Constant(1),
             },
             footprint=[
                 ("SOT-23", 3),

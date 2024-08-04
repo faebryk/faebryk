@@ -246,7 +246,7 @@ class jlcpcb_db:
         filter_query = Q(stock__gte=qty) & Q(id=partnumber.strip("C"))
         res = await Component.filter(filter_query).order_by("-basic")
         if len(res) != 1:
-            raise PickError(
+            raise LookupError(
                 f"Could not find exact match for LCSC PN {partnumber} with qty {qty}"
             )
         await self._attach_component_to_module(Module(), res[0], [], qty)
@@ -255,7 +255,7 @@ class jlcpcb_db:
         filter_query = Q(stock__gte=qty) & Q(mfr__icontains=partnumber)
         res = await Component.filter(filter_query).order_by("-basic")
         if len(res) < 1:
-            raise PickError(
+            raise LookupError(
                 f"Could not find match for manufacturer PN {partnumber} with qty {qty}"
             )
         res = self._sort_results_by_basic_preferred_price(res, qty)[0]
@@ -689,7 +689,10 @@ class jlcpcb_db:
         values: list[str] = [],
         qty: int = 100,
     ) -> list[Component]:
-        category_ids = await self._get_category_ids(category, subcategory)
+        try:
+            category_ids = await self._get_category_ids(category, subcategory)
+        except LookupError as e:
+            raise PickError(f"Could not find category: {e}", module)
 
         footprint_query = Q()
         if module.has_trait(F.has_footprint_requirement):
@@ -720,7 +723,7 @@ class jlcpcb_db:
         results = await Component.filter(filter_query).order_by("-basic")
 
         if len(results) < 1:
-            raise PickError("No parts found")
+            raise PickError("No parts found", module)
 
         results = self._sort_results_by_basic_preferred_price(results, qty)
 
@@ -744,9 +747,9 @@ class jlcpcb_db:
             filter_query &= Q(subcategory__icontains=subcategory)
         category_ids = await Category.filter(filter_query).values("id")
         if len(category_ids) < 1:
-            raise PickError(
+            raise LookupError(
                 f"Could not find a match for category {category} "
-                f"and subcategory {subcategory}"
+                f"and subcategory {subcategory}",
             )
         return [c["id"] for c in category_ids]
 

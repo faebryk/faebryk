@@ -57,7 +57,7 @@ MODEL_PATH: str | None = "${KIPRJMOD}/../libs/"
 class JLCPCB(Supplier):
     def __init__(self, no_download_prompt: bool = False) -> None:
         super().__init__()
-        self.db = jlcpcb_db(no_download_prompt=no_download_prompt)
+        self.db = JLCPCB_DB(no_download_prompt=no_download_prompt)
 
     def attach(self, module: Module, part: PickerOption):
         assert isinstance(part.part, JLCPCB_Part)
@@ -174,7 +174,7 @@ class Component(Model):
         return unit_price * qty + handling_fee
 
 
-class jlcpcb_db:
+class JLCPCB_DB:
     def __init__(
         self,
         db_path: Path = Path("jlcpcb_part_database"),
@@ -268,7 +268,7 @@ class jlcpcb_db:
         subprocess.run(["7z", "x", str(zip_file), f"-o{self.db_path}"])
 
     @dataclass
-    class parameter_to_db_map:
+    class MappingParameterDB:
         param_name: str
         attr_keys: list[str]
         attr_tolerance_key: str | None = None
@@ -312,13 +312,13 @@ class jlcpcb_db:
         )
 
         mapping = [
-            self.parameter_to_db_map("resistance", ["Resistance"], "Tolerance"),
-            self.parameter_to_db_map(
+            self.MappingParameterDB("resistance", ["Resistance"], "Tolerance"),
+            self.MappingParameterDB(
                 "rated_power",
                 ["Power(Watts)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "rated_voltage",
                 ["Overload Voltage (Max)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
@@ -344,13 +344,13 @@ class jlcpcb_db:
         )
 
         mapping = [
-            self.parameter_to_db_map("capacitance", ["Capacitance"], "Tolerance"),
-            self.parameter_to_db_map(
+            self.MappingParameterDB("capacitance", ["Capacitance"], "Tolerance"),
+            self.MappingParameterDB(
                 "rated_voltage",
                 ["Voltage Rated"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "temperature_coefficient",
                 ["Temperature Coefficient"],
                 transform_fn=lambda x: F.Constant(
@@ -382,18 +382,18 @@ class jlcpcb_db:
         )
 
         mapping = [
-            self.parameter_to_db_map("inductance", ["Inductance"], "Tolerance"),
-            self.parameter_to_db_map(
+            self.MappingParameterDB("inductance", ["Inductance"], "Tolerance"),
+            self.MappingParameterDB(
                 "rated_current",
                 ["Rated Current"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "dc_resistance",
                 ["DC Resistance (DCR)", "DC Resistance"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "self_resonant_frequency",
                 ["Frequency - Self Resonant"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
@@ -417,29 +417,29 @@ class jlcpcb_db:
         )
 
         mapping = [
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "forward_voltage",
                 ["Forward Voltage", "Forward Voltage (Vf@If)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
             ),
             # TODO: think about the difference of meaning for max_current between Diode
             # and TVS
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "max_current",
                 ["Peak Pulse Current (Ipp)@10/1000us"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "reverse_working_voltage",
                 ["Reverse Voltage (Vr)", "Reverse Stand-Off Voltage (Vrwm)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "reverse_leakage_current",
                 ["Reverse Leakage Current", "Reverse Leakage Current (Ir)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "reverse_breakdown_voltage",
                 ["Breakdown Voltage"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
@@ -461,22 +461,22 @@ class jlcpcb_db:
         )
 
         mapping = [
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "forward_voltage",
                 ["Forward Voltage", "Forward Voltage (Vf@If)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "max_current",
                 ["Average Rectified Current (Io)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "reverse_working_voltage",
                 ["Reverse Voltage (Vr)", "Reverse Stand-Off Voltage (Vrwm)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "reverse_leakage_current",
                 ["Reverse Leakage Current", "Reverse Leakage Current (Ir)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
@@ -507,27 +507,27 @@ class jlcpcb_db:
                 raise ValueError(f"Unknown MOSFET type: {x}")
 
         mapping = [
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "max_drain_source_voltage",
                 ["Drain Source Voltage (Vdss)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "max_continuous_drain_current",
                 ["Continuous Drain Current (Id)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "channel_type",
                 ["Type"],
                 transform_fn=lambda x: (ChannelType_str_to_param(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "gate_source_threshold_voltage",
                 ["Gate Threshold Voltage (Vgs(th)@Id)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "on_resistance",
                 ["Drain Source On Resistance (RDS(on)@Vgs,Id)"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
@@ -566,32 +566,32 @@ class jlcpcb_db:
                 raise ValueError(f"Unknown LDO output polarity: {x}")
 
         mapping = [
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "output_polarity",
                 ["Output Polarity"],
                 transform_fn=lambda x: OutputPolarity_str_to_param(x),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "max_input_voltage",
                 ["Maximum Input Voltage"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "output_type",
                 ["Output Type"],
                 transform_fn=lambda x: OutputType_str_to_param(x),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "output_current",
                 ["Output Current"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x)),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "dropout_voltage",
                 ["Dropout Voltage"],
                 transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
             ),
-            self.parameter_to_db_map(
+            self.MappingParameterDB(
                 "output_voltage",
                 ["Output Voltage"],
                 transform_fn=lambda x: self._db_field_to_parameter(x),
@@ -604,7 +604,7 @@ class jlcpcb_db:
         self,
         module: Module,
         component: Component,
-        mapping: list[parameter_to_db_map],
+        mapping: list[MappingParameterDB],
         qty: int = 100,
     ):
         F.has_defined_descriptive_properties.add_properties_to(
@@ -634,7 +634,7 @@ class jlcpcb_db:
         self,
         module: Module,
         components: list[Component],
-        mapping: list[parameter_to_db_map],
+        mapping: list[MappingParameterDB],
         qty: int = 100,
     ):
         for c in components:

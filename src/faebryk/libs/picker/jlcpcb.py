@@ -141,6 +141,38 @@ class Component(Model):
     class Meta:
         table = "components"
 
+    def get_price(self, qty: int = 1) -> float:
+        """
+        Get the price for qty of the component including handling fees
+
+        For handling fees and component price classifications, see:
+        https://jlcpcb.com/help/article/pcb-assembly-faqs
+        """
+        BASIC_HANDLING_FEE = 0
+        PREFERRED_HANDLING_FEE = 0
+        EXTENDED_HANDLING_FEE = 3
+
+        if qty < 1:
+            raise ValueError("Quantity must be greater than 0")
+
+        if self.basic:
+            handling_fee = BASIC_HANDLING_FEE
+        elif self.preferred:
+            handling_fee = PREFERRED_HANDLING_FEE
+        else:
+            handling_fee = EXTENDED_HANDLING_FEE
+
+        unit_price = float("inf")
+        try:
+            for p in self.price:
+                if p["qTo"] is None or qty < p["qTo"]:
+                    unit_price = float(p["price"])
+            unit_price = float(self.price[-1]["price"])
+        except LookupError:
+            pass
+
+        return unit_price * qty + handling_fee
+
 
 class jlcpcb_db:
     def __init__(
@@ -258,8 +290,8 @@ class jlcpcb_db:
             raise LookupError(
                 f"Could not find match for manufacturer PN {partnumber} with qty {qty}"
             )
-        res = self._sort_results_by_basic_preferred_price(res, qty)[0]
-        await self._attach_component_to_module(Module(), res, [], qty)
+        sorted(res, key=lambda x: x.get_price(qty))
+        await self._attach_component_to_module(Module(), res[0], [], qty)
 
     async def get_manufacturer_from_id(self, manufacturer_id: int) -> str:
         return (await Manufacturers.get(id=manufacturer_id)).name
@@ -584,7 +616,7 @@ class jlcpcb_db:
                 ),
                 DescriptiveProperties.datasheet: component.datasheet,
                 "JLCPCB stock": str(component.stock),
-                "JLCPCB price": f"{self._get_unit_price_for_qty(component, qty):.4f}",
+                "JLCPCB price": f"{component.get_price(qty):.4f}",
                 "JLCPCB description": component.description,
                 "JLCPCB Basic": str(bool(component.basic)),
                 "JLCPCB Preferred": str(bool(component.preferred)),
@@ -627,7 +659,7 @@ class jlcpcb_db:
             logger.info(
                 f"Found part {c.lcsc:8} "
                 f"Basic: {bool(c.basic)}, Preferred: {bool(c.preferred)}, "
-                f"Price: ${self._get_unit_price_for_qty(c, 100):2.4f}, "
+                f"Price: ${c.get_price(1):2.4f}, "
                 f"{c.description:15},"
             )
 
@@ -725,7 +757,7 @@ class jlcpcb_db:
         if len(results) < 1:
             raise PickError("No parts found", module)
 
-        results = self._sort_results_by_basic_preferred_price(results, qty)
+        sorted(results, key=lambda x: x.get_price(qty))
 
         return results
 
@@ -821,31 +853,6 @@ class jlcpcb_db:
             return F.TBD()
 
         return F.Range.from_center_rel(value, tolerance)
-
-    def _get_unit_price_for_qty(self, component: Component, qty: int) -> float:
-        """
-        Get the price for qty of the component
-        """
-        if qty < 1:
-            raise ValueError("Quantity must be greater than 0")
-        try:
-            for p in component.price:
-                if qty > p["qFrom"] or qty < p["qTo"]:
-                    return float(p["price"])
-        except LookupError:
-            pass
-        return float("inf")
-
-    def _sort_results_by_basic_preferred_price(
-        self, results: list[Component], qty: int = 100
-    ) -> list[Component]:
-        """
-        Sort the results by basic, then preferred, then unit price for qty
-        """
-        results.sort(
-            key=lambda x: (-x.basic, -x.preferred, self._get_unit_price_for_qty(x, qty))
-        )
-        return results
 
     def _component_satisfies_requirement(
         self,

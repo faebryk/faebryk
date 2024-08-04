@@ -5,11 +5,9 @@ import asyncio
 import datetime
 import json
 import logging
-import math
 import os
 import subprocess
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 from urllib.error import HTTPError
@@ -635,7 +633,7 @@ class jlcpcb_db:
 
             try:
                 await self._attach_component_to_module(module, c, mapping, qty)
-            except Exception as e:
+            except ValueError as e:
                 logger.error(f"Could not attach component {c.lcsc}: {e}")
                 continue
 
@@ -780,7 +778,7 @@ class jlcpcb_db:
             return self._db_component_to_parameter(value, tolerance)
         try:
             return F.Constant(si_str_to_float(value))
-        except Exception as e:
+        except ValueError as e:
             logger.info(
                 f"Could not convert field from database with value '{value}'"
                 f"to parameter: {e}"
@@ -792,7 +790,7 @@ class jlcpcb_db:
     ) -> Parameter:
         try:
             value = si_str_to_float(value_field)
-        except Exception as e:
+        except ValueError as e:
             logger.info(
                 f"Could not convert component from database with value "
                 f"'{value_field}' to parameter: {e}"
@@ -813,13 +811,13 @@ class jlcpcb_db:
                 tolerance_value = si_str_to_float(tolerance_field.strip("±"))
                 tolerance = str(tolerance_value / value)
                 raise NotImplementedError
-        except Exception as e:
+        except ValueError as e:
             logger.info(
                 f"Could not convert tolerance from string: {tolerance_field}, {e}"
             )
             return F.TBD()
 
-        return F.Range(value - value * tolerance, value + value * tolerance)
+        return F.Range.from_center_rel(value, tolerance)
 
     def _get_unit_price_for_qty(self, component: Component, qty: int) -> float:
         """
@@ -831,7 +829,7 @@ class jlcpcb_db:
             for p in component.price:
                 if qty > p["qFrom"] or qty < p["qTo"]:
                     return float(p["price"])
-        except Exception:
+        except LookupError:
             pass
         return float("inf")
 
@@ -845,52 +843,6 @@ class jlcpcb_db:
             key=lambda x: (-x.basic, -x.preferred, self._get_unit_price_for_qty(x, qty))
         )
         return results
-
-    # TODO: this shouldn't be here
-    def _is_close_or_contains(
-        self, requirement: Parameter, value: Parameter, rel_tol: float = 1e-6
-    ) -> bool:
-        if isinstance(requirement, F.ANY):
-            return True
-
-        if isinstance(requirement, F.Set):
-            return any(
-                [
-                    self._is_close_or_contains(r, value, rel_tol=rel_tol)
-                    for r in requirement.params
-                ]
-            )
-        elif isinstance(value, F.Set):
-            return any(
-                [
-                    self._is_close_or_contains(requirement, v, rel_tol=rel_tol)
-                    for v in value.params
-                ]
-            )
-
-        if not (
-            isinstance(requirement, (F.Constant, F.Range))
-            and isinstance(value, (F.Constant, F.Range))
-        ):
-            raise NotImplementedError
-
-        if isinstance(requirement, F.Constant) and isinstance(requirement.value, Enum):
-            assert isinstance(value, F.Constant)
-            return requirement.value == value.value
-
-        req_max = (
-            requirement.max if isinstance(requirement, F.Range) else requirement.value
-        )
-        req_min = (
-            requirement.min if isinstance(requirement, F.Range) else requirement.value
-        )
-        if not math.isinf(req_min):
-            req_min -= req_min * rel_tol
-        if not math.isinf(req_max):
-            req_max += req_max * rel_tol
-        req_tol = F.Range(req_min, req_max)
-
-        return req_tol.contains(value)
 
     def _component_satisfies_requirement(
         self,
@@ -948,7 +900,7 @@ class jlcpcb_db:
             else:
                 field_val = attr_fn(component.extra["attributes"][attr_key])
 
-            valid = self._is_close_or_contains(requirement, field_val)
+            valid = field_val.is_more_specific_than(requirement)
             if not valid:
                 logger.debug(
                     f"Component {component.lcsc} does not satisfy requirement "
@@ -956,7 +908,7 @@ class jlcpcb_db:
                     f"value: {field_val}"
                 )
             return field_val if valid else None
-        except Exception as e:
+        except ValueError as e:
             logger.debug(
                 f"Could not parse component with '{attr_key}' field "
                 f"'{component.extra['attributes'][attr_key]}', Error: '{e}'"

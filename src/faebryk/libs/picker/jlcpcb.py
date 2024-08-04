@@ -39,7 +39,7 @@ from faebryk.libs.picker.picker import (
     has_part_picked,
     has_part_picked_defined,
 )
-from faebryk.libs.util import float_to_si_str, si_str_to_float
+from faebryk.libs.units import float_to_si_str, si_str_to_float
 
 # import asyncio
 from tortoise import Tortoise

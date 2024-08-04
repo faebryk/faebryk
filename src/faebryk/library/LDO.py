@@ -1,7 +1,7 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from enum import IntEnum, auto
+from enum import Enum, auto
 
 from faebryk.core.core import Module
 from faebryk.core.util import as_unit, as_unit_with_tolerance
@@ -19,11 +19,11 @@ from faebryk.library.TBD import TBD
 
 
 class LDO(Module):
-    class OutputType(IntEnum):
+    class OutputType(Enum):
         FIXED = auto()
         ADJUSTABLE = auto()
 
-    class OutputPolarity(IntEnum):
+    class OutputPolarity(Enum):
         POSITIVE = auto()
         NEGATIVE = auto()
 

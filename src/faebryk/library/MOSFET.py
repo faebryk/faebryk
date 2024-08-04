@@ -1,7 +1,7 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-from enum import IntEnum, auto
+from enum import Enum, auto
 
 from faebryk.core.core import Module
 from faebryk.library.can_bridge_defined import can_bridge_defined
@@ -14,11 +14,11 @@ from faebryk.library.TBD import TBD
 
 
 class MOSFET(Module):
-    class ChannelType(IntEnum):
+    class ChannelType(Enum):
         N_CHANNEL = auto()
         P_CHANNEL = auto()
 
-    class SaturationType(IntEnum):
+    class SaturationType(Enum):
         ENHANCEMENT = auto()
         DEPLETION = auto()
 

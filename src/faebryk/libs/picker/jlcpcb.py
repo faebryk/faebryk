@@ -9,6 +9,7 @@ import math
 import os
 import subprocess
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 from urllib.error import HTTPError
@@ -845,16 +846,38 @@ class jlcpcb_db:
         )
         return results
 
+    # TODO: this shouldn't be here
     def _is_close_or_contains(
         self, requirement: Parameter, value: Parameter, rel_tol: float = 1e-6
     ) -> bool:
         if isinstance(requirement, F.ANY):
             return True
+
+        if isinstance(requirement, F.Set):
+            return any(
+                [
+                    self._is_close_or_contains(r, value, rel_tol=rel_tol)
+                    for r in requirement.params
+                ]
+            )
+        elif isinstance(value, F.Set):
+            return any(
+                [
+                    self._is_close_or_contains(requirement, v, rel_tol=rel_tol)
+                    for v in value.params
+                ]
+            )
+
         if not (
             isinstance(requirement, (F.Constant, F.Range))
             and isinstance(value, (F.Constant, F.Range))
         ):
             raise NotImplementedError
+
+        if isinstance(requirement, F.Constant) and isinstance(requirement.value, Enum):
+            assert isinstance(value, F.Constant)
+            return requirement.value == value.value
+
         req_max = (
             requirement.max if isinstance(requirement, F.Range) else requirement.value
         )

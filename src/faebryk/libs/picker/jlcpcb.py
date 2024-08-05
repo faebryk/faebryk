@@ -10,7 +10,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 from urllib.error import HTTPError
 
 import faebryk.library._F as F
@@ -60,7 +60,7 @@ class MappingParameterDB:
     param_name: str
     attr_keys: list[str]
     attr_tolerance_key: str | None = None
-    transform_fn: Callable[[str], Any] = lambda x: x
+    transform_fn: Callable[[str], Parameter] | None = None
 
 
 def auto_pinmapping(component: Module, partno: str):
@@ -327,7 +327,7 @@ class Component(Model):
 
         except ValueError as e:
             logger.warning(e)
-            return F.TBD()
+            return F.ANY()
 
         if not use_tolerance:
             return F.Constant(value)
@@ -351,76 +351,76 @@ class Component(Model):
                 raise ValueError
         except ValueError as e:
             logger.warning(e)
-            return F.TBD()
+            return F.ANY()
 
         return F.Range.from_center_rel(value, tolerance)
 
-    def satisfies_requirement(
+    T = TypeVar("T")
+
+    def get_parameter(
         self,
-        attributes_keys: list[str],
-        requirement: Parameter,
-        use_tolerance: bool = False,
-        tolerance_key: str = "Tolerance",
-        attr_fn: Callable[[str], Any] = lambda x: float(x),
-    ) -> Parameter | None:
+        attribute_search_keys: str | list[str],
+        tolerance_search_key: str | None = None,
+        parser: Callable[[str], T] | None = None,
+    ) -> Parameter[T]:
         """
-        Check if the component satisfies the requirement
+        Transform a component attribute to a parameter
 
-        :param attributes_key: The key in the component's extra['attributes'] dict that
-        holds the value to check
-        :param requirement: The requirement to check against
-        :param use_tolerance: Whether to use the tolerance field in the component
-        :param tolerance_key: The key in the component's extra['attributes'] dict that
-        holds the tolerance value
-        :param attr_fn: A function to convert the attribute value to the correct type
+        :param attribute_search_keys: The key in the component's extra['attributes']
+        dict that holds the value to check
+        :param tolerance_search_key: The key in the component's extra['attributes'] dict
+        that holds the tolerance value
+        :param parser: A function to convert the attribute value to the correct type
 
-        :return Returns the value of the component if it satisfies the requirement,
-        otherwise None
+        :return: The parameter representing the attribute value
         """
-        if isinstance(requirement, F.ANY):
-            return F.ANY()
+
+        if tolerance_search_key is not None and parser is not None:
+            raise NotImplementedError(
+                "Cannot provide both tolerance_search_key and parser arguments"
+            )
 
         assert isinstance(self.extra, dict)
 
         attr_key = next(
-            (k for k in attributes_keys if k in self.extra.get("attributes", "")),
+            (k for k in attribute_search_keys if k in self.extra.get("attributes", "")),
             None,
         )
 
+        if "attributes" not in self.extra:
+            logger.debug(f"self {self.lcsc} does not have any attributes")
+            return F.ANY()
+        if attr_key is None:
+            logger.debug(
+                f"self {self.lcsc} does not have any of required attribute fields: "
+                f"{attribute_search_keys}"
+            )
+            return F.ANY()
         if (
-            "attributes" not in self.extra
-            or not attr_key
-            or (use_tolerance and (tolerance_key not in self.extra["attributes"]))
+            tolerance_search_key is not None
+            and tolerance_search_key not in self.extra["attributes"]
         ):
             logger.debug(
-                f"self {self.lcsc} does not have any of required fields "
-                f"'{attributes_keys}'"
+                f"self {self.lcsc} does not have any of required tolerance fields: "
+                f"{tolerance_search_key}"
             )
-            return None
+            return F.ANY()
 
         try:
             # field_val = self.attribute_to_parameter(attr_key, use_tolerance)
-            if use_tolerance:
-                if not isinstance(requirement, F.Range):
-                    raise NotImplementedError
-                field_val = self.attribute_to_parameter(attr_key, use_tolerance)
+            if parser is None:
+                field_val = self.attribute_to_parameter(attr_key, True)
             else:
-                field_val = attr_fn(self.extra["attributes"][attr_key])
+                field_val = parser(self.extra["attributes"][attr_key])
+            return field_val
 
-            valid = field_val.is_more_specific_than(requirement)
-            if not valid:
-                logger.debug(
-                    f"self {self.lcsc} does not satisfy requirement "
-                    f"'{attr_key}': requirement: {requirement}, "
-                    f"value: {field_val}"
-                )
-            return field_val if valid else None
         except ValueError as e:
             logger.debug(
                 f"Could not parse component with '{attr_key}' field "
                 f"'{self.extra['attributes'][attr_key]}', Error: '{e}'"
             )
-            return None
+
+        return F.ANY()
 
 
 class JLCPCB_DB:
@@ -527,21 +527,29 @@ class JLCPCB_DB:
         qty: int = 1,
     ):
         for c in components:
+            params = [
+                c.get_parameter(
+                    attribute_search_keys=m.attr_keys,
+                    tolerance_search_key=m.attr_tolerance_key,
+                    parser=m.transform_fn,
+                )
+                for m in mapping
+            ]
             if not all(
                 pm := [
-                    c.satisfies_requirement(
-                        m.attr_keys,
-                        module.PARAMs.__getattribute__(m.param_name).get_most_narrow(),
-                        use_tolerance=m.attr_tolerance_key is not None,
-                        tolerance_key=m.attr_tolerance_key or "",
-                        attr_fn=m.transform_fn,
+                    p.is_more_specific_than(
+                        module.PARAMs.__getattribute__(m.param_name).get_most_narrow()
                     )
-                    for m in mapping
+                    for p, m in zip(params, mapping)
                 ]
             ):
+                logger.debug(
+                    f"Component {c.lcsc} doesn't match: "
+                    f"{[p for p, v in zip(params, pm) if not v]}"
+                )
                 continue
 
-            for name, value in zip([m.param_name for m in mapping], pm):
+            for name, value in zip([m.param_name for m in mapping], params):
                 module.PARAMs.__getattribute__(name).merge(value)
 
             logger.info(

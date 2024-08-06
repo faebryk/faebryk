@@ -10,7 +10,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Self, Sequence, TypeVar
 from urllib.error import HTTPError
 
 import faebryk.library._F as F
@@ -34,7 +34,6 @@ from faebryk.libs.picker.lcsc import (
 from faebryk.libs.picker.picker import (
     DescriptiveProperties,
     PickerOption,
-    PickError,
     Supplier,
     has_part_picked,
     has_part_picked_defined,
@@ -138,9 +137,7 @@ class JLCPCB(Supplier):
         elif isinstance(module, F.MOSFET):
             find_mosfet(module)
         elif isinstance(module, F.LDO):
-            logger.setLevel(logging.DEBUG)
             find_ldo(module)
-            logger.setLevel(logging.INFO)
         else:
             return
 
@@ -423,6 +420,62 @@ class Component(Model):
         return F.ANY()
 
 
+class ComponentQuery:
+    def __init__(self):
+        self.Q = Q()
+        self.results: list[Component] = []
+
+    async def exec(self) -> list[Component]:
+        self.results = await Component.filter(self.Q)
+        return self.results
+
+    def get(self) -> list[Component]:
+        return self.results or asyncio.run(self.exec())
+
+    def by_stock(self, qty: int) -> Self:
+        assert not self.results
+        self.Q &= Q(stock__gte=qty)
+        return self
+
+    def by_value(self, value: Parameter, si_unit: str) -> Self:
+        assert not self.results
+        value_query = Q()
+        for r in e_series_intersect(
+            value.get_most_narrow(), E_SERIES_VALUES.E_ALL
+        ).params:
+            assert isinstance(r, F.Constant)
+            si_val = float_to_si_str(r.value, si_unit).replace("µ", "u")
+            value_query |= Q(description__contains=f" {si_val}")
+        self.Q &= value_query
+        return self
+
+    def by_category(self, category: str, subcategory: str) -> Self:
+        assert not self.results
+        category_ids = asyncio.run(Category().get_ids(category, subcategory))
+        self.Q &= Q(category_id__in=category_ids)
+        return self
+
+    def by_footprint(
+        self, footprint_candidates: Sequence[tuple[str, int]] | None
+    ) -> Self:
+        assert not self.results
+        if not footprint_candidates:
+            return self
+        footprint_query = Q()
+        if footprint_candidates is not None:
+            for footprint, pin_count in footprint_candidates:
+                footprint_query |= Q(description__icontains=footprint) & Q(
+                    joints=pin_count
+                )
+        self.Q &= footprint_query
+        return self
+
+    def sort_by_price(self, qty: int = 1) -> Self:
+        results = self.get()
+        sorted(results, key=lambda x: x.get_price(qty))
+        return self
+
+
 class JLCPCB_DB:
     def __init__(
         self,
@@ -567,55 +620,6 @@ class JLCPCB_DB:
 
             return
 
-    async def _run_query(
-        self,
-        module: Module,
-        category: str,
-        subcategory: str,
-        si_values_from_param: Parameter | None = None,
-        si_unit="",
-        qty: int = 1,
-    ) -> list[Component]:
-        try:
-            category_ids = await Category().get_ids(category, subcategory)
-        except LookupError as e:
-            raise PickError(f"Could not find category: {e}", module)
-
-        footprint_query = Q()
-        if module.has_trait(F.has_footprint_requirement):
-            req = module.get_trait(
-                F.has_footprint_requirement
-            ).get_footprint_requirement()
-            for footprint, pin_count in req:
-                footprint_query |= Q(description__icontains=footprint) & Q(
-                    joints=pin_count
-                )
-
-        value_query = Q()
-        if si_values_from_param:
-            for r in e_series_intersect(
-                si_values_from_param.get_most_narrow(), E_SERIES_VALUES.E_ALL
-            ).params:
-                assert isinstance(r, F.Constant)
-                si_val = float_to_si_str(r.value, si_unit).replace("µ", "u")
-                value_query |= Q(description__contains=f" {si_val}")
-
-        filter_query = (
-            Q(category_id__in=category_ids)
-            & Q(stock__gte=qty)
-            & footprint_query
-            & value_query
-        )
-
-        results = await Component.filter(filter_query).order_by("-basic")
-
-        if len(results) < 1:
-            raise PickError("No parts found", module)
-
-        sorted(results, key=lambda x: x.get_price(qty))
-
-        return results
-
 
 def find_resistor(cmp: F.Resistor, qty: int = 1):
     """
@@ -624,15 +628,20 @@ def find_resistor(cmp: F.Resistor, qty: int = 1):
     """
     db = JLCPCB_DB()
 
-    resistors = asyncio.run(
-        db._run_query(
-            cmp,
-            category="Resistors",
-            subcategory="Chip Resistor - Surface Mount",
-            si_values_from_param=cmp.PARAMs.resistance,
-            si_unit="Ω",
-            qty=qty,
+    resistors = (
+        ComponentQuery()
+        .by_category("Resistors", "Chip Resistor - Surface Mount")
+        .by_stock(qty)
+        .by_footprint(
+            footprint_candidates=(
+                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
+                if cmp.has_trait(F.has_footprint_requirement)
+                else None
+            ),
         )
+        .by_value(cmp.PARAMs.resistance, "Ω")
+        .sort_by_price(qty)
+        .get()
     )
 
     mapping = [
@@ -660,15 +669,20 @@ def find_capacitor(cmp: F.Capacitor, qty: int = 1):
     db = JLCPCB_DB()
 
     # TODO: add support for electrolytic capacitors.
-    capacitors = asyncio.run(
-        db._run_query(
-            cmp,
-            category="Capacitors",
-            subcategory="Multilayer Ceramic Capacitors MLCC - SMD/SMT",
-            si_values_from_param=cmp.PARAMs.capacitance,
-            si_unit="F",
-            qty=qty,
+    capacitors = (
+        ComponentQuery()
+        .by_category("Capacitors", "Multilayer Ceramic Capacitors MLCC - SMD/SMT")
+        .by_stock(qty)
+        .by_footprint(
+            footprint_candidates=(
+                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
+                if cmp.has_trait(F.has_footprint_requirement)
+                else None
+            ),
         )
+        .by_value(cmp.PARAMs.capacitance, "F")
+        .sort_by_price(qty)
+        .get()
     )
 
     def TemperatureCoefficient_str_to_param(
@@ -712,15 +726,20 @@ def find_inductor(cmp: F.Inductor, qty: int = 1):
 
     # Get Inductors (SMD), Power Inductors, TH Inductors, HF Inductors,
     # Adjustable Inductors. HF and Adjustable are basically empty.
-    inductors = asyncio.run(
-        db._run_query(
-            cmp,
-            category="Inductors",
-            subcategory="Inductors",
-            si_values_from_param=cmp.PARAMs.inductance,
-            si_unit="H",
-            qty=qty,
+    inductors = (
+        ComponentQuery()
+        .by_category("Inductors", "Inductors")
+        .by_stock(qty)
+        .by_footprint(
+            footprint_candidates=(
+                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
+                if cmp.has_trait(F.has_footprint_requirement)
+                else None
+            ),
         )
+        .by_value(cmp.PARAMs.inductance, "H")
+        .sort_by_price(qty)
+        .get()
     )
 
     mapping = [
@@ -750,17 +769,11 @@ def find_tvs(cmp: F.TVS, qty: int = 1):
     Find a TVS diode part in the JLCPCB database that matches the parameters of the
     provided diode
     """
-    db = JLCPCB_DB()
+
     # TODO: handle bidirectional TVS diodes
     # "Bidirectional Channels": "1" in extra['attributes']
-    diodes = asyncio.run(
-        db._run_query(
-            cmp,
-            category="",
-            subcategory="TVS",
-            qty=qty,
-        )
-    )
+
+    db = JLCPCB_DB()
 
     mapping = [
         MappingParameterDB(
@@ -792,6 +805,21 @@ def find_tvs(cmp: F.TVS, qty: int = 1):
         ),
     ]
 
+    diodes = (
+        ComponentQuery()
+        .by_category("", "TVS")
+        .by_stock(qty)
+        .by_footprint(
+            footprint_candidates=(
+                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
+                if cmp.has_trait(F.has_footprint_requirement)
+                else None
+            ),
+        )
+        .sort_by_price(qty)
+        .get()
+    )
+
     asyncio.run(db.filter_by_params_and_attach(cmp, diodes, mapping, qty))
 
 
@@ -801,14 +829,6 @@ def find_diode(cmp: F.Diode, qty: int = 1):
     provided diode
     """
     db = JLCPCB_DB()
-    diodes = asyncio.run(
-        db._run_query(
-            cmp,
-            category="",
-            subcategory="Diodes",
-            qty=qty,
-        )
-    )
 
     mapping = [
         MappingParameterDB(
@@ -833,6 +853,21 @@ def find_diode(cmp: F.Diode, qty: int = 1):
         ),
     ]
 
+    diodes = (
+        ComponentQuery()
+        .by_category("", "Diodes")
+        .by_stock(qty)
+        .by_footprint(
+            footprint_candidates=(
+                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
+                if cmp.has_trait(F.has_footprint_requirement)
+                else None
+            ),
+        )
+        .sort_by_price(qty)
+        .get()
+    )
+
     asyncio.run(db.filter_by_params_and_attach(cmp, diodes, mapping, qty))
 
 
@@ -843,14 +878,20 @@ def find_mosfet(cmp: F.MOSFET, qty: int = 1):
     """
     db = JLCPCB_DB()
 
-    mosfets = asyncio.run(
-        db._run_query(
-            cmp,
-            category="",
-            subcategory="MOSFET",
-            qty=qty,
+    mosfets = (
+        ComponentQuery()
+        .by_category("", "MOSFET")
+        .by_stock(qty)
+        .by_footprint(
+            footprint_candidates=(
+                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
+                if cmp.has_trait(F.has_footprint_requirement)
+                else None
+                ),
         )
-    )
+        .sort_by_price(qty)
+        .get()
+        )
 
     def ChannelType_str_to_param(x: str) -> F.Constant[F.MOSFET.ChannelType]:
         if x in ["N Channel", "N-Channel"]:
@@ -898,14 +939,21 @@ def find_ldo(cmp: F.LDO, qty: int = 1):
     """
     db = JLCPCB_DB()
 
-    ldos = asyncio.run(
-        db._run_query(
-            cmp,
-            category="",
-            subcategory="LDO",
-            qty=qty,
+    ldos = (
+        ComponentQuery()
+        .by_category("", "LDO")
+        .by_stock(qty)
+        .by_footprint(
+            footprint_candidates=(
+                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
+                if cmp.has_trait(F.has_footprint_requirement)
+                else None
+                ),
+            )
+        .sort_by_price(qty)
+        .get()
         )
-    )
+
 
     def OutputType_str_to_param(x: str) -> F.Constant[F.LDO.OutputType]:
         if x == "Fixed":

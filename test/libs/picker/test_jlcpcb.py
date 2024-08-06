@@ -6,7 +6,7 @@ import unittest
 import faebryk.library._F as F
 from faebryk.core.core import Module
 from faebryk.libs.logging import setup_basic_logging
-from faebryk.libs.picker.jlcpcb import JLCPCB
+from faebryk.libs.picker.jlcpcb.pickers import pick_module_by_query
 from faebryk.libs.picker.picker import DescriptiveProperties, has_part_picked
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class TestPickerJlcpcb(unittest.TestCase):
 
         def test(self):
             try:
-                JLCPCB().pick(self.result)
+                pick_module_by_query(self.result, 1)
             except Exception as e:
                 self.test_case.fail(f"Failed to pick part: {e}")
 

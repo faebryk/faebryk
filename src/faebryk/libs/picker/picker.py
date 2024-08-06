@@ -53,6 +53,12 @@ class PickError(Exception):
         self.module = module
 
 
+class PickErrorNotImplemented(PickError):
+    def __init__(self, module: Module):
+        message = f"Could not pick part for {module}: Not implemented"
+        super().__init__(message, module)
+
+
 class PickErrorChildren(PickError):
     def __init__(self, module: Module, children: dict[Module, PickError]):
         self.children = children

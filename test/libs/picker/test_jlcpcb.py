@@ -1,6 +1,5 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
-
 import logging
 import unittest
 
@@ -30,7 +29,7 @@ class TestPickerJlcpcb(unittest.TestCase):
 
         def test(self):
             try:
-                JLCPCB(no_download_prompt=True).pick(self.result)
+                JLCPCB().pick(self.result)
             except Exception as e:
                 self.test_case.fail(f"Failed to pick part: {e}")
 
@@ -59,14 +58,14 @@ class TestPickerJlcpcb(unittest.TestCase):
                 .has_trait(F.has_kicad_footprint)
             )
             # check pin count
-            self.test_case.assertTrue(
-                self.footprint[0][1]
-                == len(
+            self.test_case.assertEqual(
+                self.footprint[0][1],
+                len(
                     self.result.get_trait(F.has_footprint)
                     .get_footprint()
                     .get_trait(F.has_kicad_footprint)
                     .get_pin_names()
-                )
+                ),
             )
 
             for req, res in zip(
@@ -223,4 +222,5 @@ class TestPickerJlcpcb(unittest.TestCase):
 
 if __name__ == "__main__":
     setup_basic_logging()
+    logger.setLevel(logging.DEBUG)
     unittest.main()

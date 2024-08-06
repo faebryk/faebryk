@@ -565,9 +565,9 @@ class PCB_Transformer:
                     justify=(
                         C_effects.E_justify.center,
                         C_effects.E_justify.center,
-                        C_effects.E_Mirror.mirror
+                        C_effects.E_justify.mirror
                         if not front
-                        else C_effects.E_Mirror.normal,
+                        else C_effects.E_justify.normal,
                     ),
                 ),
                 uuid=self.gen_uuid(mark=True),

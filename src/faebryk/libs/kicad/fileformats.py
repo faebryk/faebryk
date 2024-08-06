@@ -517,13 +517,11 @@ class C_effects:
         right = auto()
         bottom = auto()
         top = auto()
-
-    class E_Mirror(StrEnum):
         normal = ""
         mirror = auto()
 
     font: C_font
-    justify: Optional[tuple[E_justify, E_justify, E_Mirror]] = None
+    justify: Optional[tuple[E_justify, E_justify, E_justify]] = None
 
 
 @dataclass
@@ -603,7 +601,7 @@ class C_poly:
     pts: C_pts
 
 
-@dataclass
+@dataclass(kw_only=True)
 class C_footprint:
     class E_attr(StrEnum):
         smd = auto()
@@ -656,7 +654,7 @@ class C_footprint:
             size_y: Optional[float] = field(**sexp_field(positional=True), default=None)
 
         # TODO: replace with generic gr item
-        @dataclass
+        @dataclass(kw_only=True)
         class C_gr:
             @dataclass
             class C_gr_poly(C_poly):
@@ -676,6 +674,8 @@ class C_footprint:
         options: Optional[C_options] = None
         primitives: Optional[C_gr] = None
         # TODO: primitives: add: gr_line, gr_arc, gr_circle, gr_rect, gr_curve, gr_bbox
+        net: Optional[tuple[int, str]] = None  # TODO: C_pcb_footprint
+        uuid: Optional[UUID] = None  # TODO: C_pcb_footprint
 
     @dataclass
     class C_model:
@@ -699,6 +699,8 @@ class C_footprint:
 
     name: str = field(**sexp_field(positional=True))
     layer: str
+    at: Optional[C_xyr] = None  # TODO: C_pcb_footprint
+    uuid: Optional[UUID] = None  # TODO: C_pcb_footprint
     propertys: dict[str, C_property] = field(
         **sexp_field(multidict=True, key=lambda x: x.name)
     )
@@ -805,7 +807,7 @@ class C_kicad_pcb_file(SEXP_File):
 
                 layers: list[C_layer] = field(**sexp_field(multidict=True))
                 # copper_finish: Optional[E_copper_finish] = None
-                # # TODO: missing "" around str. use normal str for now
+                # TODO: missing "" around str. use normal str for now
                 copper_finish: Optional[str] = None
                 dielectric_constraints: Optional[bool] = None
                 edge_connector: Optional[E_edge_connector_type] = None
@@ -824,14 +826,10 @@ class C_kicad_pcb_file(SEXP_File):
 
         @dataclass(kw_only=True)
         class C_pcb_footprint(C_footprint):
-            @dataclass(kw_only=True)
-            class C_pad(C_footprint.C_pad):
-                net: Optional[tuple[int, str]] = None
-                uuid: UUID
-
-            at: C_xyr
-            uuid: UUID
-            pads: list[C_pad] = field(**sexp_field(multidict=True))
+            ...
+            # TODO: kicad does not like that 'at' and 'uuid' are defined at
+            # the end of the sexp section. this happens because C_pcb_footprint is
+            # inherriting C_footprint and is thus initiated after C_footprint.
 
         @dataclass
         class C_via:

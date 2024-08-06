@@ -34,6 +34,7 @@ class Resistor(Module):
         class PARAMS(super().PARAMS()):
             resistance = TBD[float]()
             rated_power = TBD[float]()
+            rated_voltage = TBD[float]()
 
         self.PARAMs = PARAMS(self)
 

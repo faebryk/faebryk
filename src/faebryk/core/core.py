@@ -664,12 +664,16 @@ class Parameter(Generic[PV], Node):
             return False
 
     def is_more_specific_than(self, other: "Parameter[PV]") -> bool:
+        from faebryk.library.ANY import ANY
         from faebryk.library.TBD import TBD
 
         if isinstance(self, TBD):
             return False
         if isinstance(other, TBD):
             return False
+        if isinstance(self, ANY):
+            return isinstance(other, ANY)
+
         return self.is_mergeable_with(other)
 
     def merge(self, other: "Parameter[PV] | PV") -> "Parameter[PV]":

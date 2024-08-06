@@ -1,7 +1,6 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-
 import inspect
 import logging
 from abc import abstractmethod
@@ -300,6 +299,9 @@ def is_type_set_subclasses(type_subclasses: set[type], types: set[type]) -> bool
 
 
 def round_str(value: SupportsFloat, n=8):
+    """
+    Round a float to n decimals and strip trailing zeros.
+    """
     f = round(float(value), n)
     return str(f).rstrip("0").rstrip(".")
 

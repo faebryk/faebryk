@@ -51,15 +51,14 @@ MODEL_PATH: str | None = "${KIPRJMOD}/../libs/"
 
 class JLCPCB(Supplier):
     def __init__(self) -> None:
+        self.db = JLCPCB_DB()
         super().__init__()
 
     def attach(self, module: Module, part: PickerOption):
-        JLCPCB_DB()
         assert isinstance(part.part, JLCPCB_Part)
         find_lcsc_part(module, part.part.partno)
 
     def pick(self, module: Module):
-        JLCPCB_DB()
         if module.has_trait(has_part_picked):
             if isinstance(module.get_trait(has_part_picked).get_part(), JLCPCB_Part):
                 lcsc_pn = module.get_trait(has_part_picked).get_part().partno

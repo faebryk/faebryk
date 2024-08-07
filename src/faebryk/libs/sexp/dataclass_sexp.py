@@ -29,6 +29,7 @@ class sexp_field(dict[str, Any]):
     multidict: bool = False
     key: Callable[[Any], Any] | None = None
     assert_value: Any | None = None
+    order: int = 0
 
     def __post_init__(self):
         super().__init__({"metadata": {"sexp": self}})
@@ -243,10 +244,11 @@ def _encode(t) -> netlist_type:
             return
         sexp.append(_val)
 
-    for f in fields(t):
+    fs = [(f, sexp_field.from_field(f)) for f in fields(t)]
+
+    for f, sp in sorted(fs, key=lambda x: x[1].order):
         name = f.name
         val = getattr(t, name)
-        sp = sexp_field.from_field(f)
 
         if sp.positional:
             _append(_convert2(val))

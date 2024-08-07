@@ -522,6 +522,8 @@ class C_effects:
 
     font: C_font
     justify: Optional[tuple[E_justify, E_justify, E_justify]] = None
+    # TODO: this should be a Union as it's actually a tuple with 3 positional
+    # and optional enums: (E_justify_horizontal, E_justify_vertical, E_mirrored)
 
 
 @dataclass
@@ -899,7 +901,7 @@ class C_kicad_pcb_file(SEXP_File):
             net_name: str
             layer: Optional[str] = None
             layers: Optional[list[str]] = None
-            # TODO: if zones is both front and back Cu layer then layer="F&B.Cu"
+            # NOTE: if zones is both front and back Cu layer then layer="F&B.Cu"
             # else layer="F.Cu" "B.Cu" "In1.Cu" ...
             uuid: UUID
             name: str

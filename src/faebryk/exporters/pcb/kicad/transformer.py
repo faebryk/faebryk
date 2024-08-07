@@ -47,7 +47,7 @@ from faebryk.libs.kicad.fileformats import (
     C_xyz,
 )
 from faebryk.libs.sexp.dataclass_sexp import dataclass_dfs
-from faebryk.libs.util import KeyErrorAmbiguous, cast_assert, find, get_key
+from faebryk.libs.util import cast_assert, find, get_key
 from shapely import Polygon
 from typing_extensions import deprecated
 
@@ -190,14 +190,14 @@ class PCB_Transformer:
 
     class has_linked_kicad_pad(ModuleInterfaceTrait):
         @abstractmethod
-        def get_pad(self) -> tuple[Footprint, Pad]: ...
+        def get_pad(self) -> tuple[Footprint, list[Pad]]: ...
 
         @abstractmethod
         def get_transformer(self) -> "PCB_Transformer": ...
 
     class has_linked_kicad_pad_defined(has_linked_kicad_pad.impl()):
         def __init__(
-            self, fp: Footprint, pad: Pad, transformer: "PCB_Transformer"
+            self, fp: Footprint, pad: list[Pad], transformer: "PCB_Transformer"
         ) -> None:
             super().__init__()
             self.fp = fp
@@ -261,14 +261,13 @@ class PCB_Transformer:
 
             pin_names = g_fp.get_trait(has_kicad_footprint).get_pin_names()
             for fpad in g_fp.IFs.get_all():
-                try:
-                    pad = find(
-                        fp.pads, lambda p: p.name == pin_names[cast_assert(FPad, fpad)]
-                    )
-                except KeyErrorAmbiguous:
-                    continue
+                pads = [
+                    pad
+                    for pad in fp.pads
+                    if pad.name == pin_names[cast_assert(FPad, fpad)]
+                ]
                 fpad.add_trait(
-                    PCB_Transformer.has_linked_kicad_pad_defined(fp, pad, self)
+                    PCB_Transformer.has_linked_kicad_pad_defined(fp, pads, self)
                 )
 
         attached = {
@@ -653,11 +652,12 @@ class PCB_Transformer:
         # check if exists
         zones = self.pcb.zones
         # TODO check bbox
-        for layer in layers:
-            if any([zone.layer == layer for zone in zones]):
-                # raise Exception(f"Zone already exists in {layer=}")
-                logger.warning(f"Zone already exists in {layer=}")
-                return
+
+        if isinstance(layers, list):
+            for layer in layers:
+                if any([zone.layer == layer for zone in zones]):
+                    logger.warning(f"Zone already exists in {layer=}")
+                    return
 
         self.pcb.zones.append(
             Zone(
@@ -684,7 +684,7 @@ class PCB_Transformer:
                     thermal_bridge_width=0.2,
                     smoothing=None,
                     radius=1,
-                    island_removal_mode=Zone.C_fill.E_island_removal_mode.do_not_remove.value,
+                    island_removal_mode=Zone.C_fill.E_island_removal_mode.do_not_remove,
                     island_area_min=10.0,
                 ),
                 locked=False,

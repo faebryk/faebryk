@@ -1,6 +1,6 @@
 import logging
 from dataclasses import Field, dataclass, fields, is_dataclass
-from enum import Enum, StrEnum
+from enum import Enum, IntEnum, StrEnum
 from pathlib import Path
 from types import UnionType
 from typing import Any, Callable, Iterator, TypeVar, Union, get_args, get_origin
@@ -42,6 +42,9 @@ class sexp_field(dict[str, Any]):
         out = f.metadata.get("sexp", cls())
         assert isinstance(out, cls)
         return out
+
+
+class SymEnum(StrEnum): ...
 
 
 T = TypeVar("T")
@@ -219,6 +222,12 @@ def _convert2(val: Any) -> netlist_obj | None:
         return [_convert2(v) for v in val]
     if isinstance(val, dict):
         return [_convert2(v) for v in val.values()]
+    if isinstance(val, SymEnum):
+        return Symbol(val)
+    if isinstance(val, StrEnum):
+        return str(val)
+    if isinstance(val, IntEnum):
+        return int(val)
     if isinstance(val, Enum):
         return Symbol(val)
     if isinstance(val, bool):
@@ -246,7 +255,7 @@ def _encode(t) -> netlist_type:
 
     fs = [(f, sexp_field.from_field(f)) for f in fields(t)]
 
-    for f, sp in sorted(fs, key=lambda x: x[1].order):
+    for f, sp in sorted(fs, key=lambda x: (not x[1].positional, x[1].order)):
         name = f.name
         val = getattr(t, name)
 

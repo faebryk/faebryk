@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from dataclasses_json import CatchAll, Undefined, dataclass_json
-from faebryk.libs.sexp.dataclass_sexp import JSON_File, SEXP_File, sexp_field
+from faebryk.libs.sexp.dataclass_sexp import JSON_File, SEXP_File, SymEnum, sexp_field
 
 logger = logging.getLogger(__name__)
 
@@ -496,7 +496,7 @@ class C_wh:
 
 @dataclass
 class C_stroke:
-    class E_type(StrEnum):
+    class E_type(SymEnum):
         solid = auto()
         default = auto()
 
@@ -511,7 +511,7 @@ class C_effects:
         size: C_wh
         thickness: Optional[float] = None
 
-    class E_justify(StrEnum):
+    class E_justify(SymEnum):
         center = ""
         left = auto()
         right = auto()
@@ -535,7 +535,7 @@ class C_line:
 
 @dataclass
 class C_circle:
-    class E_fill(StrEnum):
+    class E_fill(SymEnum):
         none = auto()
 
     center: C_xy
@@ -567,7 +567,7 @@ class C_text:
 
 @dataclass
 class C_fp_text:
-    class E_type(StrEnum):
+    class E_type(SymEnum):
         user = auto()
 
     type: E_type = field(**sexp_field(positional=True))
@@ -580,7 +580,7 @@ class C_fp_text:
 
 @dataclass
 class C_rect:
-    class E_fill(StrEnum):
+    class E_fill(SymEnum):
         none = auto()
         solid = auto()
 
@@ -603,28 +603,28 @@ class C_poly:
 
 @dataclass(kw_only=True)
 class C_footprint:
-    class E_attr(StrEnum):
+    class E_attr(SymEnum):
         smd = auto()
         through_hole = auto()
         exclude_from_pos_files = auto()
 
-    @dataclass
+    @dataclass(kw_only=True)
     class C_property:
         name: str = field(**sexp_field(positional=True))
         value: str = field(**sexp_field(positional=True))
         at: C_xyr
         layer: str
+        hide: bool = False
         uuid: UUID
         effects: C_effects
-        hide: bool = False
 
-    @dataclass
+    @dataclass(kw_only=True)
     class C_pad:
-        class E_type(StrEnum):
+        class E_type(SymEnum):
             thru_hole = auto()
             smd = auto()
 
-        class E_shape(StrEnum):
+        class E_shape(SymEnum):
             circle = auto()
             rect = auto()
             stadium = "oval"
@@ -633,10 +633,10 @@ class C_footprint:
 
         @dataclass
         class C_options:
-            class E_clearance(StrEnum):
+            class E_clearance(SymEnum):
                 outline = auto()
 
-            class E_anchor(StrEnum):
+            class E_anchor(SymEnum):
                 rect = auto()
                 circle = auto()
 
@@ -645,7 +645,7 @@ class C_footprint:
 
         @dataclass
         class C_drill:
-            class E_shape(StrEnum):
+            class E_shape(SymEnum):
                 circle = ""
                 stadium = "oval"
 
@@ -668,8 +668,8 @@ class C_footprint:
         shape: E_shape = field(**sexp_field(positional=True))
         at: C_xyr
         size: C_wh
-        layers: list[str]
         drill: Optional[C_drill] = None
+        layers: list[str]
         remove_unused_layers: bool = False
         options: Optional[C_options] = None
         primitives: Optional[C_gr] = None
@@ -696,7 +696,7 @@ class C_footprint:
         rotate: C_rotate
 
     name: str = field(**sexp_field(positional=True))
-    layer: str
+    layer: str = field(**sexp_field(order=-20))
     propertys: dict[str, C_property] = field(
         **sexp_field(multidict=True, key=lambda x: x.name)
     )
@@ -721,7 +721,7 @@ class C_kicad_pcb_file(SEXP_File):
 
         @dataclass
         class C_layer:
-            class E_type(StrEnum):
+            class E_type(SymEnum):
                 signal = auto()
                 user = auto()
 
@@ -782,7 +782,7 @@ class C_kicad_pcb_file(SEXP_File):
                     epsilon_r: Optional[float] = None
                     loss_tangent: Optional[float] = None
 
-                class E_edge_connector_type(StrEnum):
+                class E_edge_connector_type(SymEnum):
                     edge_connector_bevelled = "bevelled"
                     edge_connector = "yes"
 
@@ -802,9 +802,7 @@ class C_kicad_pcb_file(SEXP_File):
                     USER_DEFINED = "User defined"
 
                 layers: list[C_layer] = field(**sexp_field(multidict=True))
-                # copper_finish: Optional[E_copper_finish] = None
-                # TODO: missing "" around str. use normal str for now
-                copper_finish: Optional[str] = None
+                copper_finish: Optional[E_copper_finish] = None
                 dielectric_constraints: Optional[bool] = None
                 edge_connector: Optional[E_edge_connector_type] = None
                 castellated_pads: Optional[bool] = None
@@ -827,9 +825,9 @@ class C_kicad_pcb_file(SEXP_File):
                 net: tuple[int, str] = field(kw_only=True)
                 uuid: UUID = field(kw_only=True)
 
-            at: C_xyr = field(**sexp_field(order=-15))
-            uuid: UUID = field(**sexp_field(order=-10))
-            pads: list[C_pad] = field(**sexp_field(multidict=True, order=10))
+            uuid: UUID = field(**sexp_field(order=-15))
+            at: C_xyr = field(**sexp_field(order=-10))
+            pads: list[C_pad] = field(**sexp_field(multidict=True))
 
         @dataclass
         class C_via:
@@ -844,7 +842,7 @@ class C_kicad_pcb_file(SEXP_File):
         class C_zone:
             @dataclass
             class C_hatch:
-                class E_mode(StrEnum):
+                class E_mode(SymEnum):
                     edge = auto()
                     full = auto()
                     none = auto()
@@ -854,7 +852,7 @@ class C_kicad_pcb_file(SEXP_File):
 
             @dataclass(kw_only=True)
             class C_connect_pads:
-                class E_mode(StrEnum):
+                class E_mode(SymEnum):
                     none = "no"
                     solid = "yes"
                     thermal_reliefs = ""
@@ -867,13 +865,13 @@ class C_kicad_pcb_file(SEXP_File):
 
             @dataclass(kw_only=True)
             class C_fill:
-                class E_mode(StrEnum):
+                class E_mode(SymEnum):
                     hatch = auto()
 
-                class E_hatch_border_algorithm(StrEnum):
+                class E_hatch_border_algorithm(SymEnum):
                     hatch_thickness = auto()
 
-                class E_smoothing(StrEnum):
+                class E_smoothing(SymEnum):
                     fillet = "fillet"
                     chamfer = "chamfer"
 
@@ -894,9 +892,7 @@ class C_kicad_pcb_file(SEXP_File):
                 thermal_bridge_width: float
                 smoothing: Optional[E_smoothing] = None
                 radius: Optional[float] = None
-                # TODO: support IntEnum?
-                # island_removal_mode: Optional[E_island_removal_mode] = None
-                island_removal_mode: Optional[int] = None
+                island_removal_mode: Optional[E_island_removal_mode] = None
                 island_area_min: Optional[float] = None
 
             net: int

@@ -341,7 +341,7 @@ class Component(Model):
         ]
 
         for name, value in zip([m.param_name for m in mapping], params):
-            module.PARAMs.__getattribute__(name).merge(value)
+            getattr(module.PARAMs, name).merge(value)
 
         F.has_defined_descriptive_properties.add_properties_to(
             module,
@@ -471,8 +471,8 @@ class ComponentQuery:
             ]
             if not all(
                 pm := [
-                    p.is_more_specific_than(
-                        module.PARAMs.__getattribute__(m.param_name).get_most_narrow()
+                    isinstance(p, F.ANY) or p.is_more_specific_than(
+                        getattr(module.PARAMs, m.param_name).get_most_narrow()
                     )
                     for p, m in zip(params, mapping)
                 ]

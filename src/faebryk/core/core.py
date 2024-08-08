@@ -670,14 +670,17 @@ class Parameter(Generic[PV], Node):
         from faebryk.library.ANY import ANY
         from faebryk.library.TBD import TBD
 
-        if isinstance(self, TBD):
-            return False
-        if isinstance(other, TBD):
-            return False
-        if isinstance(self, ANY):
-            return isinstance(other, ANY)
+        s = self.get_most_narrow()
+        o = other.get_most_narrow()
 
-        return self.is_mergeable_with(other)
+        if isinstance(o, ANY):
+            return True
+        if isinstance(s, TBD):
+            return False
+        if isinstance(o, TBD):
+            return False
+
+        return s.is_mergeable_with(o)
 
     def merge(self, other: "Parameter[PV] | PV") -> "Parameter[PV]":
         from faebryk.library.Constant import Constant

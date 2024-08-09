@@ -17,9 +17,8 @@ from faebryk.libs.util import times
 
 
 class CBM9002A_56ILG_Reference_Design(Module):
-    # TODO: add proper description
     """
-    Hack to implement the CBM9002A_56ILG module and pick all components
+    Minimal working example for the CBM9002A_56ILG
     """
 
     def __init__(self):
@@ -32,7 +31,6 @@ class CBM9002A_56ILG_Reference_Design(Module):
             mcu = CBM9002A_56ILG()
             reset_diode = Diode()
             reset_lowpass_cap = Capacitor()
-
             oscillator = Crystal_Oscillator()
 
         self.NODEs = _NODEs(self)

@@ -154,7 +154,7 @@ class RS485_Bus_Protection(Module):
 
         self.add_trait(can_bridge_defined(self.IFs.rs485_in, self.IFs.rs485_out))
 
-        # TODO: layout is only working when bbob is implemented or
+        # TODO: layout is only working when bbox is implemented or
         # when using specific components
 
         # PCB layout

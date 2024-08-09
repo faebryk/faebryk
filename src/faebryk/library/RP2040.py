@@ -43,7 +43,7 @@ class RP2040(Module):
             xout = Electrical()
             test = Electrical()
             swd = SWD()
-            # TODO: these peripherals can be mapped to different pins
+            # TODO: these peripherals and more can be mapped to different pins
             i2c = I2C()
             uart = UART_Base()
 

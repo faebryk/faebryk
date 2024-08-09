@@ -68,7 +68,7 @@ class PM1006(Module):
         self.IFs = _IFs(self)
 
         # components
-        class _NODEs(Module.NODES()): ...  # TODO: remove connector = B4B_ZR_SM4_TF()
+        class _NODEs(Module.NODES()): ...
 
         self.NODEs = _NODEs(self)
         # ---------------------------------------------------------------------
@@ -84,11 +84,5 @@ class PM1006(Module):
         # ---------------------------------------------------------------------
 
         self.IFs.power.PARAMs.voltage.merge(Range.from_center(5, 0.2))
-
-        # TODO: remove
-        # self.NODEs.connector.IFs.pin[3].connect(self.IFs.power.IFs.lv)
-        # self.NODEs.connector.IFs.pin[2].connect(self.IFs.power.IFs.hv)
-        # self.NODEs.connector.IFs.pin[1].connect(self.IFs.data.IFs.tx.IFs.signal)
-        # self.NODEs.connector.IFs.pin[0].connect(self.IFs.data.IFs.rx.IFs.signal)
 
         self.IFs.data.PARAMs.baud.merge(Constant(9600))

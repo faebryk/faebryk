@@ -449,6 +449,11 @@ class PCB_Transformer:
     @staticmethod
     def _get_pad_pos(fpad: FPad):
         fp, pad = fpad.get_trait(PCB_Transformer.has_linked_kicad_pad).get_pad()
+        if len(pad) > 1:
+            raise NotImplementedError(
+                f"Multiple same pads is not implemented: {fpad} {pad}"
+            )
+        pad = pad[0]
 
         point3d = abs_pos(fp.at, pad.at)
 

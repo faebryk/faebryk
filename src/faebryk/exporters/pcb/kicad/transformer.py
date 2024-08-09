@@ -653,18 +653,20 @@ class PCB_Transformer:
         zones = self.pcb.zones
         # TODO check bbox
 
-        if isinstance(layers, list):
-            for layer in layers:
-                if any([zone.layer == layer for zone in zones]):
-                    logger.warning(f"Zone already exists in {layer=}")
-                    return
+        if isinstance(layers, str):
+            layers = [layers]
+
+        for layer in layers:
+            if any([zone.layer == layer for zone in zones]):
+                logger.warning(f"Zone already exists in {layer=}")
+                return
 
         self.pcb.zones.append(
             Zone(
                 net=net.number,
                 net_name=net.name,
-                layer=layers if isinstance(layers, str) else None,
-                layers=layers if isinstance(layers, list) else None,
+                layer=layers[0] if len(layers) == 1 else None,
+                layers=layers if len(layers) > 1 else None,
                 uuid=self.gen_uuid(mark=True),
                 name=f"layer_fill_{net.name}",
                 polygon=C_poly(C_poly.C_pts([point2d_to_coord(p) for p in polygon])),

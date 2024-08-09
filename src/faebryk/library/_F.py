@@ -110,6 +110,8 @@ from faebryk.library.SWD import SWD
 from faebryk.library.SWDConnector import SWDConnector
 from faebryk.library.Sercom import Sercom
 from faebryk.library.Set import Set
+from faebryk.library.SignalBuffer import SignalBuffer
+from faebryk.library.SignalInverter import SignalInverter
 from faebryk.library.Switch import Switch
 from faebryk.library.TBD import TBD
 from faebryk.library.TD541S485H import TD541S485H

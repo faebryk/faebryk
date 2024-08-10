@@ -102,7 +102,7 @@ def find_manufacturer_part(module: Module, mfr_pn: str, qty: int = 1):
         try:
             part.attach(module, [])
             return
-        except Exception as e:
+        except ValueError as e:
             logger.warning(f"Failed to attach component: {e}")
             continue
 

@@ -291,39 +291,26 @@ class Component(Model):
         )
 
         if "attributes" not in self.extra:
-            logger.debug(f"self {self.lcsc} does not have any attributes")
-            return F.ANY()
+            raise LookupError(f"self {self.lcsc} does not have any attributes")
         if attr_key is None:
-            logger.debug(
+            raise LookupError(
                 f"self {self.lcsc} does not have any of required attribute fields: "
                 f"{attribute_search_keys}"
             )
-            return F.ANY()
         if (
             tolerance_search_key is not None
             and tolerance_search_key not in self.extra["attributes"]
         ):
-            logger.debug(
+            raise LookupError(
                 f"self {self.lcsc} does not have any of required tolerance fields: "
                 f"{tolerance_search_key}"
             )
-            return F.ANY()
 
-        try:
-            # field_val = self.attribute_to_parameter(attr_key, use_tolerance)
-            if parser is None:
-                field_val = self.attribute_to_parameter(attr_key, True)
-            else:
-                field_val = parser(self.extra["attributes"][attr_key])
-            return field_val
-
-        except ValueError as e:
-            logger.debug(
-                f"Could not parse component with '{attr_key}' field "
-                f"'{self.extra['attributes'][attr_key]}', Error: '{e}'"
-            )
-
-        return F.ANY()
+        if parser is None:
+            field_val = self.attribute_to_parameter(attr_key, True)
+        else:
+            field_val = parser(self.extra["attributes"][attr_key])
+        return field_val
 
     def attach(
         self,
@@ -331,14 +318,25 @@ class Component(Model):
         mapping: list[MappingParameterDB],
         qty: int = 1,
     ):
-        params = [
-            self.get_parameter(
-                attribute_search_keys=m.attr_keys,
-                tolerance_search_key=m.attr_tolerance_key,
-                parser=m.transform_fn,
-            )
-            for m in mapping
-        ]
+        params = []
+        for m in mapping:
+            try:
+                params.append(
+                    self.get_parameter(
+                        attribute_search_keys=m.attr_keys,
+                        tolerance_search_key=m.attr_tolerance_key,
+                        parser=m.transform_fn,
+                    )
+                )
+            except (LookupError, ValueError) as e:
+                if isinstance(
+                    getattr(module.PARAMs, m.param_name).get_most_narrow(), F.ANY
+                ) or isinstance(
+                    getattr(module.PARAMs, m.param_name).get_most_narrow(), F.TBD
+                ):
+                    params.append(F.ANY())
+                else:
+                    raise e
 
         for name, value in zip([m.param_name for m in mapping], params):
             getattr(module.PARAMs, name).merge(value)
@@ -461,17 +459,35 @@ class ComponentQuery:
         results = []
 
         for c in self.results:
-            params = [
-                c.get_parameter(
-                    attribute_search_keys=m.attr_keys,
-                    tolerance_search_key=m.attr_tolerance_key,
-                    parser=m.transform_fn,
-                )
-                for m in mapping
-            ]
+            params = []
+            for m in mapping:
+                try:
+                    params.append(
+                        c.get_parameter(
+                            attribute_search_keys=m.attr_keys,
+                            tolerance_search_key=m.attr_tolerance_key,
+                            parser=m.transform_fn,
+                        )
+                    )
+                except (LookupError, ValueError) as e:
+                    if isinstance(
+                        getattr(module.PARAMs, m.param_name).get_most_narrow(), F.ANY
+                    ) or isinstance(
+                        getattr(module.PARAMs, m.param_name).get_most_narrow(), F.TBD
+                    ):
+                        params.append(F.ANY())
+                    else:
+                        logger.debug(
+                            f"Failed to get parameters for component {c.lcsc}: {e}"
+                        )
+
+            if len(params) != len(mapping):
+                continue
+
             if not all(
                 pm := [
-                    isinstance(p, F.ANY) or p.is_more_specific_than(
+                    isinstance(p, F.ANY)
+                    or p.is_more_specific_than(
                         getattr(module.PARAMs, m.param_name).get_most_narrow()
                     )
                     for p, m in zip(params, mapping)
@@ -496,7 +512,7 @@ class ComponentQuery:
                 try:
                     c.attach(module, mapping, qty)
                     return self
-                except Exception as e:
+                except ValueError as e:
                     logger.warning(f"Failed to attach component: {e}")
 
         if attach_first:

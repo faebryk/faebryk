@@ -68,7 +68,7 @@ def find_lcsc_part(module: Module, lcsc_pn: str, qty: int = 1):
     Find a part in the JLCPCB database by its LCSC part number
     """
 
-    parts = ComponentQuery().by_lcsc_pn(lcsc_pn).get()
+    parts = ComponentQuery().filter_by_lcsc_pn(lcsc_pn).get()
 
     if len(parts) < 1:
         raise PickError(f"Could not find part with LCSC part number {lcsc_pn}", module)
@@ -90,7 +90,11 @@ def find_manufacturer_part(module: Module, mfr_pn: str, qty: int = 1):
     """
 
     parts = (
-        ComponentQuery().by_manufacturer_pn(mfr_pn).by_stock(qty).sort_by_price().get()
+        ComponentQuery()
+        .filter_by_manufacturer_pn(mfr_pn)
+        .filter_by_stock(qty)
+        .sort_by_price()
+        .get()
     )
 
     if len(parts) < 1:
@@ -134,10 +138,10 @@ def find_resistor(cmp: Module, qty: int = 1):
 
     (
         ComponentQuery()
-        .by_category("Resistors", "Chip Resistor - Surface Mount")
-        .by_stock(qty)
-        .by_value(cmp.PARAMs.resistance, "Ω")
-        .by_footprint(
+        .filter_by_category("Resistors", "Chip Resistor - Surface Mount")
+        .filter_by_stock(qty)
+        .filter_by_value(cmp.PARAMs.resistance, "Ω")
+        .filter_by_footprint(
             footprint_candidates=(
                 cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
                 if cmp.has_trait(F.has_footprint_requirement)
@@ -145,7 +149,7 @@ def find_resistor(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_params(cmp, mapping, qty, attach_first=True)
     )
 
 
@@ -186,18 +190,20 @@ def find_capacitor(cmp: Module, qty: int = 1):
     # TODO: add support for electrolytic capacitors.
     (
         ComponentQuery()
-        .by_category("Capacitors", "Multilayer Ceramic Capacitors MLCC - SMD/SMT")
-        .by_stock(qty)
-        .by_footprint(
+        .filter_by_category(
+            "Capacitors", "Multilayer Ceramic Capacitors MLCC - SMD/SMT"
+        )
+        .filter_by_stock(qty)
+        .filter_by_footprint(
             footprint_candidates=(
                 cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
                 if cmp.has_trait(F.has_footprint_requirement)
                 else None
             ),
         )
-        .by_value(cmp.PARAMs.capacitance, "F")
+        .filter_by_value(cmp.PARAMs.capacitance, "F")
         .sort_by_price(qty)
-        .by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_params(cmp, mapping, qty, attach_first=True)
     )
 
 
@@ -235,18 +241,18 @@ def find_inductor(cmp: Module, qty: int = 1):
         ComponentQuery()
         # Get Inductors (SMD), Power Inductors, TH Inductors, HF Inductors,
         # Adjustable Inductors. HF and Adjustable are basically empty.
-        .by_category("Inductors", "Inductors")
-        .by_stock(qty)
-        .by_footprint(
+        .filter_by_category("Inductors", "Inductors")
+        .filter_by_stock(qty)
+        .filter_by_footprint(
             footprint_candidates=(
                 cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
                 if cmp.has_trait(F.has_footprint_requirement)
                 else None
             ),
         )
-        .by_value(cmp.PARAMs.inductance, "H")
+        .filter_by_value(cmp.PARAMs.inductance, "H")
         .sort_by_price(qty)
-        .by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_params(cmp, mapping, qty, attach_first=True)
     )
 
 
@@ -293,9 +299,9 @@ def find_tvs(cmp: Module, qty: int = 1):
 
     (
         ComponentQuery()
-        .by_category("", "TVS")
-        .by_stock(qty)
-        .by_footprint(
+        .filter_by_category("", "TVS")
+        .filter_by_stock(qty)
+        .filter_by_footprint(
             footprint_candidates=(
                 cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
                 if cmp.has_trait(F.has_footprint_requirement)
@@ -303,7 +309,7 @@ def find_tvs(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_params(cmp, mapping, qty, attach_first=True)
     )
 
 
@@ -340,9 +346,9 @@ def find_diode(cmp: Module, qty: int = 1):
 
     (
         ComponentQuery()
-        .by_category("", "Diodes")
-        .by_stock(qty)
-        .by_footprint(
+        .filter_by_category("", "Diodes")
+        .filter_by_stock(qty)
+        .filter_by_footprint(
             footprint_candidates=(
                 cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
                 if cmp.has_trait(F.has_footprint_requirement)
@@ -350,7 +356,7 @@ def find_diode(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_params(cmp, mapping, qty, attach_first=True)
     )
 
 
@@ -400,9 +406,9 @@ def find_mosfet(cmp: Module, qty: int = 1):
 
     (
         ComponentQuery()
-        .by_category("", "MOSFET")
-        .by_stock(qty)
-        .by_footprint(
+        .filter_by_category("", "MOSFET")
+        .filter_by_stock(qty)
+        .filter_by_footprint(
             footprint_candidates=(
                 cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
                 if cmp.has_trait(F.has_footprint_requirement)
@@ -410,7 +416,7 @@ def find_mosfet(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_params(cmp, mapping, qty, attach_first=True)
     )
 
 
@@ -477,9 +483,9 @@ def find_ldo(cmp: Module, qty: int = 1):
 
     (
         ComponentQuery()
-        .by_category("", "LDO")
-        .by_stock(qty)
-        .by_footprint(
+        .filter_by_category("", "LDO")
+        .filter_by_stock(qty)
+        .filter_by_footprint(
             footprint_candidates=(
                 cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
                 if cmp.has_trait(F.has_footprint_requirement)
@@ -487,5 +493,5 @@ def find_ldo(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_params(cmp, mapping, qty, attach_first=True)
     )

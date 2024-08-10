@@ -379,12 +379,12 @@ class ComponentQuery:
     def get(self) -> list[Component]:
         return self.results or asyncio.run(self.exec())
 
-    def by_stock(self, qty: int) -> Self:
+    def filter_by_stock(self, qty: int) -> Self:
         assert not self.results
         self.Q &= Q(stock__gte=qty)
         return self
 
-    def by_value(self, value: Parameter, si_unit: str) -> Self:
+    def filter_by_value(self, value: Parameter, si_unit: str) -> Self:
         assert not self.results
         value_query = Q()
         for r in e_series_intersect(
@@ -396,13 +396,13 @@ class ComponentQuery:
         self.Q &= value_query
         return self
 
-    def by_category(self, category: str, subcategory: str) -> Self:
+    def filter_by_category(self, category: str, subcategory: str) -> Self:
         assert not self.results
         category_ids = asyncio.run(Category().get_ids(category, subcategory))
         self.Q &= Q(category_id__in=category_ids)
         return self
 
-    def by_footprint(
+    def filter_by_footprint(
         self, footprint_candidates: Sequence[tuple[str, int]] | None
     ) -> Self:
         assert not self.results
@@ -422,17 +422,17 @@ class ComponentQuery:
         sorted(results, key=lambda x: x.get_price(qty))
         return self
 
-    def by_lcsc_pn(self, partnumber: str) -> Self:
+    def filter_by_lcsc_pn(self, partnumber: str) -> Self:
         assert not self.results
         self.Q &= Q(id=partnumber.strip("C"))
         return self
 
-    def by_manufacturer_pn(self, partnumber: str) -> Self:
+    def filter_by_manufacturer_pn(self, partnumber: str) -> Self:
         assert not self.results
         self.Q &= Q(mfr__icontains=partnumber)
         return self
 
-    def by_params(
+    def filter_by_params(
         self,
         module: Module,
         mapping: list[MappingParameterDB],

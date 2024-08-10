@@ -10,7 +10,7 @@ import struct
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Self, Sequence, TypeVar
+from typing import Any, Callable, Generator, Self, Sequence, TypeVar
 
 import faebryk.library._F as F
 import patoolib
@@ -27,7 +27,6 @@ from faebryk.libs.picker.lcsc import (
 )
 from faebryk.libs.picker.picker import (
     DescriptiveProperties,
-    PickError,
     has_part_picked_defined,
 )
 from faebryk.libs.units import float_to_si_str, si_str_to_float
@@ -433,13 +432,12 @@ class ComponentQuery:
         self.Q &= Q(mfr__icontains=partnumber)
         return self
 
-    def filter_by_params(
+    def filter_by_module_params(
         self,
         module: Module,
         mapping: list[MappingParameterDB],
         qty: int = 1,
-        attach_first: bool = False,
-    ) -> Self:
+    ) -> Generator[Component, None, None]:
         """
         Filter the results by the parameters of the module
 
@@ -454,10 +452,9 @@ class ComponentQuery:
 
         :return: The first component that matches the parameters
         """
+
         if not self.results:
             self.get()
-
-        results = []
 
         for c in self.results:
             params = []
@@ -472,9 +469,11 @@ class ComponentQuery:
                     )
                 except (LookupError, ValueError) as e:
                     if isinstance(
-                        getattr(module.PARAMs, m.param_name).get_most_narrow(), F.ANY
+                        getattr(module.PARAMs, m.param_name).get_most_narrow(),
+                        F.ANY,
                     ) or isinstance(
-                        getattr(module.PARAMs, m.param_name).get_most_narrow(), F.TBD
+                        getattr(module.PARAMs, m.param_name).get_most_narrow(),
+                        F.TBD,
                     ):
                         params.append(F.ANY())
                     else:
@@ -507,21 +506,20 @@ class ComponentQuery:
                 f"{c.description:15},"
             )
 
-            results.append(c)
+            yield c
 
-            if attach_first:
-                try:
-                    c.attach(module, mapping, qty)
-                    return self
-                except ValueError as e:
-                    logger.warning(f"Failed to attach component: {e}")
-
-        if attach_first:
-            raise PickError(
-                "No components that matched the parameters could be attached", module
-            )
-
-        return self
+    def filter_by_module_params_and_attach(
+        self, module: Module, mapping: list[MappingParameterDB], qty: int = 1
+    ):
+        for c in self.filter_by_module_params(module, mapping, qty):
+            try:
+                c.attach(module, mapping, qty)
+                return self
+            except ValueError as e:
+                logger.warning(f"Failed to attach component: {e}")
+        raise LookupError(
+            "No components found that match the parameters and that can be attached"
+        )
 
 
 class JLCPCB_DB:

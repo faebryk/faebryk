@@ -149,7 +149,7 @@ def find_resistor(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .filter_by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
@@ -203,7 +203,7 @@ def find_capacitor(cmp: Module, qty: int = 1):
         )
         .filter_by_value(cmp.PARAMs.capacitance, "F")
         .sort_by_price(qty)
-        .filter_by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
@@ -252,7 +252,7 @@ def find_inductor(cmp: Module, qty: int = 1):
         )
         .filter_by_value(cmp.PARAMs.inductance, "H")
         .sort_by_price(qty)
-        .filter_by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
@@ -309,7 +309,7 @@ def find_tvs(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .filter_by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
@@ -356,7 +356,7 @@ def find_diode(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .filter_by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
@@ -416,7 +416,7 @@ def find_mosfet(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .filter_by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
@@ -502,5 +502,5 @@ def find_ldo(cmp: Module, qty: int = 1):
             ),
         )
         .sort_by_price(qty)
-        .filter_by_params(cmp, mapping, qty, attach_first=True)
+        .filter_by_module_params_and_attach(cmp, mapping, qty)
     )

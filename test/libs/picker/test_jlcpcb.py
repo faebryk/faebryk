@@ -224,6 +224,7 @@ class TestPickerJlcpcb(unittest.TestCase):
                     ),
                     u.PARAMs.output_type.merge(F.Constant(F.LDO.OutputType.FIXED)),
                     u.PARAMs.psrr.merge(F.ANY()),
+                    u.PARAMs.quiescent_current.merge(F.ANY()),
                 )
             ),
             footprint=[

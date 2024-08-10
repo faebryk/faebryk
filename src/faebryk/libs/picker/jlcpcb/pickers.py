@@ -479,6 +479,15 @@ def find_ldo(cmp: Module, qty: int = 1):
                 else F.Range(*map(si_str_to_float, x.split("~")))
             ),
         ),
+        MappingParameterDB(
+            "quiescent_current",
+            [
+                "Quiescent Current",
+                "standby current",
+                "Quiescent Current (Ground Current)",
+            ],
+            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
+        ),
     ]
 
     (

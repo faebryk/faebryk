@@ -7,6 +7,7 @@ from faebryk.core.core import Module
 from faebryk.core.util import as_unit, as_unit_with_tolerance
 from faebryk.library.can_be_decoupled import can_be_decoupled
 from faebryk.library.can_bridge_defined import can_bridge_defined
+from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
 from faebryk.library.has_pin_association_heuristic_lookup_table import (
@@ -47,6 +48,7 @@ class LDO(Module):
         self.PARAMs = self.PARAMS()(self)
 
         class _IFs(super().IFS()):
+            enable = ElectricLogic()
             power_in = ElectricPower()
             power_out = ElectricPower()
 
@@ -58,6 +60,7 @@ class LDO(Module):
         self.IFs.power_in.get_trait(can_be_decoupled).decouple()
         self.IFs.power_out.get_trait(can_be_decoupled).decouple()
 
+        self.IFs.enable.IFs.reference.connect(self.IFs.power_in)
         if self.PARAMs.output_polarity == self.OutputPolarity.POSITIVE:
             self.IFs.power_in.IFs.lv.connect(self.IFs.power_out.IFs.lv)
         else:
@@ -93,9 +96,10 @@ class LDO(Module):
         self.add_trait(
             has_pin_association_heuristic_lookup_table(
                 mapping={
-                    self.IFs.power_in.IFs.hv: ["Vin", "Vi"],
-                    self.IFs.power_out.IFs.hv: ["Vout", "Vo"],
+                    self.IFs.power_in.IFs.hv: ["Vin", "Vi", "in"],
+                    self.IFs.power_out.IFs.hv: ["Vout", "Vo", "out"],
                     self.IFs.power_in.IFs.lv: ["GND", "V-"],
+                    self.IFs.enable.IFs.signal: ["EN", "Enable"],
                 },
                 accept_prefix=False,
                 case_sensitive=False,

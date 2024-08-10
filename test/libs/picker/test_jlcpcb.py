@@ -71,12 +71,23 @@ class TestPickerJlcpcb(unittest.TestCase):
             for req, res in zip(
                 self.requirement.PARAMs.get_all(), self.result.PARAMs.get_all()
             ):
+                req = req.get_most_narrow()
+                res = res.get_most_narrow()
+
                 if isinstance(req, F.Range):
                     self.test_case.assertTrue(req.contains(res))
                 elif isinstance(req, F.Constant):
                     self.test_case.assertEqual(req, res)
                 elif isinstance(req, F.Set):
                     self.test_case.assertTrue(res in req.params)
+                elif isinstance(req, F.TBD):
+                    self.test_case.assertTrue(isinstance(res, F.ANY))
+                elif isinstance(req, F.ANY):
+                    self.test_case.assertTrue(isinstance(res, F.ANY))
+                else:
+                    self.test_case.fail(
+                        f"Unsupported type of parameter: {type(req)}: {req}"
+                    )
 
     def test_find_resistor(self):
         self.TestRequirements(
@@ -171,6 +182,7 @@ class TestPickerJlcpcb(unittest.TestCase):
             self,
             requirement=F.Diode().builder(
                 lambda d: (
+                    d.PARAMs.current.merge(F.Range.lower_bound(1)),
                     d.PARAMs.forward_voltage.merge(F.Range.upper_bound(1.7)),
                     d.PARAMs.reverse_working_voltage.merge(F.Range.lower_bound(20)),
                     d.PARAMs.reverse_leakage_current.merge(F.Range.upper_bound(100e-6)),
@@ -185,6 +197,9 @@ class TestPickerJlcpcb(unittest.TestCase):
             self,
             requirement=F.TVS().builder(
                 lambda t: (
+                    # TODO: There is no current specified for TVS diodes, only peak
+                    # current
+                    t.PARAMs.current.merge(F.ANY()),
                     t.PARAMs.forward_voltage.merge(F.ANY()),
                     t.PARAMs.reverse_working_voltage.merge(F.Range.lower_bound(5)),
                     t.PARAMs.reverse_leakage_current.merge(F.ANY()),

@@ -6,15 +6,15 @@ import datetime
 import json
 import logging
 import os
-import subprocess
+import struct
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Self, Sequence, TypeVar
-from urllib.error import HTTPError
 
 import faebryk.library._F as F
-import wget
+import patoolib
+import requests
 from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
 from easyeda2kicad.easyeda.easyeda_importer import (
     EasyedaSymbolImporter,
@@ -31,6 +31,7 @@ from faebryk.libs.picker.picker import (
     has_part_picked_defined,
 )
 from faebryk.libs.units import float_to_si_str, si_str_to_float
+from rich.progress import track
 
 # import asyncio
 from tortoise import Tortoise
@@ -598,23 +599,69 @@ class JLCPCB_DB:
     def download(
         self,
     ):
+        def download_file(url, output_path: Path):
+            with requests.get(url, stream=True) as r:
+                r.raise_for_status()
+                with open(output_path, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
+
+        def get_number_of_volumes(zip_path):
+            with open(zip_path, "rb") as f:
+                f.seek(-22, os.SEEK_END)  # Go to the end of the file minus 22 bytes
+                end_of_central_dir = f.read(22)
+
+                if len(end_of_central_dir) != 22 or not end_of_central_dir.startswith(
+                    b"PK\x05\x06"
+                ):
+                    # Not a valid ZIP file or the end of central directory signature is
+                    # missing
+                    raise ValueError(
+                        "Invalid ZIP file or End of Central Directory signature not "
+                        "found"
+                    )
+
+                # Unpack the number of this volume (should be 0 if single part zip)
+                current_volume, volume_with_central_dir = struct.unpack(
+                    "<HH", end_of_central_dir[4:8]
+                )
+
+                # Number of volume files = volume_with_central_dir + 1
+                return volume_with_central_dir + 1
+
         zip_file = self.db_path / Path("cache.zip")
+        base_url = "https://yaqwsx.github.io/jlcparts/data/"
 
         if not self.db_path.is_dir():
             os.makedirs(self.db_path)
 
-        wget.download(
-            "https://yaqwsx.github.io/jlcparts/data/cache.zip",
-            out=str(zip_file),
-        )
-        # TODO: use requrests and 7z from python? (py7zr) and auto calc number
-        # of files
-        for i in range(1, 50):
-            try:
-                wget.download(
-                    f"https://yaqwsx.github.io/jlcparts/data/cache.z{i:02d}",
-                    out=str(self.db_path / Path(f"cache.z{i:02d}")),
-                )
-            except HTTPError:
-                break
-        subprocess.run(["7z", "x", str(zip_file), f"-o{self.db_path}"])
+        logger.info(f"Downloading {base_url}cache.zip to {zip_file}")
+        download_file(base_url + "cache.zip", zip_file)
+
+        num_volumes = get_number_of_volumes(zip_file)
+        assert num_volumes <= 99
+        logger.info(f"Number of volumes: {num_volumes}")
+
+        # Download the additional volume files
+        for volume_num in track(
+            range(num_volumes), description="Downloading and appending zip volumes"
+        ):
+            # Skip .zip file since it is already downloaded
+            if volume_num == 0:
+                continue
+
+            volume_file = self.db_path / Path(f"cache.z{volume_num:02d}")
+            volume_url = base_url + f"cache.z{volume_num:02d}"
+
+            download_file(volume_url, volume_file)
+
+        logger.info(f"Unzipping {zip_file}")
+        patoolib.extract_archive(str(zip_file), outdir=str(self.db_path))
+
+        # remove downloaded files
+        for volume_num in range(num_volumes):
+            if volume_num == 0:
+                volume_file = zip_file
+            else:
+                volume_file = self.db_path / Path(f"cache.z{volume_num:02d}")
+            os.remove(volume_file)

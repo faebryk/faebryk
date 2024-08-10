@@ -868,6 +868,17 @@ files = [
 ]
 
 [[package]]
+name = "patool"
+version = "2.3.0"
+description = "portable archive file manager"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "patool-2.3.0-py2.py3-none-any.whl", hash = "sha256:e91bcd067b3967eab38ac4c6d2673b834087fcd3e036affd7f64047d0c5546c9"},
+    {file = "patool-2.3.0.tar.gz", hash = "sha256:498e294fd8c7d50889d65019d431c6867bf3fb1fec5ea2d39d1d39d1215002f8"},
+]
+
+[[package]]
 name = "pillow"
 version = "10.4.0"
 description = "Python Imaging Library (Fork)"
@@ -1704,17 +1715,7 @@ objprint = ">0.1.3"
 [package.extras]
 full = ["orjson"]
 
-[[package]]
-name = "wget"
-version = "3.2"
-description = "pure python download utility"
-optional = false
-python-versions = "*"
-files = [
-    {file = "wget-3.2.zip", hash = "sha256:35e630eca2aa50ce998b9b1a127bb26b30dfee573702782aa982f875e3f16061"},
-]
-
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12,<3.13"
-content-hash = "0d7f8b414669d5c776e7aa7a29b8dcf7f9423718b505a9cd4461612569ac9ab4"
+content-hash = "d91c1643d45f54a600ec37f9461123e3ecc419c4d4450869d7722d12433205be"

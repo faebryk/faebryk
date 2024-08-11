@@ -25,7 +25,81 @@ class TestPickerJlcpcb(unittest.TestCase):
             self.requirement = requirement
             self.footprint = footprint
 
+            self.req_lcsc_pn = None
+            if self.requirement.has_trait(F.has_descriptive_properties) and "LCSC" in (
+                self.requirement.get_trait(F.has_descriptive_properties).get_properties,
+            ):
+                self.req_lcsc_pn = self.requirement.get_trait(
+                    F.has_descriptive_properties
+                ).get_properties()["LCSC"]
+
+            self.req_manufacturer_pn = None
+            if (
+                self.requirement.has_trait(F.has_descriptive_properties)
+                and DescriptiveProperties.partno
+                in self.requirement.get_trait(
+                    F.has_descriptive_properties
+                ).get_properties()
+            ):
+                self.req_manufacturer_pn = self.requirement.get_trait(
+                    F.has_descriptive_properties
+                ).get_properties()[DescriptiveProperties.partno]
+
             self.test()
+
+        def satisfies_requirements(self):
+            self.test_case.assertTrue(
+                self.result.has_trait(F.has_descriptive_properties)
+            )
+            if self.req_lcsc_pn is not None:
+                self.test_case.assertIn(
+                    "LCSC",
+                    self.result.get_trait(
+                        F.has_descriptive_properties
+                    ).get_properties(),
+                )
+
+                self.test_case.assertEqual(
+                    self.req_lcsc_pn,
+                    self.result.get_trait(
+                        F.has_descriptive_properties
+                    ).get_properties()["LCSC"],
+                )
+
+            if self.req_manufacturer_pn is not None:
+                self.test_case.assertIn(
+                    DescriptiveProperties.partno,
+                    self.result.get_trait(
+                        F.has_descriptive_properties
+                    ).get_properties(),
+                )
+                self.test_case.assertEqual(
+                    self.req_manufacturer_pn,
+                    self.result.get_trait(
+                        F.has_descriptive_properties
+                    ).get_properties()[DescriptiveProperties.partno],
+                )
+
+            for req, res in zip(
+                self.requirement.PARAMs.get_all(), self.result.PARAMs.get_all()
+            ):
+                req = req.get_most_narrow()
+                res = res.get_most_narrow()
+
+                if isinstance(req, F.Range):
+                    self.test_case.assertTrue(req.contains(res))
+                elif isinstance(req, F.Constant):
+                    self.test_case.assertEqual(req, res)
+                elif isinstance(req, F.Set):
+                    self.test_case.assertIn(res, req.params)
+                elif isinstance(req, F.TBD):
+                    self.test_case.assertTrue(isinstance(res, F.ANY))
+                elif isinstance(req, F.ANY):
+                    self.test_case.assertTrue(isinstance(res, F.ANY))
+                else:
+                    raise NotImplementedError(
+                        f"Unsupported type of parameter: {type(req)}: {req}"
+                    )
 
         def test(self):
             add_jlcpcb_pickers(self.result)
@@ -66,26 +140,59 @@ class TestPickerJlcpcb(unittest.TestCase):
                 ),
             )
 
-            for req, res in zip(
-                self.requirement.PARAMs.get_all(), self.result.PARAMs.get_all()
-            ):
-                req = req.get_most_narrow()
-                res = res.get_most_narrow()
+            # check requirements from module
+            self.satisfies_requirements()
 
-                if isinstance(req, F.Range):
-                    self.test_case.assertTrue(req.contains(res))
-                elif isinstance(req, F.Constant):
-                    self.test_case.assertEqual(req, res)
-                elif isinstance(req, F.Set):
-                    self.test_case.assertTrue(res in req.params)
-                elif isinstance(req, F.TBD):
-                    self.test_case.assertTrue(isinstance(res, F.ANY))
-                elif isinstance(req, F.ANY):
-                    self.test_case.assertTrue(isinstance(res, F.ANY))
-                else:
-                    self.test_case.fail(
-                        f"Unsupported type of parameter: {type(req)}: {req}"
-                    )
+    def test_find_manufacturer_partnumber(self):
+        requirement = F.OpAmp().builder(
+            lambda r: (
+                r.PARAMs.bandwidth.merge(F.Range.upper_bound(1e6)),
+                r.PARAMs.common_mode_rejection_ratio.merge(F.Range.lower_bound(50)),
+                r.PARAMs.input_bias_current.merge(F.Range.upper_bound(1e-9)),
+                r.PARAMs.input_offset_voltage.merge(F.Range.upper_bound(1e-3)),
+                r.PARAMs.gain_bandwidth_product.merge(F.Range.upper_bound(1e6)),
+                r.PARAMs.output_current.merge(F.Range.upper_bound(1e-3)),
+                r.PARAMs.slew_rate.merge(F.Range.upper_bound(1e6)),
+            )
+        )
+        requirement.add_trait(
+            F.has_defined_descriptive_properties(
+                {
+                    DescriptiveProperties.partno: "LMV321IDBVR",
+                    DescriptiveProperties.manufacturer: "Texas Instruments",
+                }
+            )
+        )
+        self.TestRequirements(
+            self,
+            requirement=requirement,
+            footprint=[("SOT-23-5", 5)],
+        )
+
+    def test_find_lcsc_partnumber(self):
+        requirement = F.OpAmp().builder(
+            lambda r: (
+                r.PARAMs.bandwidth.merge(F.Range.upper_bound(1e6)),
+                r.PARAMs.common_mode_rejection_ratio.merge(F.Range.lower_bound(50)),
+                r.PARAMs.input_bias_current.merge(F.Range.upper_bound(1e-9)),
+                r.PARAMs.input_offset_voltage.merge(F.Range.upper_bound(1e-3)),
+                r.PARAMs.gain_bandwidth_product.merge(F.Range.upper_bound(1e6)),
+                r.PARAMs.output_current.merge(F.Range.upper_bound(1e-3)),
+                r.PARAMs.slew_rate.merge(F.Range.upper_bound(1e6)),
+            )
+        )
+        requirement.add_trait(
+            F.has_defined_descriptive_properties(
+                {
+                    "LCSC": "C7972",
+                }
+            )
+        )
+        self.TestRequirements(
+            self,
+            requirement=requirement,
+            footprint=[("SOT-23-5", 5)],
+        )
 
     def test_find_resistor(self):
         self.TestRequirements(

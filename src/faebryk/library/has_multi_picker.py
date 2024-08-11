@@ -20,7 +20,7 @@ class has_multi_picker(has_picker.impl()):
                 picker.pick(self.get_obj())
                 return
             except PickError as e:
-                logger.info(f"Picker {picker} failed: {e}")
+                logger.info(f"Picker {picker} for module {self.get_obj()} failed: {e}")
         raise LookupError("All pickers failed")
 
 

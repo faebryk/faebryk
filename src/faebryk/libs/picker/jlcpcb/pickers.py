@@ -11,7 +11,6 @@ from faebryk.libs.picker.jlcpcb.jlcpcb import (
 from faebryk.libs.picker.picker import (
     DescriptiveProperties,
     PickError,
-    PickErrorNotImplemented,
     has_part_picked,
 )
 from faebryk.libs.units import si_str_to_float
@@ -87,8 +86,6 @@ def add_jlcpcb_pickers(module: Module, prio: int = 0) -> None:
             prio,
             JLCPCBPicker(find_ldo),
         )
-    else:
-        raise PickErrorNotImplemented(module)
 
 
 def find_lcsc_part(module: Module, qty: int = 1):
@@ -96,15 +93,12 @@ def find_lcsc_part(module: Module, qty: int = 1):
     Find a part in the JLCPCB database by its LCSC part number
     """
 
-    if module.has_trait(F.has_descriptive_properties) and hasattr(
-        module.get_trait(F.has_descriptive_properties).get_properties,
-        "LCSC",
-    ):
-        lcsc_pn = module.get_trait(F.has_descriptive_properties).get_properties()[
-            "LCSC"
-        ]
-    else:
+    if not module.has_trait(F.has_descriptive_properties):
+        raise PickError("Module does not have any descriptive properties", module)
+    if "LCSC" not in module.get_trait(F.has_descriptive_properties).get_properties():
         raise PickError("Module does not have an LCSC part number", module)
+
+    lcsc_pn = module.get_trait(F.has_descriptive_properties).get_properties()["LCSC"]
 
     parts = ComponentQuery().filter_by_lcsc_pn(lcsc_pn).get()
 
@@ -127,19 +121,30 @@ def find_manufacturer_part(module: Module, qty: int = 1):
     Find a part in the JLCPCB database by its manufacturer part number
     """
 
-    if module.has_trait(F.has_descriptive_properties) and hasattr(
-        module.get_trait(F.has_descriptive_properties).get_properties,
-        DescriptiveProperties.partno,
+    if not module.has_trait(F.has_descriptive_properties):
+        raise PickError("Module does not have any descriptive properties", module)
+    if (
+        DescriptiveProperties.partno
+        not in module.get_trait(F.has_descriptive_properties).get_properties()
     ):
-        mfr_pn = module.get_trait(F.has_descriptive_properties).get_properties()[
-            DescriptiveProperties.partno
-        ]
-    else:
         raise PickError("Module does not have a manufacturer part number", module)
+    if (
+        DescriptiveProperties.manufacturer
+        not in module.get_trait(F.has_descriptive_properties).get_properties()
+    ):
+        raise PickError("Module does not have a manufacturer", module)
+
+    mfr_pn = module.get_trait(F.has_descriptive_properties).get_properties()[
+        DescriptiveProperties.partno
+    ]
+    mfr = module.get_trait(F.has_descriptive_properties).get_properties()[
+        DescriptiveProperties.manufacturer
+    ]
 
     parts = (
         ComponentQuery()
         .filter_by_manufacturer_pn(mfr_pn)
+        .filter_by_manufacturer(mfr)
         .filter_by_stock(qty)
         .sort_by_price()
         .get()

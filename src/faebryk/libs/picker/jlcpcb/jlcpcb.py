@@ -138,6 +138,19 @@ class Manufacturers(Model):
     class Meta:
         table = "manufacturers"
 
+    async def get_ids(self, manufacturer: str) -> list[int]:
+        """
+        Get the manufacturer ids for the given manufacturer
+
+        :param manufacturer: The manufacturer to search for
+
+        :return: A list of manufacturer ids for the JLCPCB database Component id field
+        """
+        manufacturer_ids = await self.filter(name__icontains=manufacturer).values("id")
+        if len(manufacturer_ids) < 1:
+            raise LookupError(f"Could not find a match for manufacturer {manufacturer}")
+        return [m["id"] for m in manufacturer_ids]
+
     async def get_from_id(self, manufacturer_id: int) -> str:
         return (await self.get(id=manufacturer_id)).name
 
@@ -424,12 +437,18 @@ class ComponentQuery:
 
     def filter_by_lcsc_pn(self, partnumber: str) -> Self:
         assert not self.results
-        self.Q &= Q(id=partnumber.strip("C"))
+        self.Q &= Q(lcsc=partnumber.strip("C"))
         return self
 
     def filter_by_manufacturer_pn(self, partnumber: str) -> Self:
         assert not self.results
         self.Q &= Q(mfr__icontains=partnumber)
+        return self
+
+    def filter_by_manufacturer(self, manufacturer: str) -> Self:
+        assert not self.results
+        manufacturer_ids = asyncio.run(Manufacturers().get_ids(manufacturer))
+        self.Q &= Q(manufacturer_id__in=manufacturer_ids)
         return self
 
     def filter_by_module_params(

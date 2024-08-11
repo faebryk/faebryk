@@ -1,9 +1,8 @@
 import logging
+from typing import Callable
 
 import faebryk.library._F as F
 from faebryk.core.core import Module
-from faebryk.library.can_query_jlcpcb_db import can_query_jlcpcb_db
-from faebryk.library.can_query_jlcpcb_db_defined import can_query_jlcpcb_db_defined
 from faebryk.libs.picker.jlcpcb.jlcpcb import (
     JLCPCB_DB,
     ComponentQuery,
@@ -20,53 +19,92 @@ from faebryk.libs.units import si_str_to_float
 logger = logging.getLogger(__name__)
 
 
-def pick_module_by_query(module: Module, qty: int = 1) -> None:
-    if not module.has_trait(can_query_jlcpcb_db):
-        find_query_for_module(module)
+class JLCPCBPicker(F.has_multi_picker.Picker):
+    def __init__(self, picker: Callable[[Module, int], None]):
+        self.picker = picker
 
-    db = JLCPCB_DB()
-    module.get_trait(can_query_jlcpcb_db).get_picker()(module, qty)
-    del db
+    def pick(self, module: Module, qty: int = 1) -> None:
+        assert not module.has_trait(has_part_picked)
+        db = JLCPCB_DB()
+        self.picker(module, qty)
+        del db
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} ({self.picker.__name__})>"
 
 
-def find_query_for_module(module: Module) -> None:
-    if module.has_trait(has_part_picked):
-        raise PickError("Module already has a part picked", module)
+def add_jlcpcb_pickers(module: Module, prio: int = 0) -> None:
+    F.has_multi_picker.add_to_module(
+        module,
+        prio,
+        JLCPCBPicker(find_lcsc_part),
+    )
+    F.has_multi_picker.add_to_module(
+        module,
+        prio,
+        JLCPCBPicker(find_manufacturer_part),
+    )
 
-    if module.has_trait(F.has_descriptive_properties) and hasattr(
-        module.get_trait(F.has_descriptive_properties).get_properties,
-        DescriptiveProperties.partno,
-    ):
-        mfr_pn = module.get_trait(F.has_descriptive_properties).get_properties()[
-            DescriptiveProperties.partno
-        ]
-        module.add_trait(
-            can_query_jlcpcb_db_defined(
-                lambda m, q: find_manufacturer_part(m, mfr_pn, q)
-            )
+    if isinstance(module, F.Resistor):
+        F.has_multi_picker.add_to_module(
+            module,
+            prio,
+            JLCPCBPicker(find_resistor),
         )
-    elif isinstance(module, F.Resistor):
-        module.add_trait(can_query_jlcpcb_db_defined(find_resistor))
     elif isinstance(module, F.Capacitor):
-        module.add_trait(can_query_jlcpcb_db_defined(find_capacitor))
+        F.has_multi_picker.add_to_module(
+            module,
+            prio,
+            JLCPCBPicker(find_capacitor),
+        )
     elif isinstance(module, F.Inductor):
-        module.add_trait(can_query_jlcpcb_db_defined(find_inductor))
+        F.has_multi_picker.add_to_module(
+            module,
+            prio,
+            JLCPCBPicker(find_inductor),
+        )
     elif isinstance(module, F.TVS):
-        module.add_trait(can_query_jlcpcb_db_defined(find_tvs))
+        F.has_multi_picker.add_to_module(
+            module,
+            prio,
+            JLCPCBPicker(find_tvs),
+        )
     elif isinstance(module, F.Diode):
-        module.add_trait(can_query_jlcpcb_db_defined(find_diode))
+        F.has_multi_picker.add_to_module(
+            module,
+            prio,
+            JLCPCBPicker(find_diode),
+        )
     elif isinstance(module, F.MOSFET):
-        module.add_trait(can_query_jlcpcb_db_defined(find_mosfet))
+        F.has_multi_picker.add_to_module(
+            module,
+            prio,
+            JLCPCBPicker(find_mosfet),
+        )
     elif isinstance(module, F.LDO):
-        module.add_trait(can_query_jlcpcb_db_defined(find_ldo))
+        F.has_multi_picker.add_to_module(
+            module,
+            prio,
+            JLCPCBPicker(find_ldo),
+        )
     else:
         raise PickErrorNotImplemented(module)
 
 
-def find_lcsc_part(module: Module, lcsc_pn: str, qty: int = 1):
+def find_lcsc_part(module: Module, qty: int = 1):
     """
     Find a part in the JLCPCB database by its LCSC part number
     """
+
+    if module.has_trait(F.has_descriptive_properties) and hasattr(
+        module.get_trait(F.has_descriptive_properties).get_properties,
+        "LCSC",
+    ):
+        lcsc_pn = module.get_trait(F.has_descriptive_properties).get_properties()[
+            "LCSC"
+        ]
+    else:
+        raise PickError("Module does not have an LCSC part number", module)
 
     parts = ComponentQuery().filter_by_lcsc_pn(lcsc_pn).get()
 
@@ -84,10 +122,20 @@ def find_lcsc_part(module: Module, lcsc_pn: str, qty: int = 1):
     parts[0].attach(module, [])
 
 
-def find_manufacturer_part(module: Module, mfr_pn: str, qty: int = 1):
+def find_manufacturer_part(module: Module, qty: int = 1):
     """
     Find a part in the JLCPCB database by its manufacturer part number
     """
+
+    if module.has_trait(F.has_descriptive_properties) and hasattr(
+        module.get_trait(F.has_descriptive_properties).get_properties,
+        DescriptiveProperties.partno,
+    ):
+        mfr_pn = module.get_trait(F.has_descriptive_properties).get_properties()[
+            DescriptiveProperties.partno
+        ]
+    else:
+        raise PickError("Module does not have a manufacturer part number", module)
 
     parts = (
         ComponentQuery()

@@ -178,6 +178,7 @@ from faebryk.library.has_kicad_manual_footprint import has_kicad_manual_footprin
 from faebryk.library.has_kicad_ref import has_kicad_ref
 from faebryk.library.has_linked_pad import has_linked_pad
 from faebryk.library.has_linked_pad_defined import has_linked_pad_defined
+from faebryk.library.has_multi_picker import has_multi_picker
 from faebryk.library.has_overriden_name import has_overriden_name
 from faebryk.library.has_overriden_name_defined import has_overriden_name_defined
 from faebryk.library.has_pcb_layout import has_pcb_layout
@@ -190,6 +191,7 @@ from faebryk.library.has_pcb_routing_strategy import has_pcb_routing_strategy
 from faebryk.library.has_pcb_routing_strategy_greedy_direct_line import has_pcb_routing_strategy_greedy_direct_line
 from faebryk.library.has_pcb_routing_strategy_manual import has_pcb_routing_strategy_manual
 from faebryk.library.has_pcb_routing_strategy_via_to_layer import has_pcb_routing_strategy_via_to_layer
+from faebryk.library.has_picker import has_picker
 from faebryk.library.has_pin_association_heuristic import has_pin_association_heuristic
 from faebryk.library.has_pin_association_heuristic_lookup_table import has_pin_association_heuristic_lookup_table
 from faebryk.library.has_resistance import has_resistance

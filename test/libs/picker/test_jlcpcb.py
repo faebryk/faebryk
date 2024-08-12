@@ -2,14 +2,21 @@
 # SPDX-License-Identifier: MIT
 import logging
 import unittest
+from pathlib import Path
+from tempfile import mkdtemp
 
 import faebryk.library._F as F
+import faebryk.libs.picker.lcsc as lcsc
 from faebryk.core.core import Module
 from faebryk.libs.logging import setup_basic_logging
+from faebryk.libs.picker.jlcpcb.jlcpcb import JLCPCB_DB
 from faebryk.libs.picker.jlcpcb.pickers import add_jlcpcb_pickers
 from faebryk.libs.picker.picker import DescriptiveProperties, has_part_picked
 
 logger = logging.getLogger(__name__)
+
+
+lcsc.LIB_FOLDER = Path(mkdtemp())
 
 
 class TestPickerJlcpcb(unittest.TestCase):
@@ -339,6 +346,10 @@ class TestPickerJlcpcb(unittest.TestCase):
                 ("SOT-23-3L", 3),
             ],
         )
+
+    def tearDown(self):
+        # in test atexit not triggered, thus need to close DB manually
+        JLCPCB_DB.get().close()
 
 
 if __name__ == "__main__":

@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT
 
 import asyncio
+import atexit
 import datetime
-import json
 import logging
 import os
 import struct
@@ -15,24 +15,16 @@ from typing import Any, Callable, Generator, Self, Sequence, TypeVar
 import faebryk.library._F as F
 import patoolib
 import requests
-from easyeda2kicad.easyeda.easyeda_api import EasyedaApi
-from easyeda2kicad.easyeda.easyeda_importer import (
-    EasyedaSymbolImporter,
-)
 from faebryk.core.core import Module, Parameter
 from faebryk.libs.e_series import E_SERIES_VALUES, e_series_intersect
-from faebryk.libs.picker.lcsc import (
-    LCSC_Part,
-    attach_footprint,
-)
+from faebryk.libs.picker.lcsc import LCSC_Part, attach
 from faebryk.libs.picker.picker import (
     DescriptiveProperties,
     has_part_picked_defined,
 )
 from faebryk.libs.units import float_to_si_str, si_str_to_float
+from faebryk.libs.util import try_or
 from rich.progress import track
-
-# import asyncio
 from tortoise import Tortoise
 from tortoise.expressions import Q
 from tortoise.fields import CharField, IntField, JSONField
@@ -42,13 +34,25 @@ logger = logging.getLogger(__name__)
 
 # TODO dont hardcode relative paths
 BUILD_FOLDER = Path("./build")
-LIB_FOLDER = Path("./src/kicad/libs")
-MODEL_PATH: str | None = "${KIPRJMOD}/../libs/"
+CACHE_FOLDER = BUILD_FOLDER / Path("cache")
 
 
 class JLCPCB_Part(LCSC_Part):
     def __init__(self, partno: str) -> None:
         super().__init__(partno=partno)
+
+
+class TBD_ParseError(F.TBD):
+    """
+    Wrapper for TBD that behaves exactly like TBD for the core and picker
+    But gives us the possibility to attach parser errors to it for deferred
+    error logging
+    """
+
+    def __init__(self, e: Exception, msg: str):
+        self.e = e
+        self.msg = msg
+        super().__init__()
 
 
 @dataclass
@@ -57,45 +61,6 @@ class MappingParameterDB:
     attr_keys: list[str]
     attr_tolerance_key: str | None = None
     transform_fn: Callable[[str], Parameter] | None = None
-
-
-def auto_pinmapping(component: Module, partno: str) -> dict[str, F.Electrical] | None:
-    if component.has_trait(F.can_attach_to_footprint):
-        logger.warning(f"Component {component} already has a pinmap, skipping")
-        return None
-
-    if component.has_trait(F.can_attach_to_footprint_symmetrically):
-        logger.warning(
-            f"Component {component} is symmetrical, thus doesn't need a pimap"
-        )
-        return None
-
-    api = EasyedaApi()
-
-    cache_base = BUILD_FOLDER / Path("cache/easyeda")
-    cache_base.mkdir(parents=True, exist_ok=True)
-
-    comp_path = cache_base.joinpath(partno)
-    if not comp_path.exists():
-        logger.info(f"Did not find component {partno} in cache, downloading...")
-        cad_data = api.get_cad_data_of_component(lcsc_id=partno)
-        serialized = json.dumps(cad_data)
-        comp_path.write_text(serialized)
-
-    data = json.loads(comp_path.read_text())
-
-    logger.warning(f"No pinmap found for component {component}, attaching pins by name")
-    easyeda_symbol = EasyedaSymbolImporter(easyeda_cp_cad_data=data).get_symbol()
-    pins = [
-        (int(pin.settings.spice_pin_number), pin.name.text)
-        for pin in easyeda_symbol.pins
-    ]
-    if component.has_trait(F.has_pin_association_heuristic):
-        pinmap = component.get_trait(F.has_pin_association_heuristic).get_pins(pins)
-    else:
-        raise NotImplementedError
-
-    return pinmap
 
 
 class Category(Model):
@@ -176,6 +141,10 @@ class Component(Model):
     class Meta:
         table = "components"
 
+    @property
+    def partno(self):
+        return f"C{self.lcsc}"
+
     def get_price(self, qty: int = 1) -> float:
         """
         Get the price for qty of the component including handling fees
@@ -227,47 +196,34 @@ class Component(Model):
         # parse fields like "850mV@1A"
         value_field = value_field.split("@")[0]
 
-        try:
-            # parse fields like "1.5V~2.5V"
-            if "~" in value_field:
-                values = value_field.split("~")
-                values = [si_str_to_float(v) for v in values]
-                if len(values) != 2:
-                    raise ValueError(f"Invalid range from value '{value_field}'")
-                return F.Range(*values)
+        # parse fields like "1.5V~2.5V"
+        if "~" in value_field:
+            values = value_field.split("~")
+            values = [si_str_to_float(v) for v in values]
+            if len(values) != 2:
+                raise ValueError(f"Invalid range from value '{value_field}'")
+            return F.Range(*values)
 
-            value = si_str_to_float(value_field)
-
-        except ValueError as e:
-            logger.warning(e)
-            return F.ANY()
+        value = si_str_to_float(value_field)
 
         if not use_tolerance:
             return F.Constant(value)
 
-        try:
-            if "Tolerance" not in self.extra["attributes"]:
-                raise ValueError(f"No Tolerance field in component (lcsc: {self.lcsc})")
-            if "ppm" in self.extra["attributes"]["Tolerance"]:
-                tolerance = (
-                    float(self.extra["attributes"]["Tolerance"].strip("±pm")) / 1e6
-                )
-            elif "%~+" in self.extra["attributes"]["Tolerance"]:
-                tolerances = self.extra["attributes"]["Tolerance"].split("~")
-                tolerances = [float(t.strip("%+-")) for t in tolerances]
-                tolerance = max(tolerances) / 100
-            elif "%" in self.extra["attributes"]["Tolerance"]:
-                tolerance = (
-                    float(self.extra["attributes"]["Tolerance"].strip("%±")) / 100
-                )
-            else:
-                raise ValueError(
-                    "Could not parse tolerance field "
-                    f"'{self.extra['attributes']['Tolerance']}'"
-                )
-        except ValueError as e:
-            logger.warning(e)
-            return F.ANY()
+        if "Tolerance" not in self.extra["attributes"]:
+            raise ValueError(f"No Tolerance field in component (lcsc: {self.lcsc})")
+        if "ppm" in self.extra["attributes"]["Tolerance"]:
+            tolerance = float(self.extra["attributes"]["Tolerance"].strip("±pm")) / 1e6
+        elif "%~+" in self.extra["attributes"]["Tolerance"]:
+            tolerances = self.extra["attributes"]["Tolerance"].split("~")
+            tolerances = [float(t.strip("%+-")) for t in tolerances]
+            tolerance = max(tolerances) / 100
+        elif "%" in self.extra["attributes"]["Tolerance"]:
+            tolerance = float(self.extra["attributes"]["Tolerance"].strip("%±")) / 100
+        else:
+            raise ValueError(
+                "Could not parse tolerance field "
+                f"'{self.extra['attributes']['Tolerance']}'"
+            )
 
         return F.Range.from_center_rel(value, tolerance)
 
@@ -320,10 +276,32 @@ class Component(Model):
             )
 
         if parser is None:
-            field_val = self.attribute_to_parameter(attr_key, True)
+            try:
+                field_val = self.attribute_to_parameter(attr_key, True)
+            except ValueError as e:
+                field_val = TBD_ParseError(
+                    e,
+                    f"Failed to parse attribute {attr_key} for part {self.partno}: {e}",
+                )
         else:
             field_val = parser(self.extra["attributes"][attr_key])
         return field_val
+
+    def get_params(self, mapping: list[MappingParameterDB]) -> list[Parameter]:
+        return [
+            try_or(
+                lambda: self.get_parameter(
+                    attribute_search_keys=m.attr_keys,
+                    tolerance_search_key=m.attr_tolerance_key,
+                    parser=m.transform_fn,
+                ),
+                default_f=lambda e: TBD_ParseError(
+                    e, f"Failed to parse {m.param_name}"
+                ),
+                catch=(LookupError, ValueError),
+            )
+            for m in mapping
+        ]
 
     def attach(
         self,
@@ -331,26 +309,7 @@ class Component(Model):
         mapping: list[MappingParameterDB],
         qty: int = 1,
     ):
-        params = []
-        for m in mapping:
-            try:
-                params.append(
-                    self.get_parameter(
-                        attribute_search_keys=m.attr_keys,
-                        tolerance_search_key=m.attr_tolerance_key,
-                        parser=m.transform_fn,
-                    )
-                )
-            except (LookupError, ValueError) as e:
-                if isinstance(
-                    getattr(module.PARAMs, m.param_name).get_most_narrow(), F.ANY
-                ) or isinstance(
-                    getattr(module.PARAMs, m.param_name).get_most_narrow(), F.TBD
-                ):
-                    params.append(F.ANY())
-                else:
-                    raise e
-
+        params = self.get_params(mapping)
         for name, value in zip([m.param_name for m in mapping], params):
             getattr(module.PARAMs, name).merge(value)
 
@@ -370,18 +329,15 @@ class Component(Model):
             },
         )
 
-        module.add_trait(has_part_picked_defined(JLCPCB_Part(f"C{self.lcsc}")))
-
-        if not module.has_trait(F.can_attach_to_footprint):
-            pinmap = auto_pinmapping(module, f"C{self.lcsc}")
-            assert pinmap is not None
-            module.add_trait(F.can_attach_to_footprint_via_pinmap(pinmap))
-
-        attach_footprint(module, f"C{self.lcsc}", True)
+        module.add_trait(has_part_picked_defined(JLCPCB_Part(self.partno)))
+        attach(module, self.partno)
 
 
 class ComponentQuery:
     def __init__(self):
+        # init db connection
+        JLCPCB_DB.get()
+
         self.Q = Q()
         self.results: list[Component] = []
 
@@ -455,7 +411,6 @@ class ComponentQuery:
         self,
         module: Module,
         mapping: list[MappingParameterDB],
-        qty: int = 1,
     ) -> Generator[Component, None, None]:
         """
         Filter the results by the parameters of the module
@@ -476,39 +431,11 @@ class ComponentQuery:
             self.get()
 
         for c in self.results:
-            params = []
-            for m in mapping:
-                try:
-                    params.append(
-                        c.get_parameter(
-                            attribute_search_keys=m.attr_keys,
-                            tolerance_search_key=m.attr_tolerance_key,
-                            parser=m.transform_fn,
-                        )
-                    )
-                except (LookupError, ValueError) as e:
-                    if isinstance(
-                        getattr(module.PARAMs, m.param_name).get_most_narrow(),
-                        F.ANY,
-                    ) or isinstance(
-                        getattr(module.PARAMs, m.param_name).get_most_narrow(),
-                        F.TBD,
-                    ):
-                        params.append(F.ANY())
-                    else:
-                        logger.debug(
-                            f"Failed to get parameters for component {c.lcsc}: {e}"
-                        )
-
-            if len(params) != len(mapping):
-                continue
+            params = c.get_params(mapping)
 
             if not all(
                 pm := [
-                    isinstance(p, F.ANY)
-                    or p.is_more_specific_than(
-                        getattr(module.PARAMs, m.param_name).get_most_narrow()
-                    )
+                    p.is_more_specific_than(getattr(module.PARAMs, m.param_name))
                     for p, m in zip(params, mapping)
                 ]
             ):
@@ -518,7 +445,7 @@ class ComponentQuery:
                 )
                 continue
 
-            logger.info(
+            logger.debug(
                 f"Found part {c.lcsc:8} "
                 f"Basic: {bool(c.basic)}, Preferred: {bool(c.preferred)}, "
                 f"Price: ${c.get_price(1):2.4f}, "
@@ -530,33 +457,59 @@ class ComponentQuery:
     def filter_by_module_params_and_attach(
         self, module: Module, mapping: list[MappingParameterDB], qty: int = 1
     ):
-        for c in self.filter_by_module_params(module, mapping, qty):
+        failures = []
+        for c in self.filter_by_module_params(module, mapping):
             try:
                 c.attach(module, mapping, qty)
                 return self
             except ValueError as e:
-                logger.warning(f"Failed to attach component: {e}")
+                failures.append((c, e))
+        if failures:
+            raise LookupError(
+                f"Failed to attach any components to module {module}: {failures}"
+            )
         raise LookupError(
             "No components found that match the parameters and that can be attached"
         )
 
 
 class JLCPCB_DB:
-    def __init__(
-        self,
-        db_path: Path = Path("jlcpcb_part_database"),
-        no_download_prompt: bool = False,
-        force_db_update: bool = False,
-    ) -> None:
+    @dataclass
+    class Config:
+        db_path: Path = CACHE_FOLDER / Path("jlcpcb_part_database")
+        no_download_prompt: bool = False
+        force_db_update: bool = False
+
+    config = Config()
+    instance: "JLCPCB_DB | None" = None
+
+    @staticmethod
+    def get() -> "JLCPCB_DB":
+        if not JLCPCB_DB.instance:
+            JLCPCB_DB.instance = JLCPCB_DB(JLCPCB_DB.config)
+            atexit.register(JLCPCB_DB.close)
+        return JLCPCB_DB.instance
+
+    @staticmethod
+    def close():
+        if not JLCPCB_DB.instance:
+            return
+        instance = JLCPCB_DB.instance
+        JLCPCB_DB.instance = None
+        del instance
+
+    def __init__(self, config: Config) -> None:
         self.results = []
-        self.db_path = db_path
-        self.db_file = db_path / Path("cache.sqlite3")
+        self.db_path = config.db_path
+        self.db_file = config.db_path / Path("cache.sqlite3")
         self.connected = False
+
+        no_download_prompt = config.no_download_prompt
 
         if not sys.stdin.isatty():
             no_download_prompt = True
 
-        if force_db_update:
+        if config.force_db_update:
             self.download()
         elif not self.has_db():
             if no_download_prompt or self.prompt_db_update(
@@ -580,7 +533,6 @@ class JLCPCB_DB:
             asyncio.run(self._close_db())
 
     async def _init_db(self):
-
         await Tortoise.init(
             db_url=f"sqlite://{self.db_path}/cache.sqlite3",
             modules={
@@ -590,6 +542,10 @@ class JLCPCB_DB:
         self.connected = True
 
     async def _close_db(self):
+        from tortoise.log import logger as tortoise_logger
+
+        # suppress close ORM info
+        tortoise_logger.setLevel(logging.WARNING)
         await Tortoise.close_connections()
         self.connected = False
 
@@ -646,11 +602,10 @@ class JLCPCB_DB:
                 # Number of volume files = volume_with_central_dir + 1
                 return volume_with_central_dir + 1
 
+        self.db_path.mkdir(parents=True, exist_ok=True)
+
         zip_file = self.db_path / Path("cache.zip")
         base_url = "https://yaqwsx.github.io/jlcparts/data/"
-
-        if not self.db_path.is_dir():
-            os.makedirs(self.db_path)
 
         logger.info(f"Downloading {base_url}cache.zip to {zip_file}")
         download_file(base_url + "cache.zip", zip_file)

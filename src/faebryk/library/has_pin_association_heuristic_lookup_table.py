@@ -52,7 +52,7 @@ class has_pin_association_heuristic_lookup_table(has_pin_association_heuristic.i
                     f" in the mapping {self.mapping}"
                 )
                 pinmap[name] = match[0]
-            logger.info(
+            logger.debug(
                 f"Matched pin {number} with name {name} to {match[0]} with "
                 f"alias {match[1]}"
             )

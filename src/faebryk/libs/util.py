@@ -517,8 +517,15 @@ def zip_non_locked(left: Iterable[T], right: Iterable[U]):
     return _Iter[T, U]([left, right])
 
 
-def try_or(func: Callable[..., T], default: T, catch: type[Exception] = Exception) -> T:
+def try_or(
+    func: Callable[..., T],
+    default: T | None = None,
+    default_f: Callable[[Exception], T] | None = None,
+    catch: type[Exception] | tuple[type[Exception], ...] = Exception,
+) -> T:
     try:
         return func()
-    except catch:
+    except catch as e:
+        if default_f is not None:
+            default = default_f(e)
         return default

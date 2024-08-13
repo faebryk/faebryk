@@ -8,6 +8,8 @@ from faebryk.library.Electrical import Electrical
 
 
 class has_pin_association_heuristic(ModuleTrait):
+    class PinMatchException(Exception): ...
+
     """
     Get the pinmapping for a list of pins based on a heuristic.
     """
@@ -15,5 +17,5 @@ class has_pin_association_heuristic(ModuleTrait):
     @abstractmethod
     def get_pins(
         self,
-        pins: list[tuple[int, str]],
+        pins: list[tuple[str, str]],
     ) -> dict[str, Electrical]: ...

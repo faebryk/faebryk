@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 import asyncio
-import atexit
 import datetime
 import logging
 import os
@@ -10,20 +9,31 @@ import struct
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import indent
 from typing import Any, Callable, Generator, Self, Sequence, TypeVar
 
 import faebryk.library._F as F
 import patoolib
 import requests
 from faebryk.core.core import Module, Parameter
-from faebryk.libs.e_series import E_SERIES_VALUES, e_series_intersect
-from faebryk.libs.picker.lcsc import LCSC_Part, attach
+from faebryk.libs.e_series import (
+    E_SERIES_VALUES,
+    ParamNotResolvedError,
+    e_series_intersect,
+)
+from faebryk.libs.picker.lcsc import (
+    LCSC_NoDataException,
+    LCSC_Part,
+    LCSC_PinmapException,
+    attach,
+)
 from faebryk.libs.picker.picker import (
     DescriptiveProperties,
+    PickError,
     has_part_picked_defined,
 )
 from faebryk.libs.units import float_to_si_str, si_str_to_float
-from faebryk.libs.util import try_or
+from faebryk.libs.util import at_exit, try_or
 from rich.progress import track
 from tortoise import Tortoise
 from tortoise.expressions import Q
@@ -54,6 +64,9 @@ class TBD_ParseError(F.TBD):
         self.msg = msg
         super().__init__()
 
+    def __repr__(self):
+        return f"{super().__repr__()}({self.msg}: {self.e})"
+
 
 @dataclass
 class MappingParameterDB:
@@ -61,6 +74,7 @@ class MappingParameterDB:
     attr_keys: list[str]
     attr_tolerance_key: str | None = None
     transform_fn: Callable[[str], Parameter] | None = None
+    ignore_at: bool = True
 
 
 class Category(Model):
@@ -141,6 +155,9 @@ class Component(Model):
     class Meta:
         table = "components"
 
+    class ParseError(Exception):
+        pass
+
     @property
     def partno(self):
         return f"C{self.lcsc}"
@@ -178,7 +195,7 @@ class Component(Model):
         return unit_price * qty + handling_fee
 
     def attribute_to_parameter(
-        self, attribute_name: str, use_tolerance: bool = False
+        self, attribute_name: str, use_tolerance: bool = False, ignore_at: bool = True
     ) -> Parameter:
         """
         Convert a component value in the extra['attributes'] dict to a parameter
@@ -194,7 +211,9 @@ class Component(Model):
         # JLCPCB uses "u" for µ
         value_field = value_field.replace("u", "µ")
         # parse fields like "850mV@1A"
-        value_field = value_field.split("@")[0]
+        # TODO better to actually parse this
+        if ignore_at:
+            value_field = value_field.split("@")[0]
 
         # parse fields like "1.5V~2.5V"
         if "~" in value_field:
@@ -229,12 +248,7 @@ class Component(Model):
 
     T = TypeVar("T")
 
-    def get_parameter(
-        self,
-        attribute_search_keys: str | list[str],
-        tolerance_search_key: str | None = None,
-        parser: Callable[[str], T] | None = None,
-    ) -> Parameter[T]:
+    def get_parameter(self, m: MappingParameterDB) -> Parameter[T]:
         """
         Transform a component attribute to a parameter
 
@@ -246,6 +260,10 @@ class Component(Model):
 
         :return: The parameter representing the attribute value
         """
+
+        attribute_search_keys = m.attr_keys
+        tolerance_search_key = m.attr_tolerance_key
+        parser = m.transform_fn
 
         if tolerance_search_key is not None and parser is not None:
             raise NotImplementedError(
@@ -260,41 +278,32 @@ class Component(Model):
         )
 
         if "attributes" not in self.extra:
-            raise LookupError(f"self {self.lcsc} does not have any attributes")
+            raise LookupError("does not have any attributes")
         if attr_key is None:
             raise LookupError(
-                f"self {self.lcsc} does not have any of required attribute fields: "
-                f"{attribute_search_keys}"
+                f"does not have any of required attribute fields: "
+                f"{attribute_search_keys} in {self.extra['attributes']}"
             )
         if (
             tolerance_search_key is not None
             and tolerance_search_key not in self.extra["attributes"]
         ):
             raise LookupError(
-                f"self {self.lcsc} does not have any of required tolerance fields: "
+                f"does not have any of required tolerance fields: "
                 f"{tolerance_search_key}"
             )
 
-        if parser is None:
-            try:
-                field_val = self.attribute_to_parameter(attr_key, True)
-            except ValueError as e:
-                field_val = TBD_ParseError(
-                    e,
-                    f"Failed to parse attribute {attr_key} for part {self.partno}: {e}",
-                )
-        else:
-            field_val = parser(self.extra["attributes"][attr_key])
-        return field_val
+        if parser is not None:
+            return parser(self.extra["attributes"][attr_key])
+
+        return self.attribute_to_parameter(
+            attr_key, tolerance_search_key is not None, m.ignore_at
+        )
 
     def get_params(self, mapping: list[MappingParameterDB]) -> list[Parameter]:
         return [
             try_or(
-                lambda: self.get_parameter(
-                    attribute_search_keys=m.attr_keys,
-                    tolerance_search_key=m.attr_tolerance_key,
-                    parser=m.transform_fn,
-                ),
+                lambda: self.get_parameter(m),
                 default_f=lambda e: TBD_ParseError(
                     e, f"Failed to parse {m.param_name}"
                 ),
@@ -308,10 +317,22 @@ class Component(Model):
         module: Module,
         mapping: list[MappingParameterDB],
         qty: int = 1,
+        allow_TBD: bool = False,
     ):
         params = self.get_params(mapping)
+
+        if not allow_TBD and any(isinstance(p, TBD_ParseError) for p in params):
+            params_str = indent(
+                "\n"
+                + "\n".join(repr(p) for p in params if isinstance(p, TBD_ParseError)),
+                " " * 4,
+            )
+            raise Component.ParseError(
+                f"Failed to parse parameters for component {self.partno}: {params_str}"
+            )
+
         for name, value in zip([m.param_name for m in mapping], params):
-            getattr(module.PARAMs, name).merge(value)
+            getattr(module.PARAMs, name).override(value)
 
         F.has_defined_descriptive_properties.add_properties_to(
             module,
@@ -334,31 +355,50 @@ class Component(Model):
 
 
 class ComponentQuery:
+    class Error(Exception): ...
+
+    class ParamError(Error):
+        def __init__(self, param: Parameter, msg: str):
+            self.param = param
+            self.msg = msg
+            super().__init__(f"{msg} for parameter {param!r}")
+
     def __init__(self):
         # init db connection
-        JLCPCB_DB.get()
+        JLCPCB_DB()
 
-        self.Q = Q()
-        self.results: list[Component] = []
+        self.Q: Q | None = Q()
+        self.results: list[Component] | None = None
 
     async def exec(self) -> list[Component]:
-        self.results = await Component.filter(self.Q)
+        queryset = Component.filter(self.Q)
+        logger.debug(f"Query results: {await queryset.count()}")
+        self.results = await queryset
+        self.Q = None
         return self.results
 
     def get(self) -> list[Component]:
         return self.results or asyncio.run(self.exec())
 
     def filter_by_stock(self, qty: int) -> Self:
-        assert not self.results
+        assert self.Q
         self.Q &= Q(stock__gte=qty)
         return self
 
     def filter_by_value(self, value: Parameter, si_unit: str) -> Self:
+        assert self.Q
+        value = value.get_most_narrow()
+        if isinstance(value, F.ANY):
+            return self
         assert not self.results
         value_query = Q()
-        for r in e_series_intersect(
-            value.get_most_narrow(), E_SERIES_VALUES.E_ALL
-        ).params:
+        try:
+            intersection = e_series_intersect(value, E_SERIES_VALUES.E_ALL).params
+        except ParamNotResolvedError as e:
+            raise ComponentQuery.ParamError(
+                value, f"Could not run e_series_intersect: {e}"
+            ) from e
+        for r in intersection:
             assert isinstance(r, F.Constant)
             si_val = float_to_si_str(r.value, si_unit).replace("µ", "u")
             value_query |= Q(description__contains=f" {si_val}")
@@ -366,7 +406,7 @@ class ComponentQuery:
         return self
 
     def filter_by_category(self, category: str, subcategory: str) -> Self:
-        assert not self.results
+        assert self.Q
         category_ids = asyncio.run(Category().get_ids(category, subcategory))
         self.Q &= Q(category_id__in=category_ids)
         return self
@@ -374,7 +414,7 @@ class ComponentQuery:
     def filter_by_footprint(
         self, footprint_candidates: Sequence[tuple[str, int]] | None
     ) -> Self:
-        assert not self.results
+        assert self.Q
         if not footprint_candidates:
             return self
         footprint_query = Q()
@@ -386,23 +426,31 @@ class ComponentQuery:
         self.Q &= footprint_query
         return self
 
+    def filter_by_traits(self, obj: Module) -> Self:
+        out = self
+        if obj.has_trait(F.has_footprint_requirement):
+            out = self.filter_by_footprint(
+                obj.get_trait(F.has_footprint_requirement).get_footprint_requirement()
+            )
+
+        return out
+
     def sort_by_price(self, qty: int = 1) -> Self:
-        results = self.get()
-        sorted(results, key=lambda x: x.get_price(qty))
+        self.get().sort(key=lambda x: x.get_price(qty))
         return self
 
     def filter_by_lcsc_pn(self, partnumber: str) -> Self:
-        assert not self.results
+        assert self.Q
         self.Q &= Q(lcsc=partnumber.strip("C"))
         return self
 
     def filter_by_manufacturer_pn(self, partnumber: str) -> Self:
-        assert not self.results
+        assert self.Q
         self.Q &= Q(mfr__icontains=partnumber)
         return self
 
     def filter_by_manufacturer(self, manufacturer: str) -> Self:
-        assert not self.results
+        assert self.Q
         manufacturer_ids = asyncio.run(Manufacturers().get_ids(manufacturer))
         self.Q &= Q(manufacturer_id__in=manufacturer_ids)
         return self
@@ -427,10 +475,7 @@ class ComponentQuery:
         :return: The first component that matches the parameters
         """
 
-        if not self.results:
-            self.get()
-
-        for c in self.results:
+        for c in self.get():
             params = c.get_params(mapping)
 
             if not all(
@@ -457,19 +502,34 @@ class ComponentQuery:
     def filter_by_module_params_and_attach(
         self, module: Module, mapping: list[MappingParameterDB], qty: int = 1
     ):
+        # TODO if no modules without TBD, rerun with TBD allowed
+
         failures = []
         for c in self.filter_by_module_params(module, mapping):
             try:
-                c.attach(module, mapping, qty)
+                c.attach(module, mapping, qty, allow_TBD=False)
                 return self
-            except ValueError as e:
+            except (ValueError, Component.ParseError) as e:
                 failures.append((c, e))
+            except LCSC_NoDataException as e:
+                failures.append((c, e))
+            except LCSC_PinmapException as e:
+                failures.append((c, e))
+
         if failures:
-            raise LookupError(
-                f"Failed to attach any components to module {module}: {failures}"
+            fail_str = indent(
+                "\n" + f"{'\n'.join(f'{c}: {e}' for c, e in failures)}", " " * 4
             )
-        raise LookupError(
-            "No components found that match the parameters and that can be attached"
+
+            raise PickError(
+                f"Failed to attach any components to module {module}: {len(failures)}"
+                f" {fail_str}",
+                module,
+            )
+
+        raise PickError(
+            "No components found that match the parameters and that can be attached",
+            module,
         )
 
 
@@ -481,25 +541,38 @@ class JLCPCB_DB:
         force_db_update: bool = False
 
     config = Config()
-    instance: "JLCPCB_DB | None" = None
+    _instance: "JLCPCB_DB | None" = None
+    failed: Exception | None = None
 
     @staticmethod
     def get() -> "JLCPCB_DB":
-        if not JLCPCB_DB.instance:
-            JLCPCB_DB.instance = JLCPCB_DB(JLCPCB_DB.config)
-            atexit.register(JLCPCB_DB.close)
-        return JLCPCB_DB.instance
+        return JLCPCB_DB.__new__(JLCPCB_DB)
+
+    def __new__(cls) -> "JLCPCB_DB":
+        if cls.failed:
+            raise cls.failed
+        if not JLCPCB_DB._instance:
+            instance = super(JLCPCB_DB, cls).__new__(cls)
+            try:
+                instance.__init__()
+            except FileNotFoundError as e:
+                cls.failed = e
+                raise e
+
+            JLCPCB_DB._instance = instance
+            at_exit(JLCPCB_DB.close)
+        return JLCPCB_DB._instance
 
     @staticmethod
     def close():
-        if not JLCPCB_DB.instance:
+        if not JLCPCB_DB._instance:
             return
-        instance = JLCPCB_DB.instance
-        JLCPCB_DB.instance = None
+        instance = JLCPCB_DB._instance
+        JLCPCB_DB._instance = None
         del instance
 
-    def __init__(self, config: Config) -> None:
-        self.results = []
+    def __init__(self) -> None:
+        config = self.config
         self.db_path = config.db_path
         self.db_file = config.db_path / Path("cache.sqlite3")
         self.connected = False

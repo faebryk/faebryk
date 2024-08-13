@@ -4,6 +4,7 @@
 
 import logging
 from abc import abstractmethod
+from typing import Callable, Mapping
 
 from faebryk.core.core import Module
 from faebryk.library.has_picker import has_picker
@@ -14,14 +15,18 @@ logger = logging.getLogger(__name__)
 
 class has_multi_picker(has_picker.impl()):
     def pick(self):
-        for prio, picker in self.pickers:
-            logger.debug(f"Trying picker {picker}")
+        module = self.get_obj()
+        es = []
+        for _, picker in self.pickers:
+            logger.debug(f"Trying picker for {module}: {picker}")
             try:
-                picker.pick(self.get_obj())
+                picker.pick(module)
+                logger.debug("Success")
                 return
             except PickError as e:
-                logger.debug(f"Picker {picker} for module {self.get_obj()} failed: {e}")
-        raise LookupError("All pickers failed")
+                logger.debug(f"Fail: {e}")
+                es.append(e)
+        raise PickError(f"All pickers failed: {self.pickers}: {es}", module)
 
     class Picker:
         @abstractmethod
@@ -44,3 +49,39 @@ class has_multi_picker(has_picker.impl()):
         t = module.get_trait(has_picker)
         assert isinstance(t, has_multi_picker)
         t.add_picker(prio, picker)
+
+    class FunctionPicker(Picker):
+        def __init__(self, picker: Callable[[Module], None]):
+            self.picker = picker
+
+        def pick(self, module: Module) -> None:
+            self.picker(module)
+
+        def __repr__(self) -> str:
+            return f"{type(self).__name__}({self.picker.__name__})"
+
+    @classmethod
+    def add_pickers_by_type[T](
+        cls,
+        module: Module,
+        lookup: Mapping[type, T],
+        picker_factory: Callable[[T], Picker],
+        base_prio: int = 0,
+    ):
+        prio = base_prio
+
+        picker_types = [k for k in lookup if isinstance(module, k)]
+        # sort by most specific first
+        picker_types.sort(key=lambda x: len(x.__mro__), reverse=True)
+
+        # only do most specific
+        picker_types = picker_types[:1]
+
+        for i, k in enumerate(picker_types):
+            v = lookup[k]
+            cls.add_to_module(
+                module,
+                # most specific first
+                prio + i,
+                picker_factory(v),
+            )

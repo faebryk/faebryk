@@ -15,15 +15,17 @@ class has_pin_association_heuristic_lookup_table(has_pin_association_heuristic.i
         mapping: dict[Electrical, list[str]],
         accept_prefix: bool,
         case_sensitive: bool,
+        nc: list[str] | None = None,
     ) -> None:
         super().__init__()
         self.mapping = mapping
         self.accept_prefix = accept_prefix
         self.case_sensitive = case_sensitive
+        self.nc = nc or ["NC", "nc"]
 
     def get_pins(
         self,
-        pins: list[tuple[int, str]],
+        pins: list[tuple[str, str]],
     ) -> dict[str, Electrical]:
         """
         Get the pinmapping for a list of pins based on a lookup table.
@@ -34,6 +36,8 @@ class has_pin_association_heuristic_lookup_table(has_pin_association_heuristic.i
 
         pinmap = {}
         for number, name in pins:
+            if name in self.nc:
+                continue
             match = None
             for mif, alt_names in self.mapping.items():
                 for alt_name in alt_names:
@@ -47,11 +51,11 @@ class has_pin_association_heuristic_lookup_table(has_pin_association_heuristic.i
                         match = (mif, alt_name)
                         break
             if not match:
-                raise ValueError(
+                raise has_pin_association_heuristic.PinMatchException(
                     f"Could not find a match for pin {number} with name {name}"
                     f" in the mapping {self.mapping}"
                 )
-                pinmap[name] = match[0]
+            pinmap[number] = match[0]
             logger.debug(
                 f"Matched pin {number} with name {name} to {match[0]} with "
                 f"alias {match[1]}"

@@ -529,3 +529,51 @@ def try_or(
         if default_f is not None:
             default = default_f(e)
         return default
+
+
+class TwistArgs:
+    def __init__(self, op: Callable) -> None:
+        self.op = op
+
+    def __call__(self, *args, **kwargs):
+        return self.op(*reversed(args), **kwargs)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.op})"
+
+
+class CallOnce[F: Callable]:
+    def __init__(self, f: F) -> None:
+        self.f = f
+        self.called = False
+
+    # TODO types
+    def __call__(self, *args, **kwargs) -> Any:
+        if self.called:
+            return
+        self.called = True
+        return self.f(*args, **kwargs)
+
+
+def at_exit(func: Callable):
+    import atexit
+    import sys
+
+    f = CallOnce(func)
+
+    atexit.register(f)
+    hook = sys.excepthook
+    sys.excepthook = lambda *args: (f(), hook(*args))
+
+    # get main thread
+    import threading
+
+    mainthread = threading.main_thread()
+
+    def wait_main():
+        mainthread.join()
+        f()
+
+    threading.Thread(target=wait_main).start()
+
+    return f

@@ -1,4 +1,6 @@
 import logging
+from enum import Enum
+from typing import Callable
 
 import faebryk.library._F as F
 from faebryk.core.core import Module
@@ -10,14 +12,38 @@ from faebryk.libs.picker.picker import (
     DescriptiveProperties,
     PickError,
 )
-from faebryk.libs.units import si_str_to_float
 
 logger = logging.getLogger(__name__)
+
+# TODO add trait to module that specifies the quantity of the part
+qty: int = 1
+
+# TODO I really don't like this file
+#   - lots of repetition
+#       ->  .filter_by_traits(cmp)
+#           .sort_by_price(qty)
+#           .filter_by_module_params_and_attach(cmp, mapping, qty)
+#   - should be classes instead of functions
+
 
 # Generic pickers ----------------------------------------------------------------------
 
 
-def find_lcsc_part(module: Module, qty: int = 1):
+def str_to_enum[T: Enum](enum: type[T], x: str) -> F.Constant[T]:
+    name = x.replace(" ", "_").replace("-", "_").upper()
+    if name not in [e.name for e in enum]:
+        raise ValueError(f"Enum translation error: {x}[={name}] not in {enum}")
+    return F.Constant(enum[name])
+
+
+def str_to_enum_func[T: Enum](enum: type[T]) -> Callable[[str], F.Constant[T]]:
+    def f(x: str) -> F.Constant[T]:
+        return str_to_enum(enum, x)
+
+    return f
+
+
+def find_lcsc_part(module: Module):
     """
     Find a part in the JLCPCB database by its LCSC part number
     """
@@ -45,7 +71,7 @@ def find_lcsc_part(module: Module, qty: int = 1):
     parts[0].attach(module, [])
 
 
-def find_manufacturer_part(module: Module, qty: int = 1):
+def find_manufacturer_part(module: Module):
     """
     Find a part in the JLCPCB database by its manufacturer part number
     """
@@ -100,7 +126,7 @@ def find_manufacturer_part(module: Module, qty: int = 1):
 # Type specific pickers ----------------------------------------------------------------
 
 
-def find_resistor(cmp: Module, qty: int = 1):
+def find_resistor(cmp: Module):
     """
     Find a resistor part in the JLCPCB database that matches the parameters of the
     provided resistor
@@ -108,16 +134,18 @@ def find_resistor(cmp: Module, qty: int = 1):
     assert isinstance(cmp, F.Resistor)
 
     mapping = [
-        MappingParameterDB("resistance", ["Resistance"], "Tolerance"),
+        MappingParameterDB(
+            "resistance",
+            ["Resistance"],
+            "Tolerance",
+        ),
         MappingParameterDB(
             "rated_power",
             ["Power(Watts)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "rated_voltage",
             ["Overload Voltage (Max)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
     ]
 
@@ -126,19 +154,13 @@ def find_resistor(cmp: Module, qty: int = 1):
         .filter_by_category("Resistors", "Chip Resistor - Surface Mount")
         .filter_by_stock(qty)
         .filter_by_value(cmp.PARAMs.resistance, "Ω")
-        .filter_by_footprint(
-            footprint_candidates=(
-                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
-                if cmp.has_trait(F.has_footprint_requirement)
-                else None
-            ),
-        )
+        .filter_by_traits(cmp)
         .sort_by_price(qty)
         .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
-def find_capacitor(cmp: Module, qty: int = 1):
+def find_capacitor(cmp: Module):
     """
     Find a capacitor part in the JLCPCB database that matches the parameters of the
     provided capacitor
@@ -146,28 +168,17 @@ def find_capacitor(cmp: Module, qty: int = 1):
 
     assert isinstance(cmp, F.Capacitor)
 
-    def TemperatureCoefficient_str_to_param(
-        x: str,
-    ) -> F.Constant[F.Capacitor.TemperatureCoefficient]:
-        try:
-            return F.Constant(
-                F.Capacitor.TemperatureCoefficient[x.replace("NP0", "C0G")]
-            )
-        except KeyError:
-            raise ValueError(f"Unknown temperature coefficient: {x}")
-
     mapping = [
         MappingParameterDB("capacitance", ["Capacitance"], "Tolerance"),
         MappingParameterDB(
             "rated_voltage",
             ["Voltage Rated"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "temperature_coefficient",
             ["Temperature Coefficient"],
-            transform_fn=lambda x: F.Constant(
-                F.Capacitor.TemperatureCoefficient[x.replace("NP0", "C0G")]
+            transform_fn=lambda x: str_to_enum(
+                F.Capacitor.TemperatureCoefficient, x.replace("NP0", "C0G")
             ),
         ),
     ]
@@ -179,20 +190,14 @@ def find_capacitor(cmp: Module, qty: int = 1):
             "Capacitors", "Multilayer Ceramic Capacitors MLCC - SMD/SMT"
         )
         .filter_by_stock(qty)
-        .filter_by_footprint(
-            footprint_candidates=(
-                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
-                if cmp.has_trait(F.has_footprint_requirement)
-                else None
-            ),
-        )
+        .filter_by_traits(cmp)
         .filter_by_value(cmp.PARAMs.capacitance, "F")
         .sort_by_price(qty)
         .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
-def find_inductor(cmp: Module, qty: int = 1):
+def find_inductor(cmp: Module):
     """
     Find an inductor part in the JLCPCB database that matches the parameters of the
     provided inductor.
@@ -204,21 +209,22 @@ def find_inductor(cmp: Module, qty: int = 1):
     assert isinstance(cmp, F.Inductor)
 
     mapping = [
-        MappingParameterDB("inductance", ["Inductance"], "Tolerance"),
+        MappingParameterDB(
+            "inductance",
+            ["Inductance"],
+            "Tolerance",
+        ),
         MappingParameterDB(
             "rated_current",
             ["Rated Current"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "dc_resistance",
             ["DC Resistance (DCR)", "DC Resistance"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "self_resonant_frequency",
             ["Frequency - Self Resonant"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
     ]
 
@@ -228,20 +234,14 @@ def find_inductor(cmp: Module, qty: int = 1):
         # Adjustable Inductors. HF and Adjustable are basically empty.
         .filter_by_category("Inductors", "Inductors")
         .filter_by_stock(qty)
-        .filter_by_footprint(
-            footprint_candidates=(
-                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
-                if cmp.has_trait(F.has_footprint_requirement)
-                else None
-            ),
-        )
+        .filter_by_traits(cmp)
         .filter_by_value(cmp.PARAMs.inductance, "H")
         .sort_by_price(qty)
         .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
-def find_tvs(cmp: Module, qty: int = 1):
+def find_tvs(cmp: Module):
     """
     Find a TVS diode part in the JLCPCB database that matches the parameters of the
     provided diode
@@ -255,30 +255,25 @@ def find_tvs(cmp: Module, qty: int = 1):
     mapping = [
         MappingParameterDB(
             "forward_voltage",
-            ["Forward Voltage", "Forward Voltage (Vf@If)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
+            ["Breakdown Voltage"],
         ),
         # TODO: think about the difference of meaning for max_current between Diode
         # and TVS
         MappingParameterDB(
             "max_current",
             ["Peak Pulse Current (Ipp)@10/1000us"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "reverse_working_voltage",
             ["Reverse Voltage (Vr)", "Reverse Stand-Off Voltage (Vrwm)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "reverse_leakage_current",
             ["Reverse Leakage Current", "Reverse Leakage Current (Ir)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
         ),
         MappingParameterDB(
             "reverse_breakdown_voltage",
             ["Breakdown Voltage"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
     ]
 
@@ -286,19 +281,13 @@ def find_tvs(cmp: Module, qty: int = 1):
         ComponentQuery()
         .filter_by_category("", "TVS")
         .filter_by_stock(qty)
-        .filter_by_footprint(
-            footprint_candidates=(
-                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
-                if cmp.has_trait(F.has_footprint_requirement)
-                else None
-            ),
-        )
+        .filter_by_traits(cmp)
         .sort_by_price(qty)
         .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
-def find_diode(cmp: Module, qty: int = 1):
+def find_diode(cmp: Module):
     """
     Find a diode part in the JLCPCB database that matches the parameters of the
     provided diode
@@ -310,22 +299,18 @@ def find_diode(cmp: Module, qty: int = 1):
         MappingParameterDB(
             "forward_voltage",
             ["Forward Voltage", "Forward Voltage (Vf@If)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
         ),
         MappingParameterDB(
             "max_current",
             ["Average Rectified Current (Io)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "reverse_working_voltage",
             ["Reverse Voltage (Vr)", "Reverse Stand-Off Voltage (Vrwm)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "reverse_leakage_current",
             ["Reverse Leakage Current", "Reverse Leakage Current (Ir)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
         ),
     ]
 
@@ -333,19 +318,51 @@ def find_diode(cmp: Module, qty: int = 1):
         ComponentQuery()
         .filter_by_category("", "Diodes")
         .filter_by_stock(qty)
-        .filter_by_footprint(
-            footprint_candidates=(
-                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
-                if cmp.has_trait(F.has_footprint_requirement)
-                else None
-            ),
-        )
+        .filter_by_traits(cmp)
         .sort_by_price(qty)
         .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
-def find_mosfet(cmp: Module, qty: int = 1):
+def find_led(cmp: Module):
+    """
+    Find a LED part in the JLCPCB database that matches the parameters of the
+    provided LED
+    """
+
+    assert isinstance(cmp, F.LED)
+
+    mapping = [
+        MappingParameterDB(
+            "color",
+            ["Emitted Color"],
+            transform_fn=str_to_enum_func(F.LED.Color),
+        ),
+        MappingParameterDB(
+            "max_brightness",
+            ["Luminous Intensity"],
+        ),
+        MappingParameterDB(
+            "max_current",
+            ["Forward Current"],
+        ),
+        MappingParameterDB(
+            "forward_voltage",
+            ["Forward Voltage", "Forward Voltage (VF)"],
+        ),
+    ]
+
+    (
+        ComponentQuery()
+        .filter_by_category("", "Light Emitting Diodes (LED)")
+        .filter_by_stock(qty)
+        .filter_by_traits(cmp)
+        .sort_by_price(qty)
+        .filter_by_module_params_and_attach(cmp, mapping, qty)
+    )
+
+
+def find_mosfet(cmp: Module):
     """
     Find a MOSFET part in the JLCPCB database that matches the parameters of the
     provided MOSFET
@@ -353,39 +370,27 @@ def find_mosfet(cmp: Module, qty: int = 1):
 
     assert isinstance(cmp, F.MOSFET)
 
-    def ChannelType_str_to_param(x: str) -> F.Constant[F.MOSFET.ChannelType]:
-        if x in ["N Channel", "N-Channel"]:
-            return F.Constant(F.MOSFET.ChannelType.N_CHANNEL)
-        elif x in ["P Channel", "P-Channel"]:
-            return F.Constant(F.MOSFET.ChannelType.P_CHANNEL)
-        else:
-            raise ValueError(f"Unknown MOSFET type: {x}")
-
     mapping = [
         MappingParameterDB(
             "max_drain_source_voltage",
             ["Drain Source Voltage (Vdss)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "max_continuous_drain_current",
             ["Continuous Drain Current (Id)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "channel_type",
             ["Type"],
-            transform_fn=lambda x: (ChannelType_str_to_param(x)),
+            transform_fn=str_to_enum_func(F.MOSFET.ChannelType),
         ),
         MappingParameterDB(
             "gate_source_threshold_voltage",
             ["Gate Threshold Voltage (Vgs(th)@Id)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
         ),
         MappingParameterDB(
             "on_resistance",
             ["Drain Source On Resistance (RDS(on)@Vgs,Id)"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
         ),
     ]
 
@@ -393,19 +398,13 @@ def find_mosfet(cmp: Module, qty: int = 1):
         ComponentQuery()
         .filter_by_category("", "MOSFET")
         .filter_by_stock(qty)
-        .filter_by_footprint(
-            footprint_candidates=(
-                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
-                if cmp.has_trait(F.has_footprint_requirement)
-                else None
-            ),
-        )
+        .filter_by_traits(cmp)
         .sort_by_price(qty)
         .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
 
 
-def find_ldo(cmp: Module, qty: int = 1):
+def find_ldo(cmp: Module):
     """
     Find a LDO part in the JLCPCB database that matches the parameters of the
     provided LDO
@@ -413,56 +412,32 @@ def find_ldo(cmp: Module, qty: int = 1):
 
     assert isinstance(cmp, F.LDO)
 
-    def OutputType_str_to_param(x: str) -> F.Constant[F.LDO.OutputType]:
-        if x == "Fixed":
-            return F.Constant(F.LDO.OutputType.FIXED)
-        elif x == "Adjustable":
-            return F.Constant(F.LDO.OutputType.ADJUSTABLE)
-        else:
-            raise ValueError(f"Unknown LDO output type: {x}")
-
-    def OutputPolarity_str_to_param(x: str) -> F.Constant[F.LDO.OutputPolarity]:
-        if x == "Positive":
-            return F.Constant(F.LDO.OutputPolarity.POSITIVE)
-        elif x == "Negative":
-            return F.Constant(F.LDO.OutputPolarity.NEGATIVE)
-        else:
-            raise ValueError(f"Unknown LDO output polarity: {x}")
-
     mapping = [
         MappingParameterDB(
             "output_polarity",
             ["Output Polarity"],
-            transform_fn=lambda x: OutputPolarity_str_to_param(x),
+            transform_fn=str_to_enum_func(F.LDO.OutputPolarity),
         ),
         MappingParameterDB(
             "max_input_voltage",
             ["Maximum Input Voltage"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "output_type",
             ["Output Type"],
-            transform_fn=lambda x: OutputType_str_to_param(x),
+            transform_fn=str_to_enum_func(F.LDO.OutputType),
         ),
         MappingParameterDB(
             "output_current",
             ["Output Current"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
         MappingParameterDB(
             "dropout_voltage",
             ["Dropout Voltage"],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x.split("@")[0])),
         ),
         MappingParameterDB(
             "output_voltage",
             ["Output Voltage"],
-            transform_fn=lambda x: (
-                F.Constant(si_str_to_float(x))
-                if "~" not in x
-                else F.Range(*map(si_str_to_float, x.split("~")))
-            ),
         ),
         MappingParameterDB(
             "quiescent_current",
@@ -471,7 +446,6 @@ def find_ldo(cmp: Module, qty: int = 1):
                 "standby current",
                 "Quiescent Current (Ground Current)",
             ],
-            transform_fn=lambda x: F.Constant(si_str_to_float(x)),
         ),
     ]
 
@@ -479,13 +453,7 @@ def find_ldo(cmp: Module, qty: int = 1):
         ComponentQuery()
         .filter_by_category("", "LDO")
         .filter_by_stock(qty)
-        .filter_by_footprint(
-            footprint_candidates=(
-                cmp.get_trait(F.has_footprint_requirement).get_footprint_requirement()
-                if cmp.has_trait(F.has_footprint_requirement)
-                else None
-            ),
-        )
+        .filter_by_traits(cmp)
         .sort_by_price(qty)
         .filter_by_module_params_and_attach(cmp, mapping, qty)
     )
@@ -498,6 +466,7 @@ TYPE_SPECIFIC_LOOKUP = {
     F.Capacitor: find_capacitor,
     F.Inductor: find_inductor,
     F.TVS: find_tvs,
+    F.LED: find_led,
     F.Diode: find_diode,
     F.MOSFET: find_mosfet,
     F.LDO: find_ldo,

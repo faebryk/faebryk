@@ -70,6 +70,18 @@ def cache_base_path():
     return BUILD_FOLDER / Path("cache/easyeda")
 
 
+class LCSCException(Exception):
+    def __init__(self, partno: str, *args: object) -> None:
+        self.partno = partno
+        super().__init__(*args)
+
+
+class LCSC_NoDataException(LCSCException): ...
+
+
+class LCSC_PinmapException(LCSCException): ...
+
+
 def get_raw(partno: str):
     api = EasyedaApi()
 
@@ -87,7 +99,9 @@ def get_raw(partno: str):
 
     # API returned no data
     if not data:
-        raise Exception(f"Failed to fetch data from EasyEDA API for part {partno}")
+        raise LCSC_NoDataException(
+            partno, f"Failed to fetch data from EasyEDA API for part {partno}"
+        )
 
     return data
 
@@ -166,17 +180,21 @@ def attach(component: Module, partno: str, get_model: bool = True):
     # symbol
     if not component.has_trait(can_attach_to_footprint):
         if not component.has_trait(has_pin_association_heuristic):
-            raise ValueError(
+            raise LCSCException(
+                partno,
                 f"Need either can_attach_to_footprint or has_pin_association_heuristic"
-                f" for {component} with partno {partno}"
+                f" for {component} with partno {partno}",
             )
 
         # TODO make this a trait
         pins = [
-            (int(pin.settings.spice_pin_number), pin.name.text)
+            (pin.settings.spice_pin_number, pin.name.text)
             for pin in easyeda_symbol.pins
         ]
-        pinmap = component.get_trait(has_pin_association_heuristic).get_pins(pins)
+        try:
+            pinmap = component.get_trait(has_pin_association_heuristic).get_pins(pins)
+        except has_pin_association_heuristic.PinMatchException as e:
+            raise LCSC_PinmapException(partno, f"Failed to get pinmap: {e}") from e
         component.add_trait(can_attach_to_footprint_via_pinmap(pinmap))
 
     # footprint

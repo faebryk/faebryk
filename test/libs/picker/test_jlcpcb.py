@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 lcsc.LIB_FOLDER = Path(mkdtemp())
 
 
+@unittest.skip("Requires large db")
 class TestPickerJlcpcb(unittest.TestCase):
     class TestRequirements:
         def __init__(
@@ -51,6 +52,8 @@ class TestPickerJlcpcb(unittest.TestCase):
                 self.req_manufacturer_pn = self.requirement.get_trait(
                     F.has_descriptive_properties
                 ).get_properties()[DescriptiveProperties.partno]
+
+            requirement.add_trait(F.has_footprint_requirement_defined(footprint))
 
             self.test()
 

@@ -41,7 +41,7 @@ class Crystal_Oscillator(Module):
         #               parameters
         # ----------------------------------------
         # https://blog.adafruit.com/2012/01/24/choosing-the-right-crystal-and-caps-for-your-design/
-        STRAY_CAPACITANCE = Range(1 * P.nF, 5 * P.nF)
+        STRAY_CAPACITANCE = Range(1 * P.pF, 5 * P.pF)
         load_capacitance = self.NODEs.crystal.PARAMs.load_impedance
         capacitance = Constant(2 * P.dimesionless) * (
             load_capacitance - STRAY_CAPACITANCE

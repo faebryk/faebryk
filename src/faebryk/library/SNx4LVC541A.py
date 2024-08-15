@@ -1,9 +1,17 @@
 # This file is part of the faebryk project
 # SPDX-License-Identifier: MIT
 
-import faebryk.library._F as F
 from faebryk.core.core import Module
 from faebryk.libs.units import P
+from faebryk.library.can_be_decoupled import can_be_decoupled
+from faebryk.library.ElectricLogic import ElectricLogic
+from faebryk.library.ElectricPower import ElectricPower
+from faebryk.library.has_datasheet_defined import has_datasheet_defined
+from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
+from faebryk.library.has_single_electric_reference_defined import (
+    has_single_electric_reference_defined,
+)
+from faebryk.library.Range import Range
 from faebryk.libs.util import times
 
 
@@ -25,29 +33,34 @@ class SNx4LVC541A(Module):
         self.PARAMs = _PARAMs(self)
 
         class _IFs(Module.IFS()):
-            A = times(8, F.ElectricLogic)
-            Y = times(8, F.ElectricLogic)
+            A = times(8, ElectricLogic)
+            Y = times(8, ElectricLogic)
 
-            vcc = F.ElectricPower()
+            vcc = ElectricPower()
 
-            OE = times(2, F.ElectricLogic)
+            OE = times(2, ElectricLogic)
 
         self.IFs = _IFs(self)
 
         # ----------------------------------------
         #                traits
         # ----------------------------------------
-        self.add_trait(F.has_designator_prefix_defined("U"))
+        self.add_trait(has_designator_prefix_defined("U"))
         self.add_trait(
-            F.has_datasheet_defined(
+            has_datasheet_defined(
                 "https://www.ti.com/lit/ds/symlink/sn74lvc541a.pdf?ts=1718881644774&ref_url=https%253A%252F%252Fwww.mouser.ie%252F"
+            )
+        )
+        self.add_trait(
+            has_single_electric_reference_defined(
+                ElectricLogic.connect_all_module_references(self)
             )
         )
 
         # ----------------------------------------
         #                parameters
         # ----------------------------------------
-        self.IFs.vcc.PARAMs.voltage.merge(F.Range.upper_bound(3.6 * P.V))
+        self.IFs.vcc.PARAMs.voltage.merge(Range.upper_bound(3.6 * P.V))
 
         # ----------------------------------------
         #                aliases
@@ -56,10 +69,4 @@ class SNx4LVC541A(Module):
         # ----------------------------------------
         #                connections
         # ----------------------------------------
-        self.IFs.vcc.get_trait(F.can_be_decoupled).decouple()
-
-        # set all electric logic references
-        for a, y, oe in zip(self.IFs.A, self.IFs.Y, self.IFs.OE):
-            a.connect_reference(self.IFs.vcc)
-            y.connect_reference(self.IFs.vcc)
-            oe.connect_reference(self.IFs.vcc)
+        self.IFs.vcc.get_trait(can_be_decoupled).decouple()

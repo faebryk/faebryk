@@ -2,7 +2,7 @@ import logging
 from dataclasses import Field, dataclass, fields, is_dataclass
 from enum import Enum, IntEnum, StrEnum
 from pathlib import Path
-from types import NoneType, UnionType
+from types import UnionType
 from typing import Any, Callable, Iterator, TypeVar, Union, get_args, get_origin
 
 import sexpdata
@@ -286,7 +286,7 @@ def _encode(t) -> netlist_type:
                 return
             _append([Symbol(name), converted])
 
-        if sp.multidict and not isinstance(val, NoneType):
+        if sp.multidict:
             if isinstance(val, list):
                 assert get_origin(f.type) is list
                 _val = val

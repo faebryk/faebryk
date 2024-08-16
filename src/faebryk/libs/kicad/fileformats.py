@@ -602,10 +602,10 @@ class C_rect:
 
 
 @dataclass
-class C_poly:
+class C_polygon:
     @dataclass
     class C_pts:
-        xys: list[C_xy] = field(**sexp_field(multidict=True))
+        xys: list[C_xy] = field(**sexp_field(multidict=True), default_factory=list)
 
     pts: C_pts
 
@@ -670,11 +670,13 @@ class C_footprint:
         @dataclass(kw_only=True)
         class C_gr:
             @dataclass
-            class C_gr_poly(C_poly):
+            class C_gr_poly(C_polygon):
                 width: float
                 fill: bool
 
-            gr_poly: list[C_gr_poly] = field(**sexp_field(multidict=True))
+            gr_poly: list[C_gr_poly] = field(
+                **sexp_field(multidict=True), default_factory=list
+            )
 
         name: str = field(**sexp_field(positional=True))
         type: E_type = field(**sexp_field(positional=True))
@@ -714,12 +716,16 @@ class C_footprint:
         **sexp_field(multidict=True, key=lambda x: x.name)
     )
     attr: list[E_attr]
-    fp_lines: list[C_line] = field(**sexp_field(multidict=True))
-    fp_arcs: list[C_arc] = field(**sexp_field(multidict=True))
-    fp_circles: list[C_circle] = field(**sexp_field(multidict=True))
-    fp_rects: list[C_rect] = field(**sexp_field(multidict=True))
-    fp_texts: list[C_fp_text] = field(**sexp_field(multidict=True))
-    pads: list[C_pad] = field(**sexp_field(multidict=True))
+    fp_lines: list[C_line] = field(**sexp_field(multidict=True), default_factory=list)
+    fp_arcs: list[C_arc] = field(**sexp_field(multidict=True), default_factory=list)
+    fp_circles: list[C_circle] = field(
+        **sexp_field(multidict=True), default_factory=list
+    )
+    fp_rects: list[C_rect] = field(**sexp_field(multidict=True), default_factory=list)
+    fp_texts: list[C_fp_text] = field(
+        **sexp_field(multidict=True), default_factory=list
+    )
+    pads: list[C_pad] = field(**sexp_field(multidict=True), default_factory=list)
     model: Optional[C_model] = None
 
 
@@ -814,7 +820,9 @@ class C_kicad_pcb_file(SEXP_File):
                     NONE = "None"
                     USER_DEFINED = "User defined"
 
-                layers: list[C_layer] = field(**sexp_field(multidict=True))
+                layers: list[C_layer] = field(
+                    **sexp_field(multidict=True), default_factory=list
+                )
                 copper_finish: Optional[E_copper_finish] = None
                 dielectric_constraints: Optional[bool] = None
                 edge_connector: Optional[E_edge_connector_type] = None
@@ -845,7 +853,9 @@ class C_kicad_pcb_file(SEXP_File):
 
             uuid: UUID = field(**sexp_field(order=-15))
             at: C_xyr = field(**sexp_field(order=-10))
-            pads: list[C_pad] = field(**sexp_field(multidict=True))
+            pads: list[C_pad] = field(
+                **sexp_field(multidict=True), default_factory=list
+            )
 
         @dataclass
         class C_via:
@@ -926,9 +936,9 @@ class C_kicad_pcb_file(SEXP_File):
                 footprints: E_keepout_bool
 
             @dataclass(kw_only=True)
-            class C_fillled_poly:
+            class C_filled_polygon:
                 layer: str
-                poly: C_poly = field(**sexp_field(positional=True))
+                pts: C_polygon.C_pts
 
             net: int
             net_name: str
@@ -946,10 +956,10 @@ class C_kicad_pcb_file(SEXP_File):
             filled_areas_thickness: bool
             fill: C_fill
             keepout: Optional[C_keepout] = None
-            polygon: C_poly
-            # filled_polygon: Optional[list[C_fillled_poly]] = field(
-            #    **sexp_field(multidict=True), default=None
-            # ) #TODO: needs UNION support
+            polygon: C_polygon
+            filled_polygon: list[C_filled_polygon] = field(
+                **sexp_field(multidict=True), default_factory=list
+            )
 
         @dataclass
         class C_segment:
@@ -972,18 +982,32 @@ class C_kicad_pcb_file(SEXP_File):
         layers: list[C_layer]
         setup: C_setup
 
-        nets: list[C_net] = field(**sexp_field(multidict=True))
-        footprints: list[C_pcb_footprint] = field(**sexp_field(multidict=True))
-        vias: list[C_via] = field(**sexp_field(multidict=True))
-        zones: list[C_zone] = field(**sexp_field(multidict=True))
-        segments: list[C_segment] = field(**sexp_field(multidict=True))
-        arcs: list[C_arc_segment] = field(**sexp_field(multidict=True))
+        nets: list[C_net] = field(**sexp_field(multidict=True), default_factory=list)
+        footprints: list[C_pcb_footprint] = field(
+            **sexp_field(multidict=True), default_factory=list
+        )
+        vias: list[C_via] = field(**sexp_field(multidict=True), default_factory=list)
+        zones: list[C_zone] = field(**sexp_field(multidict=True), default_factory=list)
+        segments: list[C_segment] = field(
+            **sexp_field(multidict=True), default_factory=list
+        )
+        arcs: list[C_arc_segment] = field(
+            **sexp_field(multidict=True), default_factory=list
+        )
 
-        gr_lines: list[C_line] = field(**sexp_field(multidict=True))
-        gr_arcs: list[C_arc] = field(**sexp_field(multidict=True))
-        gr_circles: list[C_circle] = field(**sexp_field(multidict=True))
-        gr_rects: list[C_rect] = field(**sexp_field(multidict=True))
-        gr_texts: list[C_text] = field(**sexp_field(multidict=True))
+        gr_lines: list[C_line] = field(
+            **sexp_field(multidict=True), default_factory=list
+        )
+        gr_arcs: list[C_arc] = field(**sexp_field(multidict=True), default_factory=list)
+        gr_circles: list[C_circle] = field(
+            **sexp_field(multidict=True), default_factory=list
+        )
+        gr_rects: list[C_rect] = field(
+            **sexp_field(multidict=True), default_factory=list
+        )
+        gr_texts: list[C_text] = field(
+            **sexp_field(multidict=True), default_factory=list
+        )
 
     kicad_pcb: C_kicad_pcb
 
@@ -1048,7 +1072,9 @@ class C_kicad_netlist_file(SEXP_File):
                 sheetpath: Optional[C_sheetpath] = None
                 libsource: Optional[C_libsource] = None
 
-            comps: list[C_component] = field(**sexp_field(multidict=True))
+            comps: list[C_component] = field(
+                **sexp_field(multidict=True), default_factory=list
+            )
 
         @dataclass
         class C_nets:
@@ -1063,9 +1089,13 @@ class C_kicad_netlist_file(SEXP_File):
 
                 code: int
                 name: str
-                nodes: list[C_node] = field(**sexp_field(multidict=True))
+                nodes: list[C_node] = field(
+                    **sexp_field(multidict=True), default_factory=list
+                )
 
-            nets: list[C_net] = field(**sexp_field(multidict=True))
+            nets: list[C_net] = field(
+                **sexp_field(multidict=True), default_factory=list
+            )
 
         @dataclass
         class C_design:
@@ -1083,7 +1113,9 @@ class C_kicad_netlist_file(SEXP_File):
                     rev: str
                     date: str
                     source: str
-                    comment: list[C_comment] = field(**sexp_field(multidict=True))
+                    comment: list[C_comment] = field(
+                        **sexp_field(multidict=True), default_factory=list
+                    )
 
                 number: str
                 name: str
@@ -1105,7 +1137,9 @@ class C_kicad_netlist_file(SEXP_File):
                     class C_fp:
                         fp: str = field(**sexp_field(positional=True))
 
-                    fps: list[C_fp] = field(**sexp_field(multidict=True))
+                    fps: list[C_fp] = field(
+                        **sexp_field(multidict=True), default_factory=list
+                    )
 
                 @dataclass
                 class C_pins:
@@ -1115,7 +1149,9 @@ class C_kicad_netlist_file(SEXP_File):
                         name: str
                         type: str
 
-                    pin: list[C_pin] = field(**sexp_field(multidict=True))
+                    pin: list[C_pin] = field(
+                        **sexp_field(multidict=True), default_factory=list
+                    )
 
                 lib: str
                 part: str
@@ -1155,6 +1191,6 @@ class C_kicad_fp_lib_table_file(SEXP_File):
             descr: str
 
         version: int = field(**sexp_field(assert_value=7))
-        libs: list[C_lib] = field(**sexp_field(multidict=True))
+        libs: list[C_lib] = field(**sexp_field(multidict=True), default_factory=list)
 
     fp_lib_table: C_fp_lib_table

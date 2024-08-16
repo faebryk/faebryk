@@ -17,15 +17,27 @@ logger = logging.getLogger(__name__)
 
 
 class OLED_Module(Module):
-    class Resolution(Enum):
+    class DisplayResolution(Enum):
         H64xV32 = auto()
         H128xV32 = auto()
         H128xV64 = auto()
         H256xV64 = auto()
 
+    class DisplaySize(Enum):
+        INCH_0_96 = auto()
+        INCH_1_12 = auto()
+        INCH_1_27 = auto()
+        INCH_1_3 = auto()
+        INCH_1_5 = auto()
+        INCH_2_23 = auto()
+        INCH_2_3 = auto()
+        INCH_2_42 = auto()
+        INCH_2_7 = auto()
+
     class DisplayController(Enum):
         SSD1315 = auto()
         SSD1306 = auto()
+        SSD1309 = auto()
 
     def __init__(self) -> None:
         super().__init__()
@@ -41,7 +53,8 @@ class OLED_Module(Module):
         self.IFs = _IFs(self)
 
         class _PARAMs(Module.PARAMS()):
-            resolution = TBD[self.Resolution]()
+            display_resolution = TBD[self.DisplayResolution]()
+            display_size = TBD[self.DisplaySize]()
             display_controller = TBD[self.DisplayController]()
 
         self.PARAMs = _PARAMs(self)

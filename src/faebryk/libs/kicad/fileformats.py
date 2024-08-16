@@ -896,7 +896,7 @@ class C_kicad_pcb_file(SEXP_File):
                     do_not_remove = 1
                     below_area_limit = 2
 
-                enable: bool = field(**sexp_field(positional=True))
+                enable: bool = field(**sexp_field(positional=True), default=False)
                 mode: Optional[E_mode] = None
                 hatch_thickness: Optional[float] = None
                 hatch_gap: Optional[float] = None

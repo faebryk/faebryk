@@ -946,9 +946,9 @@ class C_kicad_pcb_file(SEXP_File):
             fill: C_fill
             keepout: Optional[C_keepout] = None
             polygon: C_poly
-            filled_polygon: Optional[C_fillled_poly] = field(
-                **sexp_field(multidict=True), default=None
-            )
+            # filled_polygon: Optional[list[C_fillled_poly]] = field(
+            #    **sexp_field(multidict=True), default=None
+            # ) #TODO: needs UNION support
 
         @dataclass
         class C_segment:

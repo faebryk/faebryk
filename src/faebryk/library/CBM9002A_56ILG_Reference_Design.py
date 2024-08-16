@@ -119,3 +119,11 @@ class CBM9002A_56ILG_Reference_Design(Module):
         self.NODEs.oscillator.NODEs.crystal.PARAMs.load_impedance.merge(
             Constant(12 * P.pohm)
         )
+        self.NODEs.oscillator.NODEs.crystal.PARAMs.frequency_temperature_tolerance.merge(
+            Constant(20)
+        )
+        # TODO: just set to a 1N4148
+        self.NODEs.reset_diode.PARAMs.forward_voltage.merge(Constant(0.715))
+        self.NODEs.reset_diode.PARAMs.reverse_leakage_current.merge(Constant(1 * u))
+        self.NODEs.reset_diode.PARAMs.current.merge(Constant(300 * m))
+        self.NODEs.reset_diode.PARAMs.max_current.merge(Constant(1))

@@ -5,16 +5,21 @@ import logging
 
 from faebryk.core.core import Module
 from faebryk.library.can_be_decoupled import can_be_decoupled
+from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.has_datasheet_defined import has_datasheet_defined
 from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
+from faebryk.library.has_single_electric_reference_defined import (
+    has_single_electric_reference_defined,
+)
 from faebryk.library.I2C import I2C
 from faebryk.library.MultiSPI import MultiSPI
 from faebryk.library.SWD import SWD
 from faebryk.library.UART_Base import UART_Base
 from faebryk.library.USB2_0 import USB2_0
+from faebryk.libs.units import P
 from faebryk.libs.util import times
 
 logger = logging.getLogger(__name__)
@@ -66,6 +71,12 @@ class RP2040(Module):
             pwrrail.IFs.lv.connect(gnd)
             pwrrail.get_trait(can_be_decoupled).decouple()
 
+        self.add_trait(
+            has_single_electric_reference_defined(
+                ElectricLogic.connect_all_module_references(self.IFs.io_vdd)
+            )
+        )
+
         self.add_trait(has_designator_prefix_defined("U"))
 
         self.add_trait(
@@ -75,4 +86,5 @@ class RP2040(Module):
         )
 
         # set parameters
-        # self.IFs.io_vdd.PARAMs.voltage.merge(Range(1.8*P.V, 3.63*P.V))
+        self.IFs.vreg_out.PARAMs.voltage.merge(Constant(1.1 * P.V))
+        self.IFs.io_vdd.PARAMs.voltage.merge(Constant(3.3 * P.V))

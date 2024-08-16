@@ -66,7 +66,7 @@ class CBM9002A_56ILG(Module):
         )
         self.add_trait(
             has_single_electric_reference_defined(
-                ElectricLogic.connect_all_module_references(self)
+                ElectricLogic.connect_all_module_references(self.IFs.vcc)
             )
         )
 

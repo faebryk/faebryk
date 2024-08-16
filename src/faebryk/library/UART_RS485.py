@@ -5,7 +5,7 @@ import logging
 
 from faebryk.core.core import Module
 from faebryk.library.can_be_decoupled import can_be_decoupled
-from faebryk.library.Electrical import Electrical
+from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
 from faebryk.library.Range import Range
@@ -29,8 +29,8 @@ class UART_RS485(Module):
             power = ElectricPower()
             uart = UART_Base()
             rs485 = RS485()
-            read_enable = Electrical()
-            write_enable = Electrical()
+            read_enable = ElectricLogic()
+            write_enable = ElectricLogic()
 
         self.IFs = _IFs(self)
 

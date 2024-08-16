@@ -8,7 +8,7 @@ from faebryk.library.can_attach_to_footprint_via_pinmap import (
     can_attach_to_footprint_via_pinmap,
 )
 from faebryk.library.can_be_decoupled import can_be_decoupled
-from faebryk.library.Electrical import Electrical
+from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
 from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
 from faebryk.library.RS485 import RS485
@@ -31,8 +31,8 @@ class TD541S485H(Module):
             power_iso_out = ElectricPower()
             uart = UART_Base()
             rs485 = RS485()
-            read_enable = Electrical()
-            write_enable = Electrical()
+            read_enable = ElectricLogic()
+            write_enable = ElectricLogic()
 
         self.IFs = _IFs(self)
 
@@ -55,8 +55,8 @@ class TD541S485H(Module):
                     "1": x.power.IFs.lv,
                     "2": x.power.IFs.hv,
                     "3": x.uart.IFs.rx.IFs.signal,
-                    "4": x.read_enable,
-                    "5": x.write_enable,
+                    "4": x.read_enable.IFs.signal,
+                    "5": x.write_enable.IFs.signal,
                     "6": x.uart.IFs.tx.IFs.signal,
                     "7": x.power.IFs.hv,
                     "8": x.power.IFs.lv,

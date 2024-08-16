@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.core.core import ModuleInterface
-from faebryk.library.Electrical import Electrical
+from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.UART_Base import UART_Base
 
 
@@ -12,9 +12,9 @@ class UART(ModuleInterface):
 
         class IFS(super().IFS()):
             base_uart = UART_Base()
-            rts = Electrical()
-            cts = Electrical()
-            dtr = Electrical()
-            dsr = Electrical()
+            rts = ElectricLogic()
+            cts = ElectricLogic()
+            dtr = ElectricLogic()
+            dsr = ElectricLogic()
 
         self.IFs = IFS(self)

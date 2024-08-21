@@ -622,10 +622,20 @@ class C_footprint:
 
     @dataclass(kw_only=True)
     class C_property:
+        @dataclass
+        class C_layer:
+            class E_knockout(SymEnum):
+                knockout = auto()
+
+            layer: str = field(**sexp_field(positional=True))
+            knockout: Optional[E_knockout] = field(
+                **sexp_field(positional=True), default=None
+            )
+
         name: str = field(**sexp_field(positional=True))
         value: str = field(**sexp_field(positional=True))
         at: C_xyr
-        layer: str
+        layer: C_layer
         hide: bool = False
         uuid: UUID
         effects: C_effects
@@ -925,7 +935,7 @@ class C_kicad_pcb_file(SEXP_File):
 
             @dataclass
             class C_keepout:
-                class E_keepout_bool(StrEnum):
+                class E_keepout_bool(SymEnum):
                     allowed = auto()
                     not_allowed = auto()
 

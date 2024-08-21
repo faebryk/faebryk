@@ -652,7 +652,13 @@ class PCB_Transformer:
 
         return Geometry.rect_to_polygon(bbox)
 
-    def insert_zone(self, net: Net, layers: str | list[str], polygon: list[Point2D]):
+    def insert_zone(
+        self,
+        net: Net,
+        layers: str | list[str],
+        polygon: list[Point2D],
+        keepout: bool = False,
+    ):
         # check if exists
         zones = self.pcb.zones
         # TODO check bbox
@@ -698,6 +704,15 @@ class PCB_Transformer:
                 locked=False,
                 hatch=Zone.C_hatch(mode=Zone.C_hatch.E_mode.edge, pitch=0.5),
                 priority=0,
+                keepout=Zone.C_keepout(
+                    tracks=Zone.C_keepout.E_keepout_bool.allowed,
+                    vias=Zone.C_keepout.E_keepout_bool.allowed,
+                    pads=Zone.C_keepout.E_keepout_bool.allowed,
+                    copperpour=Zone.C_keepout.E_keepout_bool.not_allowed,
+                    footprints=Zone.C_keepout.E_keepout_bool.allowed,
+                )
+                if keepout
+                else None,
                 connect_pads=Zone.C_connect_pads(
                     mode=Zone.C_connect_pads.E_mode.thermal_reliefs, clearance=0.2
                 ),

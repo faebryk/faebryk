@@ -513,6 +513,15 @@ class C_stroke:
 
 
 @dataclass
+class C_text_layer:
+    class E_knockout(SymEnum):
+        knockout = auto()
+
+    layer: str = field(**sexp_field(positional=True))
+    knockout: Optional[E_knockout] = field(**sexp_field(positional=True), default=None)
+
+
+@dataclass
 class C_effects:
     @dataclass
     class C_font:
@@ -570,7 +579,7 @@ class C_arc:
 class C_text:
     text: str = field(**sexp_field(positional=True))
     at: C_xyr
-    layer: str
+    layer: C_text_layer
     uuid: UUID
     effects: C_effects
 
@@ -583,7 +592,7 @@ class C_fp_text:
     type: E_type = field(**sexp_field(positional=True))
     text: str = field(**sexp_field(positional=True))
     at: C_xyr
-    layer: str
+    layer: C_text_layer
     uuid: UUID
     effects: C_effects
 
@@ -626,7 +635,7 @@ class C_footprint:
         name: str = field(**sexp_field(positional=True))
         value: str = field(**sexp_field(positional=True))
         at: C_xyr
-        layer: str
+        layer: C_text_layer
         hide: bool = False
         uuid: UUID
         effects: C_effects

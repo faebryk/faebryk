@@ -935,7 +935,7 @@ class C_kicad_pcb_file(SEXP_File):
 
             @dataclass
             class C_keepout:
-                class E_keepout_bool(StrEnum):
+                class E_keepout_bool(SymEnum):
                     allowed = auto()
                     not_allowed = auto()
 

@@ -135,7 +135,7 @@ class RP2040_Reference_Design(Module):
         self.NODEs.rp2040.IFs.qspi.IFs.cs.IFs.signal.connect_via(
             [self.NODEs.boot_resistor, self.NODEs.boot_button], gnd
         )
-        self.NODEs.boot_resistor.PARAMs.resistance.merge(Constant(1 * k))
+        self.NODEs.boot_resistor.PARAMs.resistance.merge(Constant(1 * P.kohm))
         self.NODEs.rp2040.IFs.run.IFs.signal.connect_via(self.NODEs.reset_button, gnd)
 
         self.add_trait(

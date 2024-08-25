@@ -15,7 +15,7 @@ class SPIFlash(Module):
 
         class IFS(ModuleInterface.IFS()):
             power = ElectricPower()
-            spi = MultiSPI()
+            spi = MultiSPI(data_lane_count=4)  # TODO: make variable
 
         self.IFs = IFS(self)
 

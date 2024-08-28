@@ -62,10 +62,10 @@ class LDO(Module):
         self.IFs.power_out.get_trait(can_be_decoupled).decouple()
 
         self.IFs.enable.IFs.reference.connect(self.IFs.power_in)
-        if self.PARAMs.output_polarity == self.OutputPolarity.POSITIVE:
-            self.IFs.power_in.IFs.lv.connect(self.IFs.power_out.IFs.lv)
-        else:
+        if self.PARAMs.output_polarity == self.OutputPolarity.NEGATIVE:
             self.IFs.power_in.IFs.hv.connect(self.IFs.power_out.IFs.hv)
+        else:
+            self.IFs.power_in.IFs.lv.connect(self.IFs.power_out.IFs.lv)
 
         self.add_trait(can_bridge_defined(self.IFs.power_in, self.IFs.power_out))
         self.add_trait(

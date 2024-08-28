@@ -4,6 +4,7 @@
 from faebryk.core.core import ModuleInterface
 from faebryk.library.Range import Range
 from faebryk.library.USB2_0_IF import USB2_0_IF
+from faebryk.libs.units import P
 
 
 class USB2_0(ModuleInterface):
@@ -15,4 +16,6 @@ class USB2_0(ModuleInterface):
 
         self.IFs = IFS(self)
 
-        self.IFs.usb_if.IFs.buspower.PARAMs.voltage.merge(Range.from_center(5, 0.25))
+        self.IFs.usb_if.IFs.buspower.PARAMs.voltage.merge(
+            Range.from_center(5 * P.V, 0.25 * P.V)
+        )

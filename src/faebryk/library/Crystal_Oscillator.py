@@ -3,8 +3,8 @@
 
 
 from faebryk.core.core import Module
+from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Capacitor import Capacitor
-from faebryk.library.Constant import Constant
 from faebryk.library.Crystal import Crystal
 from faebryk.library.Electrical import Electrical
 from faebryk.library.ElectricPower import ElectricPower
@@ -41,10 +41,11 @@ class Crystal_Oscillator(Module):
         #               parameters
         # ----------------------------------------
         # https://blog.adafruit.com/2012/01/24/choosing-the-right-crystal-and-caps-for-your-design/
+        # http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/APPLICATION_NOTE/CD00221665.pdf
         STRAY_CAPACITANCE = Range(1 * P.pF, 5 * P.pF)
         load_capacitance = self.NODEs.crystal.PARAMs.load_impedance
-        capacitance = Constant(2 * P.dimesionless) * (
-            load_capacitance - STRAY_CAPACITANCE
+        capacitance = (load_capacitance + load_capacitance) - (
+            STRAY_CAPACITANCE + STRAY_CAPACITANCE
         )
 
         for cap in self.NODEs.capacitors:
@@ -53,6 +54,7 @@ class Crystal_Oscillator(Module):
         # ----------------------------------------
         #                traits
         # ----------------------------------------
+        self.add_trait(can_bridge_defined(self.IFs.p, self.IFs.n))
 
         # ----------------------------------------
         #                aliases

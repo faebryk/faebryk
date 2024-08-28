@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 from faebryk.core.core import Module
-from faebryk.libs.units import P
 from faebryk.library.can_be_decoupled import can_be_decoupled
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
@@ -12,6 +11,7 @@ from faebryk.library.has_single_electric_reference_defined import (
     has_single_electric_reference_defined,
 )
 from faebryk.library.Range import Range
+from faebryk.libs.units import P
 from faebryk.libs.util import times
 
 

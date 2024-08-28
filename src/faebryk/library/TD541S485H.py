@@ -10,9 +10,11 @@ from faebryk.library.can_attach_to_footprint_via_pinmap import (
 from faebryk.library.can_be_decoupled import can_be_decoupled
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
+from faebryk.library.has_datasheet_defined import has_datasheet_defined
 from faebryk.library.has_designator_prefix_defined import has_designator_prefix_defined
 from faebryk.library.RS485 import RS485
 from faebryk.library.UART_Base import UART_Base
+from faebryk.libs.units import P
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,8 @@ class TD541S485H(Module):
         class _PARAMs(Module.PARAMS()): ...
 
         self.PARAMs = _PARAMs(self)
+
+        self.IFs.power_iso_out.PARAMs.voltage.merge(5 * P.V)
 
         self.IFs.power.get_trait(can_be_decoupled).decouple()
         self.IFs.power_iso_in.get_trait(can_be_decoupled).decouple()
@@ -67,5 +71,11 @@ class TD541S485H(Module):
                     "15": x.power_iso_in.IFs.hv,
                     "16": x.power_iso_in.IFs.lv,
                 }
+            )
+        )
+
+        self.add_trait(
+            has_datasheet_defined(
+                "https://www.mornsun-power.com/public/uploads/pdf/TD(H)541S485H.pdf"
             )
         )

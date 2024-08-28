@@ -34,3 +34,5 @@ class Button(Module):
         self.add_trait(has_designator_prefix_defined("SW"))
 
         self.add_trait(can_bridge_defined(self.IFs.unnamed[0], self.IFs.unnamed[1]))
+
+        # TODO: debounce

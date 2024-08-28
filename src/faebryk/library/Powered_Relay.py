@@ -8,6 +8,9 @@ from faebryk.library.Diode import Diode
 from faebryk.library.Electrical import Electrical
 from faebryk.library.ElectricLogic import ElectricLogic
 from faebryk.library.ElectricPower import ElectricPower
+from faebryk.library.has_single_electric_reference_defined import (
+    has_single_electric_reference_defined,
+)
 from faebryk.library.PoweredLED import PoweredLED
 from faebryk.library.PowerSwitchMOSFET import PowerSwitchMOSFET
 from faebryk.library.Relay import Relay
@@ -65,4 +68,10 @@ class Powered_Relay(Module):
 
         self.NODEs.indicator.IFs.power.connect(
             self.NODEs.relay_driver.IFs.switched_power_out
+        )
+
+        self.add_trait(
+            has_single_electric_reference_defined(
+                ElectricLogic.connect_all_module_references(self, gnd_only=True)
+            )
         )

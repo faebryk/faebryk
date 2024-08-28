@@ -4,6 +4,9 @@
 import logging
 
 from faebryk.core.core import Module
+from faebryk.library.can_attach_to_footprint_via_pinmap import (
+    can_attach_to_footprint_via_pinmap,
+)
 from faebryk.library.can_be_decoupled import can_be_decoupled
 from faebryk.library.Constant import Constant
 from faebryk.library.Electrical import Electrical
@@ -71,11 +74,7 @@ class RP2040(Module):
             pwrrail.IFs.lv.connect(gnd)
             pwrrail.get_trait(can_be_decoupled).decouple()
 
-        self.add_trait(
-            has_single_electric_reference_defined(
-                ElectricLogic.connect_all_module_references(self.IFs.io_vdd)
-            )
-        )
+        self.add_trait(has_single_electric_reference_defined(self.IFs.io_vdd))
 
         self.add_trait(has_designator_prefix_defined("U"))
 
@@ -88,3 +87,68 @@ class RP2040(Module):
         # set parameters
         self.IFs.vreg_out.PARAMs.voltage.merge(Constant(1.1 * P.V))
         self.IFs.io_vdd.PARAMs.voltage.merge(Constant(3.3 * P.V))
+        # TODO: self.IFs.io_vdd.PARAMs.voltage.merge(Range(1.8*P.V, 3.63*P.V))
+
+        self.add_trait(
+            can_attach_to_footprint_via_pinmap(
+                {
+                    "1": self.IFs.io_vdd.IFs.hv,
+                    "2": self.IFs.gpio[0],
+                    "3": self.IFs.gpio[1],
+                    "4": self.IFs.gpio[2],
+                    "5": self.IFs.gpio[3],
+                    "6": self.IFs.gpio[4],
+                    "7": self.IFs.gpio[5],
+                    "8": self.IFs.gpio[6],
+                    "9": self.IFs.gpio[7],
+                    "10": self.IFs.io_vdd.IFs.hv,
+                    "11": self.IFs.gpio[8],
+                    "12": self.IFs.gpio[9],
+                    "13": self.IFs.gpio[10],
+                    "14": self.IFs.gpio[11],
+                    "15": self.IFs.gpio[12],
+                    "16": self.IFs.gpio[13],
+                    "17": self.IFs.gpio[14],
+                    "18": self.IFs.gpio[15],
+                    "19": self.IFs.xin,
+                    "20": self.IFs.xout,
+                    "21": self.IFs.test,
+                    "22": self.IFs.io_vdd.IFs.hv,
+                    "23": self.IFs.core_vdd.IFs.hv,
+                    "24": self.IFs.swd.IFs.clk.IFs.signal,
+                    "25": self.IFs.swd.IFs.dio.IFs.signal,
+                    "26": self.IFs.run.IFs.signal,
+                    "27": self.IFs.gpio[16],
+                    "28": self.IFs.gpio[17],
+                    "29": self.IFs.gpio[18],
+                    "30": self.IFs.gpio[19],
+                    "31": self.IFs.gpio[20],
+                    "32": self.IFs.gpio[21],
+                    "33": self.IFs.io_vdd.IFs.hv,
+                    "34": self.IFs.gpio[22],
+                    "35": self.IFs.gpio[23],
+                    "36": self.IFs.gpio[24],
+                    "37": self.IFs.gpio[25],
+                    "38": self.IFs.gpio[26],
+                    "39": self.IFs.gpio[27],
+                    "40": self.IFs.gpio[28],
+                    "41": self.IFs.gpio[29],
+                    "42": self.IFs.io_vdd.IFs.hv,
+                    "43": self.IFs.adc_vdd.IFs.hv,
+                    "44": self.IFs.vreg_in.IFs.hv,
+                    "45": self.IFs.vreg_out.IFs.hv,
+                    "46": self.IFs.usb.IFs.usb_if.IFs.d.IFs.n,
+                    "47": self.IFs.usb.IFs.usb_if.IFs.d.IFs.p,
+                    "48": self.IFs.usb.IFs.usb_if.IFs.buspower.IFs.hv,
+                    "49": self.IFs.io_vdd.IFs.hv,
+                    "50": self.IFs.core_vdd.IFs.hv,
+                    "51": self.IFs.qspi.IFs.data[3].IFs.signal,
+                    "52": self.IFs.qspi.IFs.clk.IFs.signal,
+                    "53": self.IFs.qspi.IFs.data[0].IFs.signal,
+                    "54": self.IFs.qspi.IFs.data[2].IFs.signal,
+                    "55": self.IFs.qspi.IFs.data[1].IFs.signal,
+                    "56": self.IFs.qspi.IFs.cs.IFs.signal,
+                    "57": self.IFs.io_vdd.IFs.lv,
+                }
+            )
+        )

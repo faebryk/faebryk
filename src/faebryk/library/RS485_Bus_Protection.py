@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from math import inf
 
 from faebryk.core.core import Module
 from faebryk.exporters.pcb.layout.absolute import LayoutAbsolute
@@ -102,7 +103,9 @@ class RS485_Bus_Protection(Module):
 
         self.NODEs.gnd_couple_resistor.PARAMs.resistance.merge(Constant(1 * P.Mohm))
         self.NODEs.gnd_couple_capacitor.PARAMs.capacitance.merge(Constant(1 * P.uF))
-        self.NODEs.gnd_couple_capacitor.PARAMs.rated_voltage.merge(Constant(2 * P.kV))
+        self.NODEs.gnd_couple_capacitor.PARAMs.rated_voltage.merge(
+            Range(2 * P.kV, inf * P.V)
+        )
 
         self.NODEs.tvs.PARAMs.reverse_working_voltage.merge(Constant(8.5 * P.V))
         # self.NODEs.tvs.PARAMs.max_current.merge(Constant(41.7*P.A))
@@ -124,21 +127,21 @@ class RS485_Bus_Protection(Module):
         self.NODEs.gdt.IFs.common.connect(self.IFs.earth)
 
         # rs485_in connections
-        self.IFs.rs485_in.IFs.diff_pair.IFs.p.connect(
+        self.IFs.rs485_in.IFs.diff_pair.IFs.n.connect(
             self.NODEs.common_mode_filter.IFs.c_a[0]
         )
-        self.IFs.rs485_in.IFs.diff_pair.IFs.n.connect(
+        self.IFs.rs485_in.IFs.diff_pair.IFs.p.connect(
             self.NODEs.common_mode_filter.IFs.c_b[0]
         )
 
         # rs485_out connections
         self.NODEs.common_mode_filter.IFs.c_a[1].connect_via(
             self.NODEs.current_limmiter_resistors[0],
-            self.IFs.rs485_out.IFs.diff_pair.IFs.p,
+            self.IFs.rs485_out.IFs.diff_pair.IFs.n,
         )
         self.NODEs.common_mode_filter.IFs.c_b[1].connect_via(
             self.NODEs.current_limmiter_resistors[1],
-            self.IFs.rs485_out.IFs.diff_pair.IFs.n,
+            self.IFs.rs485_out.IFs.diff_pair.IFs.p,
         )
         self.IFs.rs485_out.IFs.diff_pair.IFs.n.connect_via(
             self.NODEs.gdt, self.IFs.rs485_out.IFs.diff_pair.IFs.p
@@ -194,29 +197,29 @@ class RS485_Bus_Protection(Module):
                         LayoutTypeHierarchy.Level(
                             mod_type=Common_Mode_Filter,
                             layout=LayoutAbsolute(
-                                Point((0, 25.5, 90, L.NONE)),
+                                Point((0, 19, 90, L.NONE)),
                             ),
                         ),
                         LayoutTypeHierarchy.Level(
                             mod_type=Diode,
                             layout=LayoutExtrude(
-                                base=Point((0, 14.5, 0, L.NONE)),
+                                base=Point((-3.5, 14, 90, L.NONE)),
                                 vector=(0, 3.5, 0),
                             ),
                         ),
                         LayoutTypeHierarchy.Level(
                             mod_type=Resistor,
                             layout=LayoutExtrude(
-                                base=Point((-2, 8, 90, L.NONE)),
+                                base=Point((-2, 7, 90, L.NONE)),
                                 vector=(0, 4, 0),
                             ),
                         ),
-                        LayoutTypeHierarchy.Level(
-                            mod_type=Capacitor,
-                            layout=LayoutAbsolute(
-                                Point((10, 0, 90, L.NONE)),
-                            ),
-                        ),
+                        # LayoutTypeHierarchy.Level(
+                        #    mod_type=Capacitor,
+                        #    layout=LayoutAbsolute(
+                        #        Point((10, 0, 90, L.NONE)),
+                        #    ),
+                        # ),
                     ]
                 ),
             )

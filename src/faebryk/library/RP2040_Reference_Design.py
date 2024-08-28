@@ -4,10 +4,16 @@
 import logging
 
 from faebryk.core.core import Module
+from faebryk.exporters.pcb.layout.absolute import LayoutAbsolute
+from faebryk.exporters.pcb.layout.extrude import LayoutExtrude
+from faebryk.exporters.pcb.layout.typehierarchy import LayoutTypeHierarchy
 from faebryk.library.Button import Button
+from faebryk.library.Capacitor import Capacitor
 from faebryk.library.Constant import Constant
+from faebryk.library.Crystal import Crystal
 from faebryk.library.Crystal_Oscillator import Crystal_Oscillator
-from faebryk.library.has_datasheet_defined import has_datasheet_defined
+from faebryk.library.has_pcb_layout_defined import has_pcb_layout_defined
+from faebryk.library.has_pcb_position import has_pcb_position
 from faebryk.library.LDO import LDO
 from faebryk.library.LED import LED
 from faebryk.library.PoweredLED import PoweredLED
@@ -23,9 +29,6 @@ logger = logging.getLogger(__name__)
 
 
 class RP2040_Reference_Design(Module):
-    """Minimal required design for the Raspberry Pi RP2040 microcontroller.
-    Based on the official Raspberry Pi RP2040 hardware design guidlines"""
-
     def __init__(self) -> None:
         super().__init__()
 
@@ -46,7 +49,7 @@ class RP2040_Reference_Design(Module):
             boot_button = Button()
             boot_resistor = Resistor()
             ldo = LDO()
-            crystal_oscilator = Crystal_Oscillator()
+            crystal_oscillator = Crystal_Oscillator()
             oscilator_resistor = Resistor()
             # TODO: add voltage divider with switch
             # TODO: add optional LM4040 voltage reference or voltage divider
@@ -70,19 +73,24 @@ class RP2040_Reference_Design(Module):
         self.NODEs.ldo.PARAMs.output_voltage.merge(Constant(3.3 * P.V))
         self.NODEs.ldo.PARAMs.output_current.merge(Constant(600 * P.mA))
 
-        self.NODEs.crystal_oscilator.NODEs.crystal.PARAMs.frequency.merge(
+        self.NODEs.flash.PARAMs.memory_size.merge(Constant(16 * P.Mbit))
+
+        self.NODEs.crystal_oscillator.NODEs.crystal.PARAMs.frequency.merge(
             Constant(12 * P.Mhertz)
         )
-        self.NODEs.crystal_oscilator.NODEs.crystal.PARAMs.load_impedance.merge(
+        self.NODEs.crystal_oscillator.NODEs.crystal.PARAMs.load_impedance.merge(
             Constant(10 * P.pF)
         )
-
-        self.NODEs.flash.PARAMs.memory_size.merge(Constant(16 * P.Mbit))
+        # for cap in self.NODEs.crystal_oscillator.NODEs.capacitors:
+        #    cap.PARAMs.capacitance.merge(Constant(15e-12))  # TODO: remove?
+        self.NODEs.oscilator_resistor.PARAMs.resistance.merge(Constant(1 * P.kohm))
 
         self.NODEs.led.NODEs.led.PARAMs.color.merge(LED.Color.GREEN)
         self.NODEs.led.NODEs.led.PARAMs.brightness.merge(
             TypicalLuminousIntensity.APPLICATION_LED_INDICATOR_INSIDE.value.value
         )
+        # TODO: remove: #poweredled voltage merge issue
+        self.NODEs.led.IFs.power.PARAMs.voltage.merge(power_3v3.PARAMs.voltage)
 
         self.NODEs.usb_current_limmit_resistor[0].PARAMs.resistance.merge(
             Constant(27 * P.ohm)
@@ -94,14 +102,13 @@ class RP2040_Reference_Design(Module):
         # ----------------------------------------
         #              connections
         # ----------------------------------------
-        self.NODEs.ldo.IFs.power_in.connect(power_5v)
+        power_vbus.connect(power_5v)
 
         # connect rp2040 power rails
         for pwrrail in [
             self.NODEs.rp2040.IFs.io_vdd,
             self.NODEs.rp2040.IFs.adc_vdd,
             self.NODEs.rp2040.IFs.vreg_in,
-            self.NODEs.rp2040.IFs.usb.IFs.usb_if.IFs.buspower,
         ]:
             pwrrail.connect(power_3v3)
 
@@ -124,12 +131,12 @@ class RP2040_Reference_Design(Module):
             self.NODEs.rp2040.IFs.usb.IFs.usb_if.IFs.d.IFs.n,
         )
 
-        # crystal oscilator
+        # crystal oscillator
         self.NODEs.rp2040.IFs.xin.connect_via(
-            [self.NODEs.crystal_oscilator, self.NODEs.oscilator_resistor],
+            [self.NODEs.crystal_oscillator, self.NODEs.oscilator_resistor],
             self.NODEs.rp2040.IFs.xout,
         )
-        gnd.connect(self.NODEs.crystal_oscilator.IFs.power.IFs.lv)
+        gnd.connect(self.NODEs.crystal_oscillator.IFs.power.IFs.lv)
 
         # buttons
         self.NODEs.rp2040.IFs.qspi.IFs.cs.IFs.signal.connect_via(
@@ -138,8 +145,93 @@ class RP2040_Reference_Design(Module):
         self.NODEs.boot_resistor.PARAMs.resistance.merge(Constant(1 * P.kohm))
         self.NODEs.rp2040.IFs.run.IFs.signal.connect_via(self.NODEs.reset_button, gnd)
 
+        # ----------------------------------------
+        # specify components with footprints
+
+        # pcb layout
+        Point = has_pcb_position.Point
+        L = has_pcb_position.layer_type
         self.add_trait(
-            has_datasheet_defined(
-                "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf"
+            has_pcb_layout_defined(
+                layout=LayoutTypeHierarchy(
+                    layouts=[
+                        LayoutTypeHierarchy.Level(
+                            mod_type=RP2040,
+                            layout=LayoutAbsolute(
+                                Point((0, 0, 0, L.NONE)),
+                            ),
+                        ),
+                        LayoutTypeHierarchy.Level(
+                            mod_type=LDO,
+                            layout=LayoutAbsolute(Point((0, 14, 0, L.NONE))),
+                        ),
+                        LayoutTypeHierarchy.Level(
+                            mod_type=Button,
+                            layout=LayoutExtrude(
+                                base=Point((-1.75, -11.5, 0, L.NONE)),
+                                vector=(3.5, 0, 90),
+                            ),
+                        ),
+                        LayoutTypeHierarchy.Level(
+                            mod_type=SPIFlash,
+                            layout=LayoutAbsolute(
+                                Point((-1.95, -6.5, 0, L.NONE)),
+                            ),
+                        ),
+                        LayoutTypeHierarchy.Level(
+                            mod_type=PoweredLED,
+                            layout=LayoutAbsolute(
+                                Point((6.5, -1.5, 270, L.NONE)),
+                            ),
+                            children_layout=LayoutTypeHierarchy(
+                                layouts=[
+                                    LayoutTypeHierarchy.Level(
+                                        mod_type=LED,
+                                        layout=LayoutAbsolute(
+                                            Point((0, 0, 0, L.NONE)),
+                                        ),
+                                    ),
+                                    LayoutTypeHierarchy.Level(
+                                        mod_type=Resistor,
+                                        layout=LayoutAbsolute(
+                                            Point((-2.75, 0, 180, L.NONE))
+                                        ),
+                                    ),
+                                ]
+                            ),
+                        ),
+                        LayoutTypeHierarchy.Level(
+                            mod_type=Crystal_Oscillator,
+                            layout=LayoutAbsolute(
+                                Point((0, 7, 0, L.NONE)),
+                            ),
+                            children_layout=LayoutTypeHierarchy(
+                                layouts=[
+                                    LayoutTypeHierarchy.Level(
+                                        mod_type=Crystal,
+                                        layout=LayoutAbsolute(
+                                            Point((0, 0, 0, L.NONE)),
+                                        ),
+                                    ),
+                                    LayoutTypeHierarchy.Level(
+                                        mod_type=Capacitor,
+                                        layout=LayoutExtrude(
+                                            base=Point((-3, 0, 90, L.NONE)),
+                                            vector=(0, 6, 180),
+                                            dynamic_rotation=True,
+                                        ),
+                                    ),
+                                ]
+                            ),
+                        ),
+                        LayoutTypeHierarchy.Level(
+                            mod_type=Resistor,
+                            layout=LayoutExtrude(
+                                base=Point((0.75, -6, 0, L.NONE)),
+                                vector=(1.25, 0, 270),
+                            ),
+                        ),
+                    ]
+                )
             )
         )

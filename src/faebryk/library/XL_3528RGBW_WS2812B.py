@@ -7,6 +7,7 @@ from faebryk.core.core import Module, Parameter
 from faebryk.library.can_attach_to_footprint_via_pinmap import (
     can_attach_to_footprint_via_pinmap,
 )
+from faebryk.library.can_be_decoupled import can_be_decoupled
 from faebryk.library.can_bridge_defined import can_bridge_defined
 from faebryk.library.Constant import Constant
 from faebryk.library.ElectricLogic import ElectricLogic
@@ -73,6 +74,8 @@ class XL_3528RGBW_WS2812B(Module):
 
         # Add bridge trait
         self.add_trait(can_bridge_defined(self.IFs.di, self.IFs.do))
+
+        self.IFs.power.get_trait(can_be_decoupled).decouple()
 
         self.add_trait(
             can_attach_to_footprint_via_pinmap(

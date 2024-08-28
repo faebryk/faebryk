@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: MIT
 
 
+from math import inf
+
 from faebryk.core.core import ModuleInterface
 from faebryk.library.can_be_decoupled_defined import can_be_decoupled_defined
 from faebryk.library.can_be_surge_protected_defined import (
@@ -27,7 +29,10 @@ class ElectricPower(Power):
                 .decouple()
                 .builder(
                     lambda c: c.PARAMs.rated_voltage.merge(
-                        Range(0 * P.V, self.get_obj().PARAMs.voltage * 2.0)
+                        Range(
+                            self.get_obj().PARAMs.voltage * 2.0,
+                            inf * P.V,
+                        )
                     )
                 )
             )

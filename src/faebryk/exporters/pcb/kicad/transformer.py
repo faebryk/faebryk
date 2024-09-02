@@ -25,6 +25,7 @@ from faebryk.libs.kicad.fileformats import (
     C_arc,
     C_circle,
     C_effects,
+    C_footprint,
     C_fp_text,
     C_kicad_pcb_file,
     C_line,
@@ -740,17 +741,21 @@ class PCB_Transformer:
 
         if flip:
 
-            def _flip(x):
+            def _flip(x: str):
                 return x.replace("F.", "<F>.").replace("B.", "F.").replace("<F>.", "B.")
 
             fp.layer = _flip(fp.layer)
 
             # TODO: sometimes pads are being rotated by kicad ?!??
-            # for obj in fp.pads:
-            #    obj.layers = [_flip(x) for x in obj.layers]
+            for obj in fp.pads:
+                obj.layers = [_flip(x) for x in obj.layers]
 
-            # for obj in get_all_geos(fp) + fp.fp_texts + list(fp.propertys.values()):
-            #    obj.layer = _flip(obj.layer)
+            for obj in get_all_geos(fp) + fp.fp_texts + list(fp.propertys.values()):
+                if isinstance(obj, C_footprint.C_property):
+                    obj = obj.layer
+                if isinstance(obj, C_fp_text):
+                    obj = obj.layer
+                obj.layer = _flip(obj.layer)
 
         # Label
         if not any([x.text == "FBRK:autoplaced" for x in fp.fp_texts]):

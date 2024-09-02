@@ -4,7 +4,8 @@
 import logging
 from dataclasses import dataclass
 
-from faebryk.core.core import Module, Node
+from faebryk.core.module import Module
+from faebryk.core.node import Node
 from faebryk.core.util import get_all_nodes, get_parent_of_type
 from faebryk.exporters.pcb.layout.heuristic_decoupling import place_next_to
 from faebryk.exporters.pcb.layout.layout import Layout
@@ -32,14 +33,14 @@ class LayoutHeuristicElectricalClosenessPullResistors(Layout):
             logic = NotNone(get_parent_of_type(n, ElectricLogic))
             up, down = logic.get_trait(ElectricLogic.has_pulls).get_pulls()
             if n is up:
-                level = logic.IFs.reference.IFs.hv
+                level = logic.reference.hv
             elif n is down:
-                level = logic.IFs.reference.IFs.lv
+                level = logic.reference.lv
             else:
                 assert False
 
             ic_side = find(
-                n.IFs.get_all(),
+                n.get_children(direct_only=True, types=Electrical),
                 lambda intf: not intf.is_connected_to(level) is not None,
             )
 

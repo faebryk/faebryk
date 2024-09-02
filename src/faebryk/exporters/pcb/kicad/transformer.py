@@ -32,6 +32,7 @@ from faebryk.libs.kicad.fileformats import (
     C_rect,
     C_stroke,
     C_text,
+    C_text_layer,
     C_wh,
     C_xy,
     C_xyr,
@@ -530,7 +531,7 @@ class PCB_Transformer:
         self._get_pcb_list_field(obj, prefix=prefix).remove(obj)
 
     def insert_via(
-        self, coord: tuple[float, float], net: str, size_drill: tuple[float, float]
+        self, coord: tuple[float, float], net: int, size_drill: tuple[float, float]
     ):
         self.pcb.vias.append(
             Via(
@@ -548,7 +549,7 @@ class PCB_Transformer:
             GR_Text(
                 text=text,
                 at=at,
-                layer=f"{'F' if front else 'B'}.SilkS",
+                layer=C_text_layer(f"{'F' if front else 'B'}.SilkS"),
                 effects=C_effects(
                     font=font,
                     justify=(
@@ -760,7 +761,7 @@ class PCB_Transformer:
                     at=C_xyr(0, 0, rot_angle),
                     effects=C_effects(self.font),
                     uuid=self.gen_uuid(mark=True),
-                    layer="User.5",
+                    layer=C_text_layer("User.5"),
                 )
             )
 

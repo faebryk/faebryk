@@ -3,7 +3,7 @@
 
 import logging
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 import faebryk.library._F as F
 from faebryk.core.moduleinterface import ModuleInterface
@@ -24,7 +24,7 @@ class has_pcb_routing_strategy_greedy_direct_line(F.has_pcb_routing_strategy.imp
     def __init__(
         self,
         topology: Topology = Topology.DIRECT,
-        extra_mifs: list[ModuleInterface] | None = None,
+        extra_mifs: Sequence[ModuleInterface] | None = None,
     ) -> None:
         super().__init__()
         self.topology = topology

@@ -3,7 +3,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 import faebryk.library._F as F
 from faebryk.core.module import Module
@@ -149,7 +149,7 @@ def apply_route_in_pcb(route: Route, transformer: "PCB_Transformer"):
             coord = round(obj.pos[0], 2), round(obj.pos[1], 2)
 
             transformer.insert_via(
-                net=pcb_net.name,
+                net=pcb_net.number,
                 coord=coord,
                 size_drill=obj.size_drill,
             )
@@ -163,14 +163,14 @@ def apply_route_in_pcb(route: Route, transformer: "PCB_Transformer"):
 
             transformer.insert_zone(
                 net=pcb_net,
-                layer=layer_name,
+                layers=layer_name,
                 polygon=obj.polygon,
             )
 
 
 def get_internal_nets_of_node(
     node: Node,
-) -> dict[F.Net | None, Iterable[ModuleInterface]]:
+) -> Mapping[F.Net | None, Iterable[ModuleInterface]]:
     """
     Returns all Nets occuring (at least partially) within Node
     and returns for each of those the corresponding mifs

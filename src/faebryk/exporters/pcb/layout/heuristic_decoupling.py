@@ -5,21 +5,12 @@ import logging
 from dataclasses import dataclass
 from enum import IntEnum
 
-from faebryk.core.core import Module, Node
+import faebryk.library._F as F
+from faebryk.core.module import Module
+from faebryk.core.node import Node
 from faebryk.core.util import get_all_nodes, get_parent_of_type
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.exporters.pcb.layout.layout import Layout
-from faebryk.library.Electrical import Electrical
-from faebryk.library.has_footprint import has_footprint
-from faebryk.library.has_pcb_layout_defined import has_pcb_layout_defined
-from faebryk.library.has_pcb_position import has_pcb_position
-from faebryk.library.has_pcb_position_defined_relative_to_parent import (
-    has_pcb_position_defined_relative_to_parent,
-)
-from faebryk.library.has_pcb_routing_strategy_greedy_direct_line import (
-    has_pcb_routing_strategy_greedy_direct_line,
-)
-from faebryk.library.Pad import Pad
 from faebryk.libs.kicad.fileformats import C_kicad_pcb_file
 from faebryk.libs.util import NotNone, find, groupby
 
@@ -70,6 +61,7 @@ def _get_pad_side(fp: KFootprint, pad: KPad) -> Side:
 
     # pad size as heuristic
     rot = (fp.at.r - pad.at.r) % 360
+    assert pad.size.h is not None
     if pad.size.h > pad.size.w and rot not in (90, 270):
         pos_rot = {Side.Top, Side.Bottom}
     else:
@@ -112,42 +104,48 @@ def _next_to_pad(
     return vec
 
 
-def place_next_to_pad(module: Module, pad: Pad):
+def place_next_to_pad(module: Module, pad: F.Pad):
     kfp, kpad = pad.get_trait(PCB_Transformer.has_linked_kicad_pad).get_pad()
+    if len(kpad) != 1:
+        raise NotImplementedError()
+    kpad = kpad[0]
 
-    nfp = module.get_trait(has_footprint).get_footprint()
+    nfp = module.get_trait(F.has_footprint).get_footprint()
     npad = find(
-        {p for p in nfp.IFs.get_all() if isinstance(p, Pad)},
-        lambda p: p.IFs.net.is_connected_to(pad.IFs.net) is not None,
+        nfp.get_children(direct_only=True, types=F.Pad),
+        lambda p: p.net.is_connected_to(pad.net) is not None,
     )
     nkfp, nkpad = npad.get_trait(PCB_Transformer.has_linked_kicad_pad).get_pad()
+    if len(nkpad) != 1:
+        raise NotImplementedError()
+    nkpad = nkpad[0]
 
     # TODO rot & layer not correct
     pos = _next_to_pad(kfp, kpad, nkfp, nkpad, distance=1)
 
     module.add_trait(
-        has_pcb_position_defined_relative_to_parent(
+        F.has_pcb_position_defined_relative_to_parent(
             (
                 *pos,
                 0,
-                has_pcb_position.layer_type.NONE,
+                F.has_pcb_position.layer_type.NONE,
             )
         )
     )
 
 
-def place_next_to(parent: Module, intf: Electrical, child: Module, route: bool = False):
-    parent_fp = parent.get_trait(has_footprint).get_footprint()
-    parent_pads = {p for p in parent_fp.IFs.get_all() if isinstance(p, Pad)}
-    parent_pad = find(
-        parent_pads, lambda p: p.IFs.net.is_connected_to(intf) is not None
-    )
+def place_next_to(
+    parent: Module, intf: F.Electrical, child: Module, route: bool = False
+):
+    parent_fp = parent.get_trait(F.has_footprint).get_footprint()
+    parent_pads = parent_fp.get_children(direct_only=True, types=F.Pad)
+    parent_pad = find(parent_pads, lambda p: p.net.is_connected_to(intf) is not None)
 
     place_next_to_pad(child, parent_pad)
 
     if route:
         intf.add_trait(
-            has_pcb_routing_strategy_greedy_direct_line(extra_mifs=[parent_pad.IFs.net])
+            F.has_pcb_routing_strategy_greedy_direct_line(extra_mifs=[parent_pad.net])
         )
 
 
@@ -160,18 +158,16 @@ class LayoutHeuristicElectricalClosenessDecouplingCaps(Layout):
         from faebryk.library.ElectricPower import ElectricPower
 
         # Remove nodes that have a position defined
-        node = tuple(n for n in node if not n.has_trait(has_pcb_position))
+        node = tuple(n for n in node if not n.has_trait(F.has_pcb_position))
 
         for n in node:
             assert isinstance(n, Capacitor)
             power = NotNone(get_parent_of_type(n, ElectricPower))
 
             hv = find(
-                n.IFs.get_all(),
-                lambda x: x.is_connected_to(power.IFs.hv) is not None
-                and isinstance(x, Electrical),
+                n.get_children(direct_only=True, types=F.Electrical),
+                lambda x: x.is_connected_to(power.hv) is not None,
             )
-            assert isinstance(hv, Electrical)
 
             place_next_to(self.parent, hv, n, route=True)
 
@@ -202,4 +198,4 @@ class LayoutHeuristicElectricalClosenessDecouplingCaps(Layout):
         for parent, children in cls.find_module_candidates(node).items():
             layout = cls(parent)
             for c in children:
-                c.add_trait(has_pcb_layout_defined(layout))
+                c.add_trait(F.has_pcb_layout_defined(layout))

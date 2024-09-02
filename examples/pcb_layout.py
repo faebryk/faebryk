@@ -23,6 +23,7 @@ from faebryk.exporters.pcb.layout.typehierarchy import LayoutTypeHierarchy
 from faebryk.libs.brightness import TypicalLuminousIntensity
 from faebryk.libs.examples.buildutil import apply_design_to_pcb
 from faebryk.libs.logging import setup_basic_logging
+from faebryk.libs.units import P
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class App(Module):
             TypicalLuminousIntensity.APPLICATION_LED_INDICATOR_INSIDE.value.value
         )
 
-        self.eeprom.power.voltage.merge(3.3)
+        self.eeprom.power.voltage.merge(3.3 * P.V)
         self.eeprom.set_address(0x0)
 
         # Layout

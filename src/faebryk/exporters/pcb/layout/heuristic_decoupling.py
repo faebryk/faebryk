@@ -2,17 +2,15 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-from dataclasses import dataclass
 from enum import IntEnum
 
 import faebryk.library._F as F
 from faebryk.core.module import Module
 from faebryk.core.node import Node
-from faebryk.core.util import get_all_nodes, get_parent_of_type
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.exporters.pcb.layout.layout import Layout
 from faebryk.libs.kicad.fileformats import C_kicad_pcb_file
-from faebryk.libs.util import NotNone, find, groupby
+from faebryk.libs.util import NotNone, find
 
 logger = logging.getLogger(__name__)
 
@@ -149,53 +147,42 @@ def place_next_to(
         )
 
 
-@dataclass(frozen=True, eq=True)
 class LayoutHeuristicElectricalClosenessDecouplingCaps(Layout):
-    parent: Module
-
     def apply(self, *node: Node):
-        from faebryk.library.Capacitor import Capacitor
-        from faebryk.library.ElectricPower import ElectricPower
+        from faebryk.core.util import get_parent_of_type, get_parent_with_trait
 
         # Remove nodes that have a position defined
-        node = tuple(n for n in node if not n.has_trait(F.has_pcb_position))
+        node = tuple(
+            n
+            for n in node
+            if not n.has_trait(F.has_pcb_position) and n.has_trait(F.has_footprint)
+        )
 
         for n in node:
-            assert isinstance(n, Capacitor)
-            power = NotNone(get_parent_of_type(n, ElectricPower))
+            assert isinstance(n, F.Capacitor)
+            power = NotNone(get_parent_of_type(n, F.ElectricPower))
 
             hv = find(
                 n.get_children(direct_only=True, types=F.Electrical),
                 lambda x: x.is_connected_to(power.hv) is not None,
             )
 
-            place_next_to(self.parent, hv, n, route=True)
+            parent = get_parent_with_trait(n, F.has_footprint, include_self=False)[0]
+            assert isinstance(parent, Module)
+            place_next_to(parent, hv, n, route=True)
 
     @staticmethod
     def find_module_candidates(node: Node):
-        def _get_decoupling_caps():
-            from faebryk.library.Capacitor import Capacitor
-            from faebryk.library.ElectricPower import ElectricPower
+        from faebryk.core.util import get_parent_of_type
 
-            caps = {c for c in get_all_nodes(node) if isinstance(c, Capacitor)}
-            for c in caps:
-                power = get_parent_of_type(c, ElectricPower)
-                if not power:
-                    continue
-                parent = get_parent_of_type(power, Module)
-                if not parent:
-                    continue
-
-                yield parent, c
-
-        return {
-            k: [v[1] for v in v]
-            for k, v in groupby(_get_decoupling_caps(), key=lambda x: x[0]).items()
-        }
+        return node.get_children(
+            direct_only=False,
+            types=F.Capacitor,
+            f_filter=lambda c: get_parent_of_type(c, F.ElectricPower) is not None,
+        )
 
     @classmethod
     def add_to_all_suitable_modules(cls, node: Node):
-        for parent, children in cls.find_module_candidates(node).items():
-            layout = cls(parent)
-            for c in children:
-                c.add_trait(F.has_pcb_layout_defined(layout))
+        layout = cls()
+        for c in cls.find_module_candidates(node):
+            c.add_trait(F.has_pcb_layout_defined(layout))

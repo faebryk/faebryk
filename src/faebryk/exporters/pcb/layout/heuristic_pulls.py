@@ -2,31 +2,29 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-from dataclasses import dataclass
 
+import faebryk.library._F as F
 from faebryk.core.module import Module
 from faebryk.core.node import Node
-from faebryk.core.util import get_all_nodes, get_parent_of_type
+from faebryk.core.util import get_parent_of_type, get_parent_with_trait
 from faebryk.exporters.pcb.layout.heuristic_decoupling import place_next_to
 from faebryk.exporters.pcb.layout.layout import Layout
-from faebryk.library.Electrical import Electrical
-from faebryk.library.has_pcb_layout_defined import has_pcb_layout_defined
-from faebryk.library.has_pcb_position import has_pcb_position
-from faebryk.libs.util import NotNone, find, groupby
+from faebryk.libs.util import NotNone, find
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, eq=True)
 class LayoutHeuristicElectricalClosenessPullResistors(Layout):
-    parent: Module
-
     def apply(self, *node: Node):
         from faebryk.library.ElectricLogic import ElectricLogic
         from faebryk.library.Resistor import Resistor
 
         # Remove nodes that have a position defined
-        node = tuple(n for n in node if not n.has_trait(has_pcb_position))
+        node = tuple(
+            n
+            for n in node
+            if not n.has_trait(F.has_pcb_position) and n.has_trait(F.has_footprint)
+        )
 
         for n in node:
             assert isinstance(n, Resistor)
@@ -40,39 +38,24 @@ class LayoutHeuristicElectricalClosenessPullResistors(Layout):
                 assert False
 
             ic_side = find(
-                n.get_children(direct_only=True, types=Electrical),
+                n.get_children(direct_only=True, types=F.Electrical),
                 lambda intf: not intf.is_connected_to(level) is not None,
             )
 
-            assert isinstance(ic_side, Electrical)
-
-            place_next_to(self.parent, ic_side, n, route=True)
+            parent = get_parent_with_trait(n, F.has_footprint, include_self=False)[0]
+            assert isinstance(parent, Module)
+            place_next_to(parent, ic_side, n, route=True)
 
     @staticmethod
     def find_module_candidates(node: Node):
-        def _get_modules():
-            from faebryk.library.ElectricLogic import ElectricLogic
-            from faebryk.library.Resistor import Resistor
-
-            mods = {m for m in get_all_nodes(node) if isinstance(m, Resistor)}
-            for m in mods:
-                logic = get_parent_of_type(m, ElectricLogic)
-                if not logic:
-                    continue
-                parent = get_parent_of_type(logic, Module)
-                if not parent:
-                    continue
-
-                yield parent, m
-
-        return {
-            k: [v[1] for v in v]
-            for k, v in groupby(_get_modules(), key=lambda x: x[0]).items()
-        }
+        return node.get_children(
+            direct_only=False,
+            types=F.Resistor,
+            f_filter=lambda c: get_parent_of_type(c, F.ElectricLogic) is not None,
+        )
 
     @classmethod
     def add_to_all_suitable_modules(cls, node: Node):
-        for parent, children in cls.find_module_candidates(node).items():
-            layout = cls(parent)
-            for c in children:
-                c.add_trait(has_pcb_layout_defined(layout))
+        layout = cls()
+        for c in cls.find_module_candidates(node):
+            c.add_trait(F.has_pcb_layout_defined(layout))

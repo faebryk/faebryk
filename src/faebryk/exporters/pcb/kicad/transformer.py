@@ -727,12 +727,13 @@ class PCB_Transformer:
 
         if rot_angle:
             # Rotation vector in kicad footprint objs not relative to footprint rotation
-            # TODO: remove pad rotation, KiCad will do the rotating for us?
+            #  or is it?
             for obj in fp.pads:
-                obj.at.r = (obj.at.r) % 360
+                obj.at.r = (obj.at.r + rot_angle) % 360
             # For some reason text rotates in the opposite direction
+            #  or maybe not?
             for obj in fp.fp_texts + list(fp.propertys.values()):
-                obj.at.r = (obj.at.r - rot_angle) % 360
+                obj.at.r = (obj.at.r + rot_angle) % 360
 
         fp.at = coord
 

@@ -81,8 +81,8 @@ def _next_to_pad(
         return v1[0] - v2[0], v1[1] - v2[1]
 
     side = _get_pad_side(fp, spad)
-    vec = side.rot_vector((distance, 0))
-    vec = _add(vec, (spad.at.x, spad.at.y))
+    vec_pad_to_pad = side.rot_vector((distance, 0))
+    vec_abs_to_pad_edge = _add(vec_pad_to_pad, (spad.at.x, spad.at.y))
 
     def _rel_edge_of_pad(size):
         if side == Side.Top:
@@ -94,12 +94,16 @@ def _next_to_pad(
         else:
             return 0 + size.w / 2, 0
 
-    vec = _add(vec, _rel_edge_of_pad(spad.size))
-    vec = _add(vec, _rel_edge_of_pad(dpad.size))
+    _vec = _add(vec_abs_to_pad_edge, _rel_edge_of_pad(spad.size))
+    vec_abs_to_pad_edge = _add(_vec, _rel_edge_of_pad(dpad.size))
 
-    vec = _sub(vec, (dpad.at.x, dpad.at.y))
+    vec_abs_to_fp_center = _sub(vec_abs_to_pad_edge, (dpad.at.x, dpad.at.y))
 
-    return vec
+    # rotate fp to let pads face each other
+    dside = _get_pad_side(dfp, dpad)
+    fp_rot_rel_to_source = (dside.rot() - side.rot() - 180) % 360
+
+    return (*vec_abs_to_fp_center, fp_rot_rel_to_source)
 
 
 def place_next_to_pad(module: Module, pad: F.Pad):
@@ -125,7 +129,6 @@ def place_next_to_pad(module: Module, pad: F.Pad):
         F.has_pcb_position_defined_relative_to_parent(
             (
                 *pos,
-                0,
                 F.has_pcb_position.layer_type.NONE,
             )
         )

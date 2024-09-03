@@ -4,22 +4,23 @@
 import logging
 
 import faebryk.library._F as F
-from faebryk.core.module import Module
 from faebryk.core.node import Node
-from faebryk.core.util import get_parent_of_type, get_parent_with_trait
 from faebryk.exporters.pcb.layout.heuristic_decoupling import Params, place_next_to
 from faebryk.exporters.pcb.layout.layout import Layout
-from faebryk.libs.util import NotNone, find
+from faebryk.libs.util import NotNone
 
 logger = logging.getLogger(__name__)
 
 
 class LayoutHeuristicElectricalClosenessPullResistors(Layout):
+    Parameters = Params
+
     def __init__(self, params: Params | None = None):
         super().__init__()
         self._params = params or Params()
 
     def apply(self, *node: Node):
+        from faebryk.core.util import get_parent_of_type
         from faebryk.library.ElectricLogic import ElectricLogic
         from faebryk.library.Resistor import Resistor
 
@@ -33,25 +34,13 @@ class LayoutHeuristicElectricalClosenessPullResistors(Layout):
         for n in node:
             assert isinstance(n, Resistor)
             logic = NotNone(get_parent_of_type(n, ElectricLogic))
-            up, down = logic.get_trait(ElectricLogic.has_pulls).get_pulls()
-            if n is up:
-                level = logic.reference.hv
-            elif n is down:
-                level = logic.reference.lv
-            else:
-                assert False
 
-            ic_side = find(
-                n.get_children(direct_only=True, types=F.Electrical),
-                lambda intf: not intf.is_connected_to(level) is not None,
-            )
-
-            parent = get_parent_with_trait(n, F.has_footprint, include_self=False)[0]
-            assert isinstance(parent, Module)
-            place_next_to(parent, ic_side, n, route=True, params=self._params)
+            place_next_to(logic.signal, n, route=True, params=self._params)
 
     @staticmethod
     def find_module_candidates(node: Node):
+        from faebryk.core.util import get_parent_of_type
+
         return node.get_children(
             direct_only=False,
             types=F.Resistor,

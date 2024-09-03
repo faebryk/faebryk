@@ -4,7 +4,6 @@
 import logging
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import cast
 
 import faebryk.library._F as F
 from faebryk.core.module import Module
@@ -12,7 +11,7 @@ from faebryk.core.node import Node
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.exporters.pcb.layout.layout import Layout
 from faebryk.libs.kicad.fileformats import C_kicad_pcb_file, C_wh
-from faebryk.libs.util import KeyErrorAmbiguous, NotNone, find
+from faebryk.libs.util import KeyErrorNotFound, NotNone, find
 
 logger = logging.getLogger(__name__)
 
@@ -186,22 +185,24 @@ def place_next_to_pad(
 
 
 def place_next_to(
-    parent: Module,
-    intf: F.Electrical,
+    parent_intf: F.Electrical,
     child: Module,
     params: Params,
     route: bool = False,
 ):
-    parent_fp = parent.get_trait(F.has_footprint).get_footprint()
-    parent_pads = parent_fp.get_children(direct_only=True, types=F.Pad)
-    try:
-        parent_pad = find(
-            parent_pads, lambda p: p.net.is_connected_to(intf) is not None
-        )
-    except KeyErrorAmbiguous as e:
-        # TODO
-        e = cast(KeyErrorAmbiguous[F.Pad], e)
-        parent_pad = next(iter(sorted(e.duplicates, key=lambda x: x.get_name())))
+    pads_intf = parent_intf.get_trait(F.has_linked_pad).get_pads()
+    if len(pads_intf) == 0:
+        raise KeyErrorNotFound()
+    if len(pads_intf) > 1:
+        # raise KeyErrorAmbiguous(list(pads_intf))
+        pads_intf = sorted(pads_intf, key=lambda x: x.get_name())
+
+    parent_pad = next(iter(pads_intf))
+
+    intf = find(
+        child.get_children(direct_only=True, types=F.Electrical),
+        lambda x: x.is_connected_to(parent_intf) is not None,
+    )
 
     logger.debug(f"Placing {intf} next to {parent_pad}")
     place_next_to_pad(child, parent_pad, params)
@@ -213,12 +214,14 @@ def place_next_to(
 
 
 class LayoutHeuristicElectricalClosenessDecouplingCaps(Layout):
+    Parameters = Params
+
     def __init__(self, params: Params | None = None):
         super().__init__()
         self._params = params or Params()
 
     def apply(self, *node: Node):
-        from faebryk.core.util import get_parent_of_type, get_parent_with_trait
+        from faebryk.core.util import get_parent_of_type
 
         # Remove nodes that have a position defined
         node = tuple(
@@ -231,14 +234,7 @@ class LayoutHeuristicElectricalClosenessDecouplingCaps(Layout):
             assert isinstance(n, F.Capacitor)
             power = NotNone(get_parent_of_type(n, F.ElectricPower))
 
-            hv = find(
-                n.get_children(direct_only=True, types=F.Electrical),
-                lambda x: x.is_connected_to(power.hv) is not None,
-            )
-
-            parent = get_parent_with_trait(n, F.has_footprint, include_self=False)[0]
-            assert isinstance(parent, Module)
-            place_next_to(parent, hv, n, route=True, params=self._params)
+            place_next_to(power.hv, n, route=True, params=self._params)
 
     @staticmethod
     def find_module_candidates(node: Node):

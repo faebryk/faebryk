@@ -193,14 +193,19 @@ def get_internal_nets_of_node(
     return nets
 
 
-def get_pads_pos_of_mifs(mifs: Sequence[F.Electrical]):
+def get_pads_pos_of_mifs(
+    mifs: Sequence[F.Electrical], extra_pads: Sequence[F.Pad] | None = None
+):
     from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 
-    return {
-        pad_pos[0]: pad_pos[1]
-        for mif in mifs
-        for pad_pos in PCB_Transformer.get_pad_pos_any(mif)
-    }
+    pad_poss = [
+        pad_pos for mif in mifs for pad_pos in PCB_Transformer.get_pad_pos_any(mif)
+    ]
+
+    if extra_pads:
+        pad_poss.extend(PCB_Transformer.get_fpad_pos(fpad) for fpad in extra_pads)
+
+    return {pad_pos[0]: pad_pos[1] for pad_pos in pad_poss}
 
 
 def group_pads_that_are_connected_already(

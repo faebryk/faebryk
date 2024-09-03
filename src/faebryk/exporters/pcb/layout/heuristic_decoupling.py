@@ -3,14 +3,15 @@
 
 import logging
 from enum import IntEnum
+from typing import cast
 
 import faebryk.library._F as F
 from faebryk.core.module import Module
 from faebryk.core.node import Node
 from faebryk.exporters.pcb.kicad.transformer import PCB_Transformer
 from faebryk.exporters.pcb.layout.layout import Layout
-from faebryk.libs.kicad.fileformats import C_kicad_pcb_file
-from faebryk.libs.util import NotNone, find
+from faebryk.libs.kicad.fileformats import C_kicad_pcb_file, C_wh
+from faebryk.libs.util import KeyErrorAmbiguous, NotNone, find
 
 logger = logging.getLogger(__name__)
 
@@ -71,39 +72,73 @@ def _get_pad_side(fp: KFootprint, pad: KPad) -> Side:
     assert False
 
 
+type V2D = tuple[float, float]
+
+
+def _vec_pad_center_to_edge(size: C_wh, side: Side):
+    assert size.h is not None
+    if side == Side.Top:
+        return 0, 0 - size.h / 2
+    elif side == Side.Bottom:
+        return 0, 0 + size.h / 2
+    elif side == Side.Left:
+        return 0 - size.w / 2, 0
+    else:
+        return 0 + size.w / 2, 0
+
+
 def _next_to_pad(
     fp: KFootprint, spad: KPad, dfp: KFootprint, dpad: KPad, distance: float
 ):
-    def _add(v1, v2):
+    def _add(v1: V2D, v2: V2D) -> V2D:
         return v1[0] + v2[0], v1[1] + v2[1]
 
-    def _sub(v1, v2):
+    def _sub(v1: V2D, v2: V2D) -> V2D:
         return v1[0] - v2[0], v1[1] - v2[1]
 
     side = _get_pad_side(fp, spad)
-    vec_pad_to_pad = side.rot_vector((distance, 0))
-    vec_abs_to_pad_edge = _add(vec_pad_to_pad, (spad.at.x, spad.at.y))
-
-    def _rel_edge_of_pad(size):
-        if side == Side.Top:
-            return 0, 0 + size.h / 2
-        elif side == Side.Bottom:
-            return 0, 0 - size.h / 2
-        elif side == Side.Left:
-            return 0 - size.w / 2, 0
-        else:
-            return 0 + size.w / 2, 0
-
-    _vec = _add(vec_abs_to_pad_edge, _rel_edge_of_pad(spad.size))
-    vec_abs_to_pad_edge = _add(_vec, _rel_edge_of_pad(dpad.size))
-
-    vec_abs_to_fp_center = _sub(vec_abs_to_pad_edge, (dpad.at.x, dpad.at.y))
 
     # rotate fp to let pads face each other
     dside = _get_pad_side(dfp, dpad)
-    fp_rot_rel_to_source = (dside.rot() - side.rot() - 180) % 360
+    fp_rot_rel_to_source = (side.rot() - dside.rot() - 180) % 360
 
-    return (*vec_abs_to_fp_center, fp_rot_rel_to_source)
+    vec_distance_directed = side.rot_vector((distance, 0))
+    vec_distance_from_pad_center = _add(vec_distance_directed, (spad.at.x, spad.at.y))
+
+    # make vec distance between edges instead of center
+    _spad_edge_vec = _vec_pad_center_to_edge(spad.size, side)
+    _dpad_edge_vec = Side(fp_rot_rel_to_source).rot_vector(
+        _vec_pad_center_to_edge(dpad.size, dside)
+    )
+    vec_distance_from_pad_edge = _sub(
+        _add(vec_distance_from_pad_center, _spad_edge_vec), _dpad_edge_vec
+    )
+
+    # get vector to fp center (instead of pad center)
+    _vec_pad_to_fp = Side(fp_rot_rel_to_source).rot_vector((-dpad.at.x, -dpad.at.y))
+    vec_to_fp_center = _add(vec_distance_from_pad_edge, _vec_pad_to_fp)
+
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            f"Next to pad: {fp.name}|{fp.propertys['Reference'].value}.{spad.name}"
+            f" with {dfp.name}|{dfp.propertys['Reference'].value}.{dpad.name}:"
+            f"\n     {fp.at=}"
+            f"\n     {spad.at=} | {spad.size=}"
+            f"\n     {dpad.at=} | {dpad.size=}"
+            f"\n     {side=}"
+            f"\n     {dside=}"
+            f"\n     {fp_rot_rel_to_source=}"
+            f"\n     {vec_distance_directed=}"
+            f"\n     {vec_distance_from_pad_center=}"
+            f"\n     {_spad_edge_vec=} | {_dpad_edge_vec=}"
+            f"\n     {vec_distance_from_pad_edge=}"
+            f"\n     {vec_to_fp_center=}"
+        )
+
+    # in fp system clockwise, in pcb counter clockwise
+    rot_pcb_coord_system = (-fp_rot_rel_to_source) % 360
+
+    return (*vec_to_fp_center, rot_pcb_coord_system)
 
 
 def place_next_to_pad(module: Module, pad: F.Pad):
@@ -122,7 +157,7 @@ def place_next_to_pad(module: Module, pad: F.Pad):
         raise NotImplementedError()
     nkpad = nkpad[0]
 
-    # TODO rot & layer not correct
+    # TODO determine distance based on pads & footprint size
     pos = _next_to_pad(kfp, kpad, nkfp, nkpad, distance=1)
 
     module.add_trait(
@@ -140,13 +175,20 @@ def place_next_to(
 ):
     parent_fp = parent.get_trait(F.has_footprint).get_footprint()
     parent_pads = parent_fp.get_children(direct_only=True, types=F.Pad)
-    parent_pad = find(parent_pads, lambda p: p.net.is_connected_to(intf) is not None)
+    try:
+        parent_pad = find(
+            parent_pads, lambda p: p.net.is_connected_to(intf) is not None
+        )
+    except KeyErrorAmbiguous as e:
+        e = cast(KeyErrorAmbiguous[F.Pad], e)
+        parent_pad = next(iter(sorted(e.duplicates, key=lambda x: x.get_name())))
 
+    logger.debug(f"Placing {intf} next to {parent_pad}")
     place_next_to_pad(child, parent_pad)
 
     if route:
         intf.add_trait(
-            F.has_pcb_routing_strategy_greedy_direct_line(extra_mifs=[parent_pad.net])
+            F.has_pcb_routing_strategy_greedy_direct_line(extra_pads=[parent_pad])
         )
 
 

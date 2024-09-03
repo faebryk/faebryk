@@ -7,7 +7,7 @@ import faebryk.library._F as F
 from faebryk.core.module import Module
 from faebryk.core.node import Node
 from faebryk.core.util import get_parent_of_type, get_parent_with_trait
-from faebryk.exporters.pcb.layout.heuristic_decoupling import place_next_to
+from faebryk.exporters.pcb.layout.heuristic_decoupling import Params, place_next_to
 from faebryk.exporters.pcb.layout.layout import Layout
 from faebryk.libs.util import NotNone, find
 
@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class LayoutHeuristicElectricalClosenessPullResistors(Layout):
+    def __init__(self, params: Params | None = None):
+        super().__init__()
+        self._params = params or Params()
+
     def apply(self, *node: Node):
         from faebryk.library.ElectricLogic import ElectricLogic
         from faebryk.library.Resistor import Resistor
@@ -44,7 +48,7 @@ class LayoutHeuristicElectricalClosenessPullResistors(Layout):
 
             parent = get_parent_with_trait(n, F.has_footprint, include_self=False)[0]
             assert isinstance(parent, Module)
-            place_next_to(parent, ic_side, n, route=True)
+            place_next_to(parent, ic_side, n, route=True, params=self._params)
 
     @staticmethod
     def find_module_candidates(node: Node):
@@ -55,7 +59,7 @@ class LayoutHeuristicElectricalClosenessPullResistors(Layout):
         )
 
     @classmethod
-    def add_to_all_suitable_modules(cls, node: Node):
-        layout = cls()
+    def add_to_all_suitable_modules(cls, node: Node, params: Params | None = None):
+        layout = cls(params)
         for c in cls.find_module_candidates(node):
             c.add_trait(F.has_pcb_layout_defined(layout))

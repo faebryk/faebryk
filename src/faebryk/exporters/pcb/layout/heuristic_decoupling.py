@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from dataclasses import dataclass
 from enum import IntEnum
 from typing import cast
 
@@ -20,6 +21,12 @@ KFootprint = C_kicad_pcb_file.C_kicad_pcb.C_pcb_footprint
 KPad = KFootprint.C_pad
 
 # TODO move all those helpers and make them more general and precise
+
+
+@dataclass
+class Params:
+    distance_between_pad_edges: float = 1
+    extra_rotation_of_footprint: float = 0
 
 
 class Side(IntEnum):
@@ -88,8 +95,11 @@ def _vec_pad_center_to_edge(size: C_wh, side: Side):
 
 
 def _next_to_pad(
-    fp: KFootprint, spad: KPad, dfp: KFootprint, dpad: KPad, distance: float
+    fp: KFootprint, spad: KPad, dfp: KFootprint, dpad: KPad, params: Params
 ):
+    # TODO determine distance based on pads & footprint size
+    distance = params.distance_between_pad_edges
+
     def _add(v1: V2D, v2: V2D) -> V2D:
         return v1[0] + v2[0], v1[1] + v2[1]
 
@@ -98,9 +108,11 @@ def _next_to_pad(
 
     side = _get_pad_side(fp, spad)
 
-    # rotate fp to let pads face each other
+    # rotate fp to let pads face each other (+extra rotation)
     dside = _get_pad_side(dfp, dpad)
-    fp_rot_rel_to_source = (side.rot() - dside.rot() - 180) % 360
+    fp_rot_rel_to_source = (
+        side.rot() - dside.rot() - 180 + params.extra_rotation_of_footprint
+    ) % 360
 
     vec_distance_directed = side.rot_vector((distance, 0))
     vec_distance_from_pad_center = _add(vec_distance_directed, (spad.at.x, spad.at.y))
@@ -141,7 +153,11 @@ def _next_to_pad(
     return (*vec_to_fp_center, rot_pcb_coord_system)
 
 
-def place_next_to_pad(module: Module, pad: F.Pad):
+def place_next_to_pad(
+    module: Module,
+    pad: F.Pad,
+    params: Params,
+):
     kfp, kpad = pad.get_trait(PCB_Transformer.has_linked_kicad_pad).get_pad()
     if len(kpad) != 1:
         raise NotImplementedError()
@@ -157,8 +173,7 @@ def place_next_to_pad(module: Module, pad: F.Pad):
         raise NotImplementedError()
     nkpad = nkpad[0]
 
-    # TODO determine distance based on pads & footprint size
-    pos = _next_to_pad(kfp, kpad, nkfp, nkpad, distance=1)
+    pos = _next_to_pad(kfp, kpad, nkfp, nkpad, params)
 
     module.add_trait(
         F.has_pcb_position_defined_relative_to_parent(
@@ -171,7 +186,11 @@ def place_next_to_pad(module: Module, pad: F.Pad):
 
 
 def place_next_to(
-    parent: Module, intf: F.Electrical, child: Module, route: bool = False
+    parent: Module,
+    intf: F.Electrical,
+    child: Module,
+    params: Params,
+    route: bool = False,
 ):
     parent_fp = parent.get_trait(F.has_footprint).get_footprint()
     parent_pads = parent_fp.get_children(direct_only=True, types=F.Pad)
@@ -180,11 +199,12 @@ def place_next_to(
             parent_pads, lambda p: p.net.is_connected_to(intf) is not None
         )
     except KeyErrorAmbiguous as e:
+        # TODO
         e = cast(KeyErrorAmbiguous[F.Pad], e)
         parent_pad = next(iter(sorted(e.duplicates, key=lambda x: x.get_name())))
 
     logger.debug(f"Placing {intf} next to {parent_pad}")
-    place_next_to_pad(child, parent_pad)
+    place_next_to_pad(child, parent_pad, params)
 
     if route:
         intf.add_trait(
@@ -193,6 +213,10 @@ def place_next_to(
 
 
 class LayoutHeuristicElectricalClosenessDecouplingCaps(Layout):
+    def __init__(self, params: Params | None = None):
+        super().__init__()
+        self._params = params or Params()
+
     def apply(self, *node: Node):
         from faebryk.core.util import get_parent_of_type, get_parent_with_trait
 
@@ -214,7 +238,7 @@ class LayoutHeuristicElectricalClosenessDecouplingCaps(Layout):
 
             parent = get_parent_with_trait(n, F.has_footprint, include_self=False)[0]
             assert isinstance(parent, Module)
-            place_next_to(parent, hv, n, route=True)
+            place_next_to(parent, hv, n, route=True, params=self._params)
 
     @staticmethod
     def find_module_candidates(node: Node):
@@ -227,7 +251,7 @@ class LayoutHeuristicElectricalClosenessDecouplingCaps(Layout):
         )
 
     @classmethod
-    def add_to_all_suitable_modules(cls, node: Node):
-        layout = cls()
+    def add_to_all_suitable_modules(cls, node: Node, params: Params | None = None):
+        layout = cls(params)
         for c in cls.find_module_candidates(node):
             c.add_trait(F.has_pcb_layout_defined(layout))
